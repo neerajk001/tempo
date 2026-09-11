@@ -456,14 +456,18 @@ export default function FocusView() {
             )}
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setPrefs({ timerHidden: false })}
-            title="Show timer"
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[65] h-9 w-9 rounded-full bg-surface-container-lowest/85 border border-outline-variant backdrop-blur flex items-center justify-center text-on-surface-variant hover:text-on-surface shadow-lg"
-          >
-            <Icon name="visibility" className="text-[18px]" />
-          </button>
+          <div className="flex flex-col items-center justify-center py-10 gap-2">
+            <button
+              type="button"
+              onClick={() => setPrefs({ timerHidden: false })}
+              title="Show timer"
+              className="h-9 px-4 rounded-full bg-surface-container-lowest/85 border border-outline-variant backdrop-blur flex items-center gap-2 text-on-surface-variant hover:text-on-surface shadow-lg text-body-sm font-medium"
+            >
+              <Icon name="visibility" className="text-[18px]" />
+              <span>Show timer</span>
+            </button>
+            <span className="text-label-xs text-on-surface-variant">Timer hidden — session still running</span>
+          </div>
         )}
 
         <div className={`flex flex-col items-center gap-3 mt-5 w-full ${chromeClass}`}>
