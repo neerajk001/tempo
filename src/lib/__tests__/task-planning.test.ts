@@ -50,4 +50,16 @@ describe("task pomodoro planning", () => {
     expect(countPlannedPomodoros(360, 50)).toBe(8);
     expect(countPlannedPomodoros(50, 50)).toBe(1);
   });
+
+  it("splits 60min by a custom 25m focus into focus blocks only (breaks never counted)", () => {
+    const plan = calculatePomodoroPlan(60, 25);
+    expect(plan).toEqual([
+      { index: 1, minutes: 25, isPartial: false },
+      { index: 2, minutes: 25, isPartial: false },
+      { index: 3, minutes: 10, isPartial: true },
+    ]);
+    // Every planned minute is focus time; break cadence lives outside the plan.
+    expect(plan.reduce((s, p) => s + p.minutes, 0)).toBe(60);
+    expect(countPlannedPomodoros(60, 25)).toBe(3);
+  });
 });

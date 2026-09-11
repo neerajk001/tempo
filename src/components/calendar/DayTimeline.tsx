@@ -97,6 +97,9 @@ function TaskBlock({ task, dayStart, dayEnd }: { task: Task; dayStart: number; d
     slices = [];
   }
   const doneCount = task.completedPomodoros;
+  // Pomodoro counts are focus blocks only — interleaved BREAK display
+  // slices must never inflate them.
+  const focusSliceCount = slices.filter((sl) => sl.kind === "focus").length;
 
   return (
     <div
@@ -117,7 +120,7 @@ function TaskBlock({ task, dayStart, dayEnd }: { task: Task; dayStart: number; d
           </span>
         </div>
         <span className="font-mono text-code-badge text-primary font-semibold bg-surface-container-lowest px-2 py-0.5 rounded shadow-sm whitespace-nowrap hidden sm:inline">
-          Pomodoro {Math.min(doneCount + 1, Math.max(slices.length, 1))} of {Math.max(task.completedPomodoros + slices.length, 1)}
+          Pomodoro {Math.min(doneCount + 1, Math.max(focusSliceCount, 1))} of {Math.max(task.completedPomodoros + focusSliceCount, 1)}
         </span>
       </div>
       {height > 110 && (

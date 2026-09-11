@@ -47,6 +47,19 @@ body {
   outline-offset: 2px;
 }
 
+/* Native controls follow the dark theme */
+select,
+input {
+  color-scheme: dark;
+}
+
+/* Native dropdown lists ignore most inheritance, so the opened option list
+   gets explicit dark surfaces — otherwise it renders white on dark UI. */
+select option {
+  background-color: #1c1b18;
+  color: #f2ede3;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-breathe,
   .animate-pulse-ring,

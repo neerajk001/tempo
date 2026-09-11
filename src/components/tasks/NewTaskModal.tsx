@@ -51,6 +51,8 @@ export default function NewTaskModal({
   const [project, setProject] = useState<string>("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [focusMinutes, setFocusMinutes] = useState(50);
+  const [customFocus, setCustomFocus] = useState(50);
+  const [useCustomFocus, setUseCustomFocus] = useState(false);
   const [shortBreak, setShortBreak] = useState(10);
   const [longBreak, setLongBreak] = useState(30);
   const [longInterval, setLongInterval] = useState(4);
@@ -72,6 +74,8 @@ export default function NewTaskModal({
       setProject(initial.project ?? "");
       setPriority(initial.priority ?? "medium");
       setFocusMinutes(initial.focusMinutes);
+      setCustomFocus(initial.focusMinutes);
+      setUseCustomFocus(!FOCUS_OPTIONS.includes(initial.focusMinutes));
       setShortBreak(initial.shortBreakMinutes ?? 10);
       setLongBreak(initial.longBreakMinutes ?? 30);
       setLongInterval(initial.longBreakInterval ?? 4);
@@ -87,6 +91,8 @@ export default function NewTaskModal({
       setProject("");
       setPriority("medium");
       setFocusMinutes(50);
+      setCustomFocus(50);
+      setUseCustomFocus(false);
       setShortBreak(10);
       setLongBreak(30);
       setLongInterval(4);
@@ -112,13 +118,14 @@ export default function NewTaskModal({
   }, [open, authStatus]);
 
   const effectiveAllocated = useCustom ? Math.round(customHours * 60 + customMins) : allocated;
+  const effectiveFocus = useCustomFocus ? Math.min(180, Math.max(5, Math.round(customFocus))) : focusMinutes;
   const cycles = useMemo(() => {
     try {
-      return countPlannedPomodoros(Math.max(1, effectiveAllocated), focusMinutes);
+      return countPlannedPomodoros(Math.max(1, effectiveAllocated), effectiveFocus);
     } catch {
       return 0;
     }
-  }, [effectiveAllocated, focusMinutes]);
+  }, [effectiveAllocated, effectiveFocus]);
 
   useEffect(() => {
     if (!open) return;
@@ -129,7 +136,7 @@ export default function NewTaskModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, title, description, date, effectiveAllocated, focusMinutes, shortBreak, longBreak, longInterval, project, priority, eventId, initial]);
+  }, [open, title, description, date, effectiveAllocated, effectiveFocus, customFocus, useCustomFocus, shortBreak, longBreak, longInterval, project, priority, eventId, initial]);
 
   if (!open) return null;
 
@@ -141,7 +148,7 @@ export default function NewTaskModal({
         description,
         date,
         allocatedMinutes: effectiveAllocated,
-        focusMinutes,
+        focusMinutes: effectiveFocus,
         shortBreakMinutes: shortBreak,
         longBreakMinutes: longBreak,
         longBreakInterval: longInterval,
@@ -329,11 +336,39 @@ export default function NewTaskModal({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
               <label className="flex flex-col p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
                 <span className="text-label-xs text-on-surface-variant">Focus Window</span>
-                <select value={focusMinutes} onChange={(e) => setFocusMinutes(Number(e.target.value))} className="mt-0.5 font-mono text-body-sm font-semibold text-on-surface bg-transparent focus:outline-none">
+                <select
+                  value={useCustomFocus ? "custom" : focusMinutes}
+                  onChange={(e) => {
+                    if (e.target.value === "custom") {
+                      setCustomFocus(focusMinutes);
+                      setUseCustomFocus(true);
+                    } else {
+                      setFocusMinutes(Number(e.target.value));
+                      setUseCustomFocus(false);
+                    }
+                  }}
+                  className="mt-0.5 font-mono text-body-sm font-semibold text-on-surface bg-transparent focus:outline-none cursor-pointer"
+                >
                   {FOCUS_OPTIONS.map((m) => (
                     <option key={m} value={m}>{m}m</option>
                   ))}
+                  <option value="custom">Custom…</option>
                 </select>
+                {useCustomFocus && (
+                  <span className="mt-1.5 flex items-center gap-1">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={5}
+                      max={180}
+                      value={customFocus}
+                      onChange={(e) => setCustomFocus(Number(e.target.value))}
+                      aria-label="Custom focus minutes"
+                      className="h-7 w-full rounded-md bg-surface-container-low px-2 font-mono text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container"
+                    />
+                    <span className="font-mono text-label-xs text-on-surface-variant">m</span>
+                  </span>
+                )}
               </label>
               <label className="flex flex-col p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
                 <span className="text-label-xs text-on-surface-variant">Short Break</span>
