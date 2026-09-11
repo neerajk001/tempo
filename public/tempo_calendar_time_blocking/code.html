@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-surface":"#141b2b","on-tertiary-fixed-variant":"#003ea8","secondary-fixed":"#dae2fd","secondary":"#565e74","background":"#f9f9ff","on-primary-fixed":"#0f0069","surface-variant":"#dce2f7","surface":"#f9f9ff","secondary-fixed-dim":"#bec6e0","inverse-primary":"#c3c0ff","surface-container-low":"#f1f3ff","on-surface-variant":"#464555","primary-fixed":"#e2dfff","primary-fixed-dim":"#c3c0ff","outline":"#777587","on-secondary-container":"#5c647a","tertiary":"#003fac","tertiary-container":"#0555dd","inverse-surface":"#293040","on-primary-fixed-variant":"#3323cc","error-container":"#ffdad6","tertiary-fixed-dim":"#b4c5ff","inverse-on-surface":"#edf0ff","surface-container-lowest":"#ffffff","error":"#ba1a1a","surface-container":"#e9edff","on-secondary-fixed":"#131b2e","primary":"#3525cd","tertiary-fixed":"#dbe1ff","primary-container":"#4f46e5","on-tertiary":"#ffffff","on-background":"#141b2b","surface-container-high":"#e1e8fd","on-secondary-fixed-variant":"#3f465c","surface-tint":"#4d44e3","on-primary-container":"#dad7ff","surface-dim":"#d3daef","on-error":"#ffffff","on-error-container":"#93000a","surface-container-highest":"#dce2f7","on-primary":"#ffffff","secondary-container":"#dae2fd","outline-variant":"#c7c4d8","surface-bright":"#f9f9ff","on-tertiary-container":"#d1daff","on-secondary":"#ffffff","on-tertiary-fixed":"#00174b"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xs":"0.25rem","space-2xl":"3rem","space-2xs":"0.125rem","space-xl":"2rem","gutter-utility-rail":"20rem","density-row-normal":"2.25rem","gutter-sidebar":"15rem","space-md":"0.75rem","space-base":"1rem","space-sm":"0.5rem","density-row-compact":"1.75rem","space-lg":"1.5rem"},fontFamily:{"headline-md":["Geist"],"body-sm":["Geist"],"metric-mono-md":["JetBrains Mono"],"display-xl-mobile":["Geist"],"metric-mono-lg":["JetBrains Mono"],"display-xl":["Geist"],"body-md":["Geist"],"headline-lg":["Geist"],"code-badge":["JetBrains Mono"],"label-xs":["Geist"]},fontSize:{"headline-md":["16px",{"lineHeight":"22px","letterSpacing":"-0.015em","fontWeight":"600"}],"body-sm":["13px",{"lineHeight":"18px","letterSpacing":"-0.005em","fontWeight":"400"}],"metric-mono-md":["14px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"500"}],"display-xl-mobile":["26px",{"lineHeight":"32px","letterSpacing":"-0.025em","fontWeight":"600"}],"metric-mono-lg":["28px",{"lineHeight":"32px","letterSpacing":"-0.03em","fontWeight":"500"}],"display-xl":["32px",{"lineHeight":"40px","letterSpacing":"-0.03em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"400"}],"headline-lg":["22px",{"lineHeight":"28px","letterSpacing":"-0.02em","fontWeight":"600"}],"code-badge":["11px",{"lineHeight":"14px","letterSpacing":"0.01em","fontWeight":"500"}],"label-xs":["11px",{"lineHeight":"14px","letterSpacing":"0.02em","fontWeight":"500"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased min-h-screen"><aside class="fixed left-0 top-0 h-screen w-[230px] bg-surface-container-lowest z-40 flex flex-col justify-between border-r border-outline-variant/30 select-none"><div class="flex flex-col"><div class="h-14 px-space-md flex items-center justify-between border-b border-outline-variant/20"><div class="flex items-center gap-space-sm"><img alt="Tempo Logo" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9MTktHRAxzKgVz94Oyoiy5t4L0Zg5sTOHVzLG29x-2Pi9wX-kB_Bz2irWFpDHMwCyJ4N7G72h28ulK9i9-yuGgEuuGVd598nq6VMBbq7ML9daJZJYnGCh9yGVQ0aTi98u9lQgFQJyvixHTZnFtELEuUh7-fJj8OFG65SbMpVG5UGp2hS4OeDABktKxT4KHwSfBy6igasXel1m590FoLhRlEPKFz6zIXcFkwUmz6hKG3EmKSBaGPpp"/><span class="font-headline-md text-headline-md text-on-surface tracking-tight">Tempo</span></div><span class="font-code-badge text-code-badge bg-secondary-container text-on-secondary-fixed font-semibold px-space-xs py-space-2xs rounded">PRO</span></div><div class="p-space-sm"><div class="text-label-xs font-label-xs text-on-surface-variant uppercase tracking-wider px-space-sm py-space-xs font-medium">Workspaces</div><nav class="flex flex-col gap-space-2xs" data-active-classes="bg-secondary-container text-on-surface font-semibold rounded-lg"><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[18px]">grid_view</span><span>Dashboard</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-sm h-density-row-compact transition-colors bg-secondary-container text-on-surface font-semibold rounded-lg" data-path="today" href="#"><span class="material-symbols-outlined text-[18px]">schedule</span><span>Today</span></a><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="tasks" href="#"><span class="material-symbols-outlined text-[18px]">check_box</span><span>Tasks</span></a><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="calendar" href="#"><span class="material-symbols-outlined text-[18px]">calendar_today</span><span>Calendar</span></a><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="history" href="#"><span class="material-symbols-outlined text-[18px]">bar_chart</span><span>History</span></a></nav></div></div><div class="flex flex-col border-t border-outline-variant/20 p-space-sm gap-space-2xs"><nav class="flex flex-col" data-active-classes="bg-secondary-container text-on-surface font-semibold rounded-lg"><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="settings" href="#"><span class="material-symbols-outlined text-[18px]">tune</span><span>Settings</span></a></nav><div class="flex items-center justify-between p-space-xs rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer group"><div class="flex items-center gap-space-sm min-w-0"><div class="relative flex-shrink-0"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHltj9nlFbLeMDE0eAGGZlRwugU0lwbuyipuRGg8iAkIIpey6W54yiRhAoYJiyAJjDm6f1FgajD1o0kLyux1xAsPyw7vtcRgv1p3i7umRN1EcE1oKrAICXhrVyk12hNNmZ4WJRHVOZNslCW2LmOJqFeRLtGGIYldbDJ9ywMBYw21YV_LmAToU0wvmlzBuqLHEXGiyppyxqkbJu_wfJElI3dSGcRwM6EXAeUw39yq_PisDX1x-NDcBt"/><span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-primary ring-2 ring-surface-container-lowest"></span></div><div class="flex flex-col min-w-0 leading-tight"><span class="font-body-sm text-body-sm font-semibold text-on-surface truncate">Neeraj</span><span class="font-label-xs text-label-xs text-on-surface-variant truncate">neeraj@tempo.io</span></div></div><button class="p-space-2xs text-on-surface-variant group-hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">unfold_more</span></button></div></div></aside><div class="pl-[230px] min-h-screen flex flex-col bg-surface"><header class="fixed top-0 left-[230px] right-0 h-14 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 z-30 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-sm"><img alt="Tempo Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9MTktHRAxzKgVz94Oyoiy5t4L0Zg5sTOHVzLG29x-2Pi9wX-kB_Bz2irWFpDHMwCyJ4N7G72h28ulK9i9-yuGgEuuGVd598nq6VMBbq7ML9daJZJYnGCh9yGVQ0aTi98u9lQgFQJyvixHTZnFtELEuUh7-fJj8OFG65SbMpVG5UGp2hS4OeDABktKxT4KHwSfBy6igasXel1m590FoLhRlEPKFz6zIXcFkwUmz6hKG3EmKSBaGPpp"/><div class="h-4 w-px bg-outline-variant/40"></div><div class="flex items-center gap-space-xs text-on-surface-variant font-code-badge text-code-badge bg-surface-container-low px-space-sm py-space-2xs rounded border border-outline-variant/30"><span class="material-symbols-outlined text-[14px]">search</span><span>Cmd + K</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><button class="p-space-xs rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span></button><button class="p-space-xs rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">help_outline</span></button></div><div class="h-4 w-px bg-outline-variant/40"></div><div class="flex items-center gap-space-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHltj9nlFbLeMDE0eAGGZlRwugU0lwbuyipuRGg8iAkIIpey6W54yiRhAoYJiyAJjDm6f1FgajD1o0kLyux1xAsPyw7vtcRgv1p3i7umRN1EcE1oKrAICXhrVyk12hNNmZ4WJRHVOZNslCW2LmOJqFeRLtGGIYldbDJ9ywMBYw21YV_LmAToU0wvmlzBuqLHEXGiyppyxqkbJu_wfJElI3dSGcRwM6EXAeUw39yq_PisDX1x-NDcBt"/></div></div></header><main class="w-full pt-14 px-space-lg flex-1 bg-surface"><div class="flex flex-col w-full pb-space-2xl">
+<!-- Active Navigation Sync for Shell (Calendar route highlight) -->
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+      try {
+        const asideLinks = document.querySelectorAll('aside nav a[data-path]');
+        asideLinks.forEach(link => {
+          if (link.getAttribute('data-path') === 'calendar') {
+            link.className = "flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg bg-secondary-container text-on-surface font-semibold font-body-sm text-body-sm transition-colors";
+          } else {
+            link.className = "flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm";
+          }
+        });
+      } catch (e) {}
+    });
+  </script>
+<!-- Page Header & Sync Controls -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md pt-space-lg pb-space-base">
+<div class="flex flex-col gap-space-2xs">
+<div class="flex items-center gap-space-sm">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Calendar</h1>
+<span class="font-code-badge text-code-badge px-space-xs py-space-2xs rounded bg-surface-container text-on-surface-variant">Time Engine</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Plan your day around the time you actually have.</p>
+</div>
+<div class="flex items-center flex-wrap gap-space-sm">
+<div class="flex items-center gap-space-xs px-space-sm py-space-2xs rounded-lg bg-surface-container-lowest shadow-sm text-on-surface-variant">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</span>
+<span class="font-label-xs text-label-xs">Google Calendar synced • 2m ago</span>
+</div>
+<button class="flex items-center gap-space-xs px-space-sm h-8 rounded-lg bg-surface-container-lowest shadow-sm hover:bg-surface-container-low text-on-surface transition-colors font-body-sm text-body-sm" id="sync-btn" type="button">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">sync</span>
+<span>Sync Now</span>
+<span class="font-code-badge text-code-badge bg-surface-container text-on-surface-variant px-1 rounded shadow-xs ml-1">⌘R</span>
+</button>
+<div class="relative">
+<button class="flex items-center gap-space-xs px-space-sm h-8 rounded-lg bg-surface-container-lowest shadow-sm hover:bg-surface-container-low text-on-surface transition-colors font-body-sm text-body-sm" id="settings-menu-toggle" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">calendar_month</span>
+<span class="truncate max-w-[170px]">neeraj@tempo.io</span>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant">keyboard_arrow_down</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Date Navigation & Horizon Telemetry Bar -->
+<div class="flex flex-col gap-space-sm mb-space-lg">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm p-space-sm bg-surface-container-lowest rounded-xl shadow-sm">
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center bg-surface-container-low rounded-lg p-space-2xs">
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" title="Previous Day" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<div class="px-space-sm py-space-2xs font-headline-md text-headline-md text-on-surface select-none">
+            Thursday, September 10, 2026
+          </div>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" title="Next Day" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+<button class="px-space-sm h-7 rounded bg-surface-container-low hover:bg-surface-container text-on-surface transition-colors font-body-sm text-body-sm" type="button">
+          Today
+        </button>
+</div>
+<!-- Segmented View Modes -->
+<div class="flex items-center bg-surface-container-low p-space-2xs rounded-lg">
+<button class="px-space-md py-1 rounded bg-surface-container-lowest text-on-surface shadow-sm font-label-xs text-label-xs font-semibold" type="button">
+          Day View
+        </button>
+<button class="px-space-md py-1 rounded text-on-surface-variant hover:text-on-surface transition-colors font-label-xs text-label-xs" type="button">
+          3-Day
+        </button>
+<button class="px-space-md py-1 rounded text-on-surface-variant hover:text-on-surface transition-colors font-label-xs text-label-xs" type="button">
+          Week
+        </button>
+</div>
+</div>
+<!-- Day Telemetry Strip -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-space-xs">
+<div class="p-space-sm bg-surface-container-lowest rounded-xl shadow-sm flex flex-col justify-between">
+<span class="font-label-xs text-label-xs uppercase tracking-wider text-on-surface-variant">Total Work Blocked</span>
+<div class="flex items-baseline gap-space-xs mt-space-2xs">
+<span class="font-metric-mono-lg text-metric-mono-lg text-on-surface">8h 00m</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">/ 8h cap</span>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container-lowest rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-xs text-label-xs uppercase tracking-wider text-on-surface-variant">Deep Focus</span>
+<span class="font-code-badge text-code-badge px-1 py-0.5 rounded bg-secondary-container text-on-secondary-fixed">6 Pomodoros</span>
+</div>
+<div class="flex items-baseline gap-space-xs mt-space-2xs">
+<span class="font-metric-mono-lg text-metric-mono-lg text-primary">5h 24m</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">68% ratio</span>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container-lowest rounded-xl shadow-sm flex flex-col justify-between">
+<span class="font-label-xs text-label-xs uppercase tracking-wider text-on-surface-variant">Calendar Meetings</span>
+<div class="flex items-baseline gap-space-xs mt-space-2xs">
+<span class="font-metric-mono-lg text-metric-mono-lg text-on-surface">1h 00m</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">1 call</span>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container-lowest rounded-xl shadow-sm flex flex-col justify-between">
+<span class="font-label-xs text-label-xs uppercase tracking-wider text-on-surface-variant">Open Buffers</span>
+<div class="flex items-baseline gap-space-xs mt-space-2xs">
+<span class="font-metric-mono-lg text-metric-mono-lg text-secondary">1h 36m</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">slack/prep</span>
+</div>
+</div>
+<div class="col-span-2 md:col-span-1 p-space-sm bg-amber-50 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-center gap-space-xs text-amber-900">
+<span class="material-symbols-outlined text-[16px] text-amber-600">warning</span>
+<span class="font-label-xs text-label-xs font-semibold uppercase tracking-wider">Collision Alert</span>
+</div>
+<div class="mt-space-2xs">
+<span class="font-body-sm text-body-sm font-semibold text-amber-950">1 Conflict at 14:00</span>
+<span class="block font-label-xs text-label-xs text-amber-700">Arch Review overlap</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Primary Interactive Dual-Column Canvas -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-base items-start">
+<!-- LEFT/CENTER CANVAS: High-Precision Timeline (Col span 8-9) -->
+<section class="xl:col-span-9 bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col relative overflow-hidden">
+<!-- Grid Header / Meta status -->
+<div class="flex items-center justify-between pb-space-sm mb-space-sm bg-surface-container-low/40 px-space-sm py-space-xs rounded-lg">
+<div class="flex items-center gap-space-sm">
+<span class="font-code-badge text-code-badge text-on-surface font-semibold">GRID CADENCE</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">15-minute quanta • Continuous current-time cursor</span>
+</div>
+<div class="flex items-center gap-space-xs font-label-xs text-label-xs text-on-surface-variant">
+<span class="inline-block w-2.5 h-2.5 rounded-sm bg-primary"></span>
+<span>Tempo Focus</span>
+<span class="inline-block w-2.5 h-2.5 rounded-sm bg-surface-variant ml-space-xs"></span>
+<span>Buffer</span>
+<span class="inline-block w-2.5 h-2.5 rounded-sm bg-tertiary-fixed ml-space-xs"></span>
+<span>G-Calendar</span>
+</div>
+</div>
+<!-- Live Timeline Container -->
+<div class="relative w-full select-none" style="min-height: 960px;">
+<!-- Background Hour Reference Tracks (08:00 to 19:00 = 11 intervals x 80px = 880px + padding) -->
+<div class="flex flex-col w-full h-full pointer-events-none">
+<!-- 08:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">08:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 09:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">09:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 10:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">10:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 11:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">11:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 12:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">12:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 13:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">13:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 14:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">14:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 15:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">15:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 16:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">16:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 17:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">17:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 18:00 -->
+<div class="h-20 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">18:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+<!-- 19:00 -->
+<div class="h-10 flex items-start">
+<div class="w-16 font-metric-mono-md text-metric-mono-md text-on-surface-variant pr-space-sm text-right -mt-2.5">19:00</div>
+<div class="flex-1 h-px bg-surface-container-low mt-0"></div>
+</div>
+</div>
+<!-- Floating Live Needle: 10:48 AM -->
+<!-- Calculation: 08:00 is top: 0px. Each hour = 80px. 10:48 = 2h + 48m = 160 + (48/60 * 80) = 224px -->
+<div class="absolute left-0 right-0 z-20 flex items-center pointer-events-none" style="top: 224px;">
+<div class="w-16 pr-1 flex justify-end">
+<span class="bg-primary text-on-primary font-code-badge text-code-badge font-semibold px-1 py-0.5 rounded shadow-sm">10:48</span>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-primary -ml-1 ring-2 ring-surface-container-lowest"></div>
+<div class="flex-1 h-[2px] bg-primary"></div>
+</div>
+<!-- TIMELINE EVENTS OVERLAY LAYER (Absolute positioning aligned to right of 64px time column) -->
+<div class="absolute left-20 right-2 top-0 bottom-0 pointer-events-auto">
+<!-- 09:00 - 09:30: Google Calendar "Daily Engineering Sync" (top: 80px, height: 40px) -->
+<div class="absolute left-0 right-0 top-[80px] h-[40px] rounded-lg bg-surface-container-high/70 shadow-xs px-space-sm py-1 flex items-center justify-between hover:bg-surface-container-high transition-all">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-[15px] text-tertiary">event</span>
+<span class="font-body-sm text-body-sm font-semibold text-on-surface truncate">Daily Engineering Sync</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant hidden sm:inline-block">09:00 — 09:30</span>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">Finished</span>
+</div>
+</div>
+<!-- 10:00 - 13:00: Tempo Planned Work Block "Build AI Agent System" (top: 160px, height: 240px) -->
+<div class="absolute left-0 right-0 top-[160px] h-[240px] rounded-xl bg-surface-container-low shadow-sm p-space-sm flex flex-col justify-between">
+<!-- Block Header -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-headline-md text-headline-md text-on-surface truncate">Build AI Agent System</span>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-primary text-on-primary font-semibold">Active Session</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant hidden md:inline">10:00 — 13:00 (3h 00m)</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="font-code-badge text-code-badge text-primary font-semibold bg-surface-container-lowest px-2 py-0.5 rounded shadow-xs">Pomodoro 1 of 3</span>
+</div>
+</div>
+<!-- Pomodoro Sub-Grid Rhythmic Blocks -->
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-space-xs mt-space-xs flex-1">
+<!-- 10:00 - 10:50: Pomodoro 1 (Active / In-flight) -->
+<div class="rounded-lg bg-surface-container-lowest shadow-xs p-space-xs flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1 bg-primary"></div>
+<div class="flex items-center justify-between">
+<span class="font-code-badge text-code-badge text-primary font-semibold">POMO 1 (50m)</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">10:00 - 10:50</span>
+</div>
+<div class="font-body-sm text-body-sm font-semibold text-on-surface truncate mt-1">System Blueprint & Interfaces</div>
+<!-- Mini Progress ring / progress line -->
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden mt-2">
+<div class="bg-primary h-full rounded-full" style="width: 96%;"></div>
+</div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-on-surface-variant mt-1">
+<span>In progress</span>
+<span class="font-code-badge text-code-badge text-primary font-bold">48m / 50m</span>
+</div>
+</div>
+<!-- 10:50 - 11:00: Break 1 -->
+<div class="rounded-lg bg-surface-variant/40 p-space-xs flex flex-col justify-center items-center text-center">
+<span class="material-symbols-outlined text-[16px] text-secondary">self_improvement</span>
+<span class="font-code-badge text-code-badge font-semibold text-secondary">BREAK</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">10m rest</span>
+</div>
+<!-- 11:00 - 11:50: Pomodoro 2 -->
+<div class="rounded-lg bg-surface-container-lowest shadow-xs p-space-xs flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-code-badge text-code-badge text-on-surface-variant font-semibold">POMO 2 (50m)</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">11:00 - 11:50</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface truncate mt-1">Tool Registry Routing Engine</div>
+<div class="flex items-center gap-space-xs text-label-xs font-label-xs text-on-surface-variant mt-2">
+<span class="material-symbols-outlined text-[14px]">lock_clock</span>
+<span>Queued Next</span>
+</div>
+</div>
+<!-- 11:50 - 12:00: Break 2 -->
+<div class="rounded-lg bg-surface-variant/40 p-space-xs flex flex-col justify-center items-center text-center">
+<span class="material-symbols-outlined text-[16px] text-secondary">self_improvement</span>
+<span class="font-code-badge text-code-badge font-semibold text-secondary">BREAK</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">10m rest</span>
+</div>
+<!-- 12:00 - 12:45: Pomodoro 3 -->
+<div class="rounded-lg bg-surface-container-lowest shadow-xs p-space-xs flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-code-badge text-code-badge text-on-surface-variant font-semibold">POMO 3 (45m)</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">12:00 - 12:45</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface truncate mt-1">Token Rate Limiting</div>
+<div class="flex items-center gap-space-xs text-label-xs font-label-xs text-on-surface-variant mt-2">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+<span>15m cooldown after</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 13:00 - 14:00: Lunch & Recharge Buffer (top: 400px, height: 80px) -->
+<div class="absolute left-0 right-0 top-[400px] h-[80px] rounded-lg bg-surface-container-low/50 p-space-sm flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[20px] text-secondary">restaurant</span>
+<div>
+<div class="font-body-sm text-body-sm font-medium text-on-surface">Lunch & Recharge Buffer</div>
+<div class="font-label-xs text-label-xs text-on-surface-variant">Guaranteed temporal pause • Do not schedule</div>
+</div>
+</div>
+<span class="font-code-badge text-code-badge text-on-surface-variant">13:00 — 14:00 (60m)</span>
+</div>
+<!-- 14:00 - 17:00: Scheduled Focus Block & Conflict Overlay (top: 480px, height: 240px) -->
+<!-- Multi-layer collision: Google Calendar event (14:00-15:00) vs Planned Focus (14:00-17:00) -->
+<div class="absolute left-0 right-0 top-[480px] h-[240px] flex gap-space-sm">
+<!-- Left Column: Google Meet Calendar Event (14:00-15:00) -->
+<div class="w-1/2 h-[80px] rounded-lg bg-tertiary-fixed/80 p-space-sm shadow-xs flex flex-col justify-between z-10">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-tertiary">videocam</span>
+<span class="font-body-sm text-body-sm font-semibold text-on-surface truncate">Team Architecture Review & RFC</span>
+</div>
+<span class="font-code-badge text-code-badge bg-surface-container-lowest text-tertiary font-bold px-1.5 py-0.5 rounded shadow-2xs">Google Meet</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-code-badge text-code-badge text-on-surface-variant">14:00 — 15:00</span>
+<div class="flex items-center -space-x-1.5">
+<img alt="Neeraj" class="w-5 h-5 rounded-full object-cover ring-1 ring-surface-container-lowest" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHltj9nlFbLeMDE0eAGGZlRwugU0lwbuyipuRGg8iAkIIpey6W54yiRhAoYJiyAJjDm6f1FgajD1o0kLyux1xAsPyw7vtcRgv1p3i7umRN1EcE1oKrAICXhrVyk12hNNmZ4WJRHVOZNslCW2LmOJqFeRLtGGIYldbDJ9ywMBYw21YV_LmAToU0wvmlzBuqLHEXGiyppyxqkbJu_wfJElI3dSGcRwM6EXAeUw39yq_PisDX1x-NDcBt"/>
+<div class="w-5 h-5 rounded-full bg-secondary-container text-on-secondary-fixed font-code-badge text-[10px] flex items-center justify-center ring-1 ring-surface-container-lowest font-bold">AL</div>
+<div class="w-5 h-5 rounded-full bg-primary text-on-primary font-code-badge text-[10px] flex items-center justify-center ring-1 ring-surface-container-lowest font-bold">+3</div>
+</div>
+</div>
+</div>
+<!-- Right Column & Spanning: Focus Session with collision callout -->
+<div class="flex-1 rounded-xl bg-surface-container-low p-space-sm relative overflow-hidden flex flex-col justify-between shadow-sm">
+<!-- Hatching pattern overlay for conflict warning -->
+<div class="absolute top-0 left-0 right-0 h-[80px] bg-amber-100/70 p-space-xs flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs text-amber-900">
+<span class="material-symbols-outlined text-[16px] text-amber-700">error</span>
+<span class="font-body-sm text-body-sm font-bold">Overlap Detected with Team Architecture Review</span>
+</div>
+<span class="font-code-badge text-code-badge bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-semibold">14:00 — 15:00 Collision</span>
+</div>
+<!-- Quick Inline Conflict Resolution Actions -->
+<div class="flex items-center gap-space-xs flex-wrap">
+<button class="px-space-sm py-1 rounded bg-amber-900 hover:bg-black text-amber-50 font-body-sm text-body-sm font-semibold transition-colors shadow-xs" type="button">
+                    Auto-Shift Focus (+60m)
+                  </button>
+<button class="px-space-sm py-1 rounded bg-surface-container-lowest text-amber-950 hover:bg-amber-50 font-body-sm text-body-sm transition-colors shadow-xs" type="button">
+                    Adjust Plan [A]
+                  </button>
+<button class="px-space-sm py-1 rounded text-amber-900 hover:text-amber-950 font-body-sm text-body-sm" type="button">
+                    Ignore Conflict
+                  </button>
+</div>
+</div>
+<!-- Main Planned Details below the conflict block -->
+<div class="mt-[88px] flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">Backend Development & Schema Migration</span>
+</div>
+<span class="font-code-badge text-code-badge text-on-surface-variant font-medium">14:00 — 17:00 (3h planned)</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">PostgreSQL partition rollout, Prisma type-syncing, cache invalidation handlers.</p>
+<div class="flex items-center gap-space-sm mt-space-2xs">
+<span class="font-code-badge text-code-badge px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">Linear: TEM-284</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">3 cycles planned</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-on-surface-variant pt-space-xs">
+<span>Buffer after: 30 minutes</span>
+<span>Scheduled End: 17:00</span>
+</div>
+</div>
+</div>
+<!-- 17:30 - 19:00: Evening Focus Block "System Design & RFC Documentation" (top: 760px, height: 120px) -->
+<div class="absolute left-0 right-0 top-[760px] h-[120px] rounded-xl bg-surface-container-low p-space-sm flex flex-col justify-between shadow-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">System Design & RFC Documentation</span>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant">2 Pomodoros</span>
+</div>
+<span class="font-code-badge text-code-badge text-on-surface-variant">17:30 — 19:00 (1h 30m)</span>
+</div>
+<div class="grid grid-cols-2 gap-space-sm">
+<div class="p-space-xs rounded bg-surface-container-lowest shadow-2xs flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-on-surface">Pomo 1: Core Arch Whitepaper</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">45m</span>
+</div>
+<div class="p-space-xs rounded bg-surface-container-lowest shadow-2xs flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-on-surface">Pomo 2: Benchmark Figures & Diagram</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant">45m</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-on-surface-variant">
+<span>Day closeout sequence follows</span>
+<span class="font-code-badge text-code-badge text-emerald-600 font-semibold">Ready to lock</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- RIGHT SIDEBAR: Mini Calendar, Backlog Queue, Integrations (Col span 3-4) -->
+<aside class="xl:col-span-3 flex flex-col gap-space-base">
+<!-- Mini Month Calendar Picker (September 2026) -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">September 2026</span>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+<button class="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Weekdays Header -->
+<div class="grid grid-cols-7 text-center font-code-badge text-code-badge text-on-surface-variant">
+<div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+</div>
+<!-- Days Grid -->
+<div class="grid grid-cols-7 text-center gap-y-1 font-metric-mono-md text-metric-mono-md">
+<!-- Prior month trailing -->
+<div class="py-1 text-on-surface-variant/40">30</div>
+<div class="py-1 text-on-surface-variant/40">31</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">1</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">2</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">3</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">4</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">5</div>
+<!-- Week 2 -->
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">6</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">7</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer relative">
+            8<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></span>
+</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer relative">
+            9<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></span>
+</div>
+<!-- Current Day (Thursday 10) -->
+<div class="py-1 bg-primary text-on-primary rounded font-semibold relative shadow-xs">
+            10
+            <span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-surface-container-lowest"></span>
+</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer relative">
+            11<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></span>
+</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">12</div>
+<!-- Week 3 -->
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">13</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer relative">
+            14<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></span>
+</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer relative">
+            15<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></span>
+</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">16</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">17</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">18</div>
+<div class="py-1 text-on-surface hover:bg-surface-container-low rounded cursor-pointer">19</div>
+</div>
+</div>
+<!-- Unscheduled Tasks / Backlog Queue -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">Backlog Queue</span>
+<span class="font-code-badge text-code-badge px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-bold">3 items</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">Ready to block</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<!-- Task Item 1 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col gap-space-xs group">
+<div class="flex items-start justify-between gap-space-xs">
+<span class="font-body-sm text-body-sm font-medium text-on-surface leading-tight">Q4 Infrastructure Audit & Cost Optimization</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant flex-shrink-0 bg-surface-container-lowest px-1 rounded">3h est</span>
+</div>
+<div class="flex items-center justify-between mt-1">
+<span class="font-label-xs text-label-xs text-on-surface-variant">DevOps • P1 High</span>
+<button class="flex items-center gap-1 font-label-xs text-label-xs text-primary font-semibold hover:underline" type="button">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Block Time</span>
+</button>
+</div>
+</div>
+<!-- Task Item 2 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col gap-space-xs group">
+<div class="flex items-start justify-between gap-space-xs">
+<span class="font-body-sm text-body-sm font-medium text-on-surface leading-tight">Vector DB Latency Benchmark</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant flex-shrink-0 bg-surface-container-lowest px-1 rounded">2h 30m</span>
+</div>
+<div class="flex items-center justify-between mt-1">
+<span class="font-label-xs text-label-xs text-on-surface-variant">AI Engine • P2</span>
+<button class="flex items-center gap-1 font-label-xs text-label-xs text-primary font-semibold hover:underline" type="button">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Block Time</span>
+</button>
+</div>
+</div>
+<!-- Task Item 3 -->
+<div class="p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col gap-space-xs group">
+<div class="flex items-start justify-between gap-space-xs">
+<span class="font-body-sm text-body-sm font-medium text-on-surface leading-tight">Review Pull Request #402 (Auth Guard)</span>
+<span class="font-code-badge text-code-badge text-on-surface-variant flex-shrink-0 bg-surface-container-lowest px-1 rounded">45m</span>
+</div>
+<div class="flex items-center justify-between mt-1">
+<span class="font-label-xs text-label-xs text-on-surface-variant">Security • Urgent</span>
+<button class="flex items-center gap-1 font-label-xs text-label-xs text-primary font-semibold hover:underline" type="button">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>Block Time</span>
+</button>
+</div>
+</div>
+</div>
+<button class="w-full py-space-xs rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors font-body-sm text-body-sm text-on-surface font-medium flex items-center justify-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-[16px]">add_circle_outline</span>
+<span>Quick Add Task to Backlog</span>
+</button>
+</div>
+<!-- Connected Integrations Status Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-headline-md text-headline-md text-on-surface font-semibold">Integrations</span>
+<span class="font-code-badge text-code-badge text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">2 Active</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<!-- Google Calendar Integration -->
+<div class="p-space-xs rounded-lg bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-[18px] text-tertiary">calendar_month</span>
+<div class="flex flex-col min-w-0 leading-tight">
+<span class="font-body-sm text-body-sm font-medium text-on-surface truncate">Google Calendar</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant truncate">neeraj@tempo.io • Default</span>
+</div>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<!-- Linear Backlog Integration -->
+<div class="p-space-xs rounded-lg bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-[18px] text-primary">data_object</span>
+<div class="flex flex-col min-w-0 leading-tight">
+<span class="font-body-sm text-body-sm font-medium text-on-surface truncate">Linear Backlog</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant truncate">6 synced issues mapped</span>
+</div>
+</div>
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+</div>
+<button class="flex items-center justify-center gap-space-xs text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm py-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Connect Another Calendar (Outlook / Apple)</span>
+</button>
+</div>
+<!-- Quick Shortcuts Console Helper Strip -->
+<div class="p-space-sm rounded-xl bg-surface-container-high/60 shadow-xs flex flex-col gap-space-2xs text-on-surface-variant">
+<div class="flex items-center justify-between">
+<span class="font-code-badge text-code-badge font-semibold text-on-surface">CALENDAR SHORTCUTS</span>
+<span class="material-symbols-outlined text-[14px]">keyboard</span>
+</div>
+<div class="grid grid-cols-3 gap-space-xs mt-1 text-center font-code-badge text-code-badge">
+<div class="bg-surface-container-lowest p-1 rounded shadow-2xs">
+<span class="font-bold text-on-surface">C</span> Schedule
+          </div>
+<div class="bg-surface-container-lowest p-1 rounded shadow-2xs">
+<span class="font-bold text-on-surface">T</span> Today
+          </div>
+<div class="bg-surface-container-lowest p-1 rounded shadow-2xs">
+<span class="font-bold text-on-surface">S</span> Sync
+          </div>
+</div>
+</div>
+</aside>
+</div>
+</div></main></div></body></html>

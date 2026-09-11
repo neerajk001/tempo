@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-surface":"#141b2b","on-tertiary-fixed-variant":"#003ea8","secondary-fixed":"#dae2fd","secondary":"#565e74","background":"#f9f9ff","on-primary-fixed":"#0f0069","surface-variant":"#dce2f7","surface":"#f9f9ff","secondary-fixed-dim":"#bec6e0","inverse-primary":"#c3c0ff","surface-container-low":"#f1f3ff","on-surface-variant":"#464555","primary-fixed":"#e2dfff","primary-fixed-dim":"#c3c0ff","outline":"#777587","on-secondary-container":"#5c647a","tertiary":"#003fac","tertiary-container":"#0555dd","inverse-surface":"#293040","on-primary-fixed-variant":"#3323cc","error-container":"#ffdad6","tertiary-fixed-dim":"#b4c5ff","inverse-on-surface":"#edf0ff","surface-container-lowest":"#ffffff","error":"#ba1a1a","surface-container":"#e9edff","on-secondary-fixed":"#131b2e","primary":"#3525cd","tertiary-fixed":"#dbe1ff","primary-container":"#4f46e5","on-tertiary":"#ffffff","on-background":"#141b2b","surface-container-high":"#e1e8fd","on-secondary-fixed-variant":"#3f465c","surface-tint":"#4d44e3","on-primary-container":"#dad7ff","surface-dim":"#d3daef","on-error":"#ffffff","on-error-container":"#93000a","surface-container-highest":"#dce2f7","on-primary":"#ffffff","secondary-container":"#dae2fd","outline-variant":"#c7c4d8","surface-bright":"#f9f9ff","on-tertiary-container":"#d1daff","on-secondary":"#ffffff","on-tertiary-fixed":"#00174b"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xs":"0.25rem","space-2xl":"3rem","space-2xs":"0.125rem","space-xl":"2rem","gutter-utility-rail":"20rem","density-row-normal":"2.25rem","gutter-sidebar":"15rem","space-md":"0.75rem","space-base":"1rem","space-sm":"0.5rem","density-row-compact":"1.75rem","space-lg":"1.5rem"},fontFamily:{"headline-md":["Geist"],"body-sm":["Geist"],"metric-mono-md":["JetBrains Mono"],"display-xl-mobile":["Geist"],"metric-mono-lg":["JetBrains Mono"],"display-xl":["Geist"],"body-md":["Geist"],"headline-lg":["Geist"],"code-badge":["JetBrains Mono"],"label-xs":["Geist"]},fontSize:{"headline-md":["16px",{"lineHeight":"22px","letterSpacing":"-0.015em","fontWeight":"600"}],"body-sm":["13px",{"lineHeight":"18px","letterSpacing":"-0.005em","fontWeight":"400"}],"metric-mono-md":["14px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"500"}],"display-xl-mobile":["26px",{"lineHeight":"32px","letterSpacing":"-0.025em","fontWeight":"600"}],"metric-mono-lg":["28px",{"lineHeight":"32px","letterSpacing":"-0.03em","fontWeight":"500"}],"display-xl":["32px",{"lineHeight":"40px","letterSpacing":"-0.03em","fontWeight":"600"}],"body-md":["14px",{"lineHeight":"20px","letterSpacing":"-0.01em","fontWeight":"400"}],"headline-lg":["22px",{"lineHeight":"28px","letterSpacing":"-0.02em","fontWeight":"600"}],"code-badge":["11px",{"lineHeight":"14px","letterSpacing":"0.01em","fontWeight":"500"}],"label-xs":["11px",{"lineHeight":"14px","letterSpacing":"0.02em","fontWeight":"500"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased min-h-screen"><aside class="fixed left-0 top-0 h-screen w-[230px] bg-surface-container-lowest z-40 flex flex-col justify-between border-r border-outline-variant/30 select-none"><div class="flex flex-col"><div class="h-14 px-space-md flex items-center justify-between border-b border-outline-variant/20"><div class="flex items-center gap-space-sm"><img alt="Tempo Logo" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9MTktHRAxzKgVz94Oyoiy5t4L0Zg5sTOHVzLG29x-2Pi9wX-kB_Bz2irWFpDHMwCyJ4N7G72h28ulK9i9-yuGgEuuGVd598nq6VMBbq7ML9daJZJYnGCh9yGVQ0aTi98u9lQgFQJyvixHTZnFtELEuUh7-fJj8OFG65SbMpVG5UGp2hS4OeDABktKxT4KHwSfBy6igasXel1m590FoLhRlEPKFz6zIXcFkwUmz6hKG3EmKSBaGPpp"/><span class="font-headline-md text-headline-md text-on-surface tracking-tight">Tempo</span></div><span class="font-code-badge text-code-badge bg-secondary-container text-on-secondary-fixed font-semibold px-space-xs py-space-2xs rounded">PRO</span></div><div class="p-space-sm"><div class="text-label-xs font-label-xs text-on-surface-variant uppercase tracking-wider px-space-sm py-space-xs font-medium">Workspaces</div><nav class="flex flex-col gap-space-2xs" data-active-classes="bg-secondary-container text-on-surface font-semibold rounded-lg"><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="dashboard" href="#"><span class="material-symbols-outlined text-[18px]">grid_view</span><span>Dashboard</span></a><a aria-current="page" class="flex items-center gap-space-sm px-space-sm h-density-row-compact transition-colors bg-secondary-container text-on-surface font-semibold rounded-lg" data-path="today" href="#"><span class="material-symbols-outlined text-[18px]">schedule</span><span>Today</span></a><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="tasks" href="#"><span class="material-symbols-outlined text-[18px]">check_box</span><span>Tasks</span></a><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="calendar" href="#"><span class="material-symbols-outlined text-[18px]">calendar_today</span><span>Calendar</span></a><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="history" href="#"><span class="material-symbols-outlined text-[18px]">bar_chart</span><span>History</span></a></nav></div></div><div class="flex flex-col border-t border-outline-variant/20 p-space-sm gap-space-2xs"><nav class="flex flex-col" data-active-classes="bg-secondary-container text-on-surface font-semibold rounded-lg"><a class="flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm" data-path="settings" href="#"><span class="material-symbols-outlined text-[18px]">tune</span><span>Settings</span></a></nav><div class="flex items-center justify-between p-space-xs rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer group"><div class="flex items-center gap-space-sm min-w-0"><div class="relative flex-shrink-0"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHltj9nlFbLeMDE0eAGGZlRwugU0lwbuyipuRGg8iAkIIpey6W54yiRhAoYJiyAJjDm6f1FgajD1o0kLyux1xAsPyw7vtcRgv1p3i7umRN1EcE1oKrAICXhrVyk12hNNmZ4WJRHVOZNslCW2LmOJqFeRLtGGIYldbDJ9ywMBYw21YV_LmAToU0wvmlzBuqLHEXGiyppyxqkbJu_wfJElI3dSGcRwM6EXAeUw39yq_PisDX1x-NDcBt"/><span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-primary ring-2 ring-surface-container-lowest"></span></div><div class="flex flex-col min-w-0 leading-tight"><span class="font-body-sm text-body-sm font-semibold text-on-surface truncate">Neeraj</span><span class="font-label-xs text-label-xs text-on-surface-variant truncate">neeraj@tempo.io</span></div></div><button class="p-space-2xs text-on-surface-variant group-hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">unfold_more</span></button></div></div></aside><div class="pl-[230px] min-h-screen flex flex-col bg-surface"><header class="fixed top-0 left-[230px] right-0 h-14 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 z-30 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-sm"><img alt="Tempo Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9MTktHRAxzKgVz94Oyoiy5t4L0Zg5sTOHVzLG29x-2Pi9wX-kB_Bz2irWFpDHMwCyJ4N7G72h28ulK9i9-yuGgEuuGVd598nq6VMBbq7ML9daJZJYnGCh9yGVQ0aTi98u9lQgFQJyvixHTZnFtELEuUh7-fJj8OFG65SbMpVG5UGp2hS4OeDABktKxT4KHwSfBy6igasXel1m590FoLhRlEPKFz6zIXcFkwUmz6hKG3EmKSBaGPpp"/><div class="h-4 w-px bg-outline-variant/40"></div><div class="flex items-center gap-space-xs text-on-surface-variant font-code-badge text-code-badge bg-surface-container-low px-space-sm py-space-2xs rounded border border-outline-variant/30"><span class="material-symbols-outlined text-[14px]">search</span><span>Cmd + K</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs"><button class="p-space-xs rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span></button><button class="p-space-xs rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">help_outline</span></button></div><div class="h-4 w-px bg-outline-variant/40"></div><div class="flex items-center gap-space-xs"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHltj9nlFbLeMDE0eAGGZlRwugU0lwbuyipuRGg8iAkIIpey6W54yiRhAoYJiyAJjDm6f1FgajD1o0kLyux1xAsPyw7vtcRgv1p3i7umRN1EcE1oKrAICXhrVyk12hNNmZ4WJRHVOZNslCW2LmOJqFeRLtGGIYldbDJ9ywMBYw21YV_LmAToU0wvmlzBuqLHEXGiyppyxqkbJu_wfJElI3dSGcRwM6EXAeUw39yq_PisDX1x-NDcBt"/></div></div></header><main class="w-full pt-14 px-space-lg flex-1 bg-surface"><div class="flex flex-col w-full pb-space-2xl">
+<!-- Top Context / Breadcrumbs & Global Shortcuts -->
+<div class="flex items-center justify-between py-space-sm">
+<div class="flex items-center gap-space-sm">
+<a class="flex items-center gap-space-2xs text-on-surface-variant hover:text-on-surface transition-colors font-body-sm text-body-sm group" href="#">
+<span class="material-symbols-outlined text-[16px] group-hover:-translate-x-0.5 transition-transform">arrow_back</span>
+<span>Tasks</span>
+</a>
+<span class="text-outline-variant font-body-sm text-body-sm">/</span>
+<span class="font-code-badge text-code-badge bg-surface-container text-on-surface-variant px-space-xs py-space-2xs rounded">TSK-8942</span>
+<span class="text-outline-variant font-body-sm text-body-sm">/</span>
+<span class="font-body-sm text-body-sm text-on-surface font-medium truncate max-w-[280px]">Build AI Agent System</span>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-space-xs font-label-xs text-label-xs text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="font-metric-mono-md text-metric-mono-md text-primary">Session 5 active</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-code-badge text-code-badge bg-surface-container-low px-space-sm py-space-2xs rounded">
+<span>Press</span>
+<span class="bg-surface-container-lowest text-on-surface px-space-2xs rounded shadow-sm font-semibold">?</span>
+<span>for keybinds</span>
+</div>
+</div>
+</div>
+<!-- Primary Header Canvas Section -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg mt-space-xs mb-space-base flex flex-col gap-space-md">
+<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-space-base">
+<!-- Title & Badges Group -->
+<div class="flex flex-col gap-space-xs min-w-0">
+<div class="flex flex-wrap items-center gap-space-xs">
+<span class="font-label-xs text-label-xs font-medium px-space-sm py-space-2xs rounded bg-surface-container-high text-on-secondary-fixed">
+            Core Platform
+          </span>
+<span class="font-label-xs text-label-xs font-medium px-space-sm py-space-2xs rounded bg-error-container text-on-error-container flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-[13px]">flag</span>
+            Urgent / Priority 1
+          </span>
+<span class="font-label-xs text-label-xs font-medium px-space-sm py-space-2xs rounded bg-primary-fixed text-on-primary-fixed-variant flex items-center gap-space-2xs">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+            In Progress
+          </span>
+<span class="font-code-badge text-code-badge text-on-surface-variant flex items-center gap-space-2xs ml-space-xs">
+<span class="material-symbols-outlined text-[13px]">schedule</span>
+            Due today, 19:00
+          </span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight font-semibold flex items-center gap-space-sm">
+<span>Build AI Agent System</span>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors p-space-2xs rounded hover:bg-surface-container" title="Copy task markdown reference" type="button">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+</h1>
+</div>
+<!-- Action Cluster -->
+<div class="flex items-center flex-wrap gap-space-xs">
+<button class="h-8 px-space-md rounded-lg bg-primary-container hover:bg-primary text-on-primary font-body-sm text-body-sm font-medium flex items-center gap-space-xs shadow-sm transition-all" id="btn-focus-toggle" type="button">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span>
+<span>Focus Now</span>
+<kbd class="font-code-badge text-code-badge bg-primary-fixed-variant/40 text-on-primary px-space-2xs rounded py-0.5 ml-space-2xs">F</kbd>
+</button>
+<button class="h-8 px-space-md rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-body-sm text-body-sm font-medium flex items-center gap-space-xs transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+<span>Edit Task</span>
+<kbd class="font-code-badge text-code-badge bg-surface-container-highest text-on-surface-variant px-space-2xs rounded py-0.5 ml-space-2xs">E</kbd>
+</button>
+<div class="h-6 w-px bg-surface-container-high mx-space-2xs"></div>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Linked to Calendar RFC" type="button">
+<span class="material-symbols-outlined text-[18px]">event</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Share and Export Task" type="button">
+<span class="material-symbols-outlined text-[18px]">ios_share</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="More contextual options" type="button">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Micro Strip / Quick Stats Grid -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-sm pt-space-xs">
+<div class="bg-surface-container-low p-space-sm rounded-lg flex flex-col justify-between">
+<span class="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">Allocated Horizon</span>
+<div class="flex items-baseline gap-space-xs mt-space-xs">
+<span class="font-metric-mono-lg text-metric-mono-lg text-on-surface font-medium">06</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">h</span>
+<span class="font-metric-mono-lg text-metric-mono-lg text-on-surface font-medium ml-space-2xs">00</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">m</span>
+</div>
+</div>
+<div class="bg-primary-fixed/30 p-space-sm rounded-lg flex flex-col justify-between relative overflow-hidden">
+<div class="flex items-center justify-between">
+<span class="font-label-xs text-label-xs text-primary font-semibold uppercase tracking-wider">Deep Work Focused</span>
+<span class="material-symbols-outlined text-primary text-[15px]">timer</span>
+</div>
+<div class="flex items-baseline gap-space-xs mt-space-xs">
+<span class="font-metric-mono-lg text-metric-mono-lg text-primary font-medium">04</span>
+<span class="font-body-sm text-body-sm text-primary font-medium">h</span>
+<span class="font-metric-mono-lg text-metric-mono-lg text-primary font-medium ml-space-2xs">20</span>
+<span class="font-body-sm text-body-sm text-primary font-medium">m</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-space-sm rounded-lg flex flex-col justify-between">
+<span class="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">Remaining Estimate</span>
+<div class="flex items-baseline gap-space-xs mt-space-xs">
+<span class="font-metric-mono-lg text-metric-mono-lg text-on-surface font-medium">01</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">h</span>
+<span class="font-metric-mono-lg text-metric-mono-lg text-on-surface font-medium ml-space-2xs">40</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">m</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-space-sm rounded-lg flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">Pomodoro Cycles</span>
+<span class="font-code-badge text-code-badge text-on-surface font-medium">5 / 7</span>
+</div>
+<div class="flex items-center gap-1.5 mt-space-xs">
+<!-- 5 completed dots + 1 running + 1 queued -->
+<span class="w-3.5 h-3.5 rounded bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]">check</span>
+</span>
+<span class="w-3.5 h-3.5 rounded bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]">check</span>
+</span>
+<span class="w-3.5 h-3.5 rounded bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]">check</span>
+</span>
+<span class="w-3.5 h-3.5 rounded bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]">check</span>
+</span>
+<span class="w-3.5 h-3.5 rounded bg-primary ring-2 ring-primary-fixed-dim ring-offset-1 flex items-center justify-center text-on-primary animate-pulse">
+<span class="w-1 h-1 rounded-full bg-surface-container-lowest"></span>
+</span>
+<span class="w-3.5 h-3.5 rounded bg-surface-container-high"></span>
+<span class="w-3.5 h-3.5 rounded bg-surface-container-high"></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Progress Bar & Trajectory Horizon -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md mb-space-base flex flex-col gap-space-sm">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs">
+<div class="flex items-baseline gap-space-sm">
+<span class="font-metric-mono-lg text-metric-mono-lg text-on-surface font-semibold">4h 20m</span>
+<span class="font-body-md text-body-md text-on-surface-variant font-normal">of 6h 00m target allocated</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="font-label-xs text-label-xs font-semibold px-space-xs py-space-2xs rounded bg-surface-container text-primary">
+          72.2% Completed
+        </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-[16px] text-tertiary">trending_up</span>
+          Target completion ~18:20
+        </span>
+</div>
+</div>
+<!-- Precision Segmented Progress Bar -->
+<div class="w-full relative h-3 rounded-full bg-surface-container overflow-hidden">
+<!-- Session fills -->
+<div class="absolute left-0 top-0 bottom-0 bg-primary rounded-full transition-all duration-500" style="width: 72%;"></div>
+<!-- Milestone notches: 14.2% intervals (1/7 pomodoro) -->
+<div class="absolute inset-0 flex justify-between px-1 pointer-events-none opacity-30">
+<span class="w-0.5 h-full bg-surface-container-lowest"></span>
+<span class="w-0.5 h-full bg-surface-container-lowest"></span>
+<span class="w-0.5 h-full bg-surface-container-lowest"></span>
+<span class="w-0.5 h-full bg-surface-container-lowest"></span>
+<span class="w-0.5 h-full bg-surface-container-lowest"></span>
+<span class="w-0.5 h-full bg-surface-container-lowest"></span>
+</div>
+</div>
+<div class="flex items-center justify-between font-label-xs text-label-xs text-on-surface-variant px-space-2xs">
+<span>09:00 AM (Kickoff)</span>
+<span class="font-metric-mono-md text-metric-mono-md text-primary font-semibold">P5 Active (~12m remaining in current focus)</span>
+<span>Target: 18:20 PM</span>
+</div>
+</div>
+<!-- Primary Workspace Split: Main Execution vs Inspector Notes -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-base">
+<!-- LEFT / MAIN EXECUTION COLUMN (7 cols on lg, 8 cols on xl) -->
+<div class="lg:col-span-7 xl:col-span-8 flex flex-col gap-space-base">
+<!-- Current Live Session Banner -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md relative overflow-hidden">
+<div class="absolute top-0 left-0 bottom-0 w-1.5 bg-primary"></div>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pl-space-xs">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-9 h-9 rounded-lg bg-primary-fixed/60 text-primary flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[20px] animate-spin" style="animation-duration: 4s;">motion_photos_on</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-md text-headline-md text-on-surface">Pomodoro 5 (In Progress)</span>
+<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">
+                Focus target: Agent memory bus serialization & Redis backpressure
+              </span>
+</div>
+</div>
+<!-- Active Timer Ticker -->
+<div class="flex items-center gap-space-md self-end sm:self-auto">
+<div class="flex flex-col items-end">
+<span class="font-metric-mono-lg text-metric-mono-lg font-semibold text-primary tracking-tight" id="live-timer">47:32</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">of 60m block</span>
+</div>
+<div class="flex items-center gap-space-2xs">
+<button class="h-8 w-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center transition-colors" id="btn-pause-session" title="Pause session" type="button">
+<span class="material-symbols-outlined text-[18px]">pause</span>
+</button>
+<button class="h-8 px-space-sm rounded-lg bg-surface-container-highest hover:bg-primary-fixed text-on-surface font-body-sm text-body-sm font-medium flex items-center gap-space-2xs transition-colors" id="btn-finish-session" title="Log session completed" type="button">
+<span class="material-symbols-outlined text-[16px]">check</span>
+<span>Complete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Pomodoro Sessions Breakdown Table/Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Session Audit Log</h2>
+<span class="font-code-badge text-code-badge bg-surface-container text-on-surface-variant px-space-xs py-space-2xs rounded">5 total</span>
+</div>
+<div class="flex items-center gap-space-xs font-label-xs text-label-xs text-on-surface-variant">
+<span>Avg Focus Score:</span>
+<span class="font-metric-mono-md text-metric-mono-md text-on-surface font-semibold">94%</span>
+</div>
+</div>
+<!-- Session Item Rows -->
+<div class="flex flex-col gap-space-xs">
+<!-- Session 1 -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface hover:bg-surface-container-low transition-colors group">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="w-6 h-6 rounded-md bg-secondary-container text-on-secondary-fixed font-metric-mono-md text-[12px] flex items-center justify-center font-semibold">
+                01
+              </span>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Pomodoro 1: System Blueprint & Interfaces</span>
+<span class="font-code-badge text-code-badge bg-surface-container-high text-on-surface-variant px-space-2xs py-0.5 rounded">50m</span>
+</div>
+<div class="flex items-center gap-space-sm font-label-xs text-label-xs text-on-surface-variant">
+<span>09:00 — 09:50</span>
+<span>•</span>
+<span class="text-on-surface-variant">0 interruptions</span>
+<span>•</span>
+<span class="text-tertiary font-medium">Focus Score 98%</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-label-xs text-label-xs bg-surface-container-high text-on-secondary-fixed px-space-xs py-0.5 rounded font-medium">Completed</span>
+<button class="p-space-2xs text-on-surface-variant hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Session 2 -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface hover:bg-surface-container-low transition-colors group">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="w-6 h-6 rounded-md bg-secondary-container text-on-secondary-fixed font-metric-mono-md text-[12px] flex items-center justify-center font-semibold">
+                02
+              </span>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Pomodoro 2: Tool Registry Routing Engine</span>
+<span class="font-code-badge text-code-badge bg-surface-container-high text-on-surface-variant px-space-2xs py-0.5 rounded">50m</span>
+</div>
+<div class="flex items-center gap-space-sm font-label-xs text-label-xs text-on-surface-variant">
+<span>10:00 — 10:50</span>
+<span>•</span>
+<span class="text-secondary font-medium">1 interruption (Slack ping, 2m)</span>
+<span>•</span>
+<span class="text-tertiary font-medium">Focus Score 92%</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-label-xs text-label-xs bg-surface-container-high text-on-secondary-fixed px-space-xs py-0.5 rounded font-medium">Completed</span>
+<button class="p-space-2xs text-on-surface-variant hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Session 3 -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface hover:bg-surface-container-low transition-colors group">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="w-6 h-6 rounded-md bg-secondary-container text-on-secondary-fixed font-metric-mono-md text-[12px] flex items-center justify-center font-semibold">
+                03
+              </span>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Pomodoro 3: Circuit Breaker & Fallback Logic</span>
+<span class="font-code-badge text-code-badge bg-surface-container-high text-on-surface-variant px-space-2xs py-0.5 rounded">50m</span>
+</div>
+<div class="flex items-center gap-space-sm font-label-xs text-label-xs text-on-surface-variant">
+<span>11:00 — 11:50</span>
+<span>•</span>
+<span class="text-error font-medium">2 interruptions (Standup spillover, 9m)</span>
+<span>•</span>
+<span class="text-secondary font-medium">Focus Score 85%</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-label-xs text-label-xs bg-surface-container-high text-on-secondary-fixed px-space-xs py-0.5 rounded font-medium">Completed</span>
+<button class="p-space-2xs text-on-surface-variant hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Session 4 -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface hover:bg-surface-container-low transition-colors group">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="w-6 h-6 rounded-md bg-secondary-container text-on-secondary-fixed font-metric-mono-md text-[12px] flex items-center justify-center font-semibold">
+                04
+              </span>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Pomodoro 4: Token Rate Limiting unit specs</span>
+<span class="font-code-badge text-code-badge bg-surface-container-high text-on-surface-variant px-space-2xs py-0.5 rounded">45m</span>
+</div>
+<div class="flex items-center gap-space-sm font-label-xs text-label-xs text-on-surface-variant">
+<span>12:00 — 12:45</span>
+<span>•</span>
+<span class="text-on-surface-variant">0 interruptions</span>
+<span>•</span>
+<span class="text-primary font-semibold">Focus Score 100%</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-label-xs text-label-xs bg-surface-container-high text-on-secondary-fixed px-space-xs py-0.5 rounded font-medium">Completed</span>
+<button class="p-space-2xs text-on-surface-variant hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Session 5 (Current) -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-primary-fixed/20 transition-colors">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="w-6 h-6 rounded-md bg-primary text-on-primary font-metric-mono-md text-[12px] flex items-center justify-center font-semibold">
+                05
+              </span>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Pomodoro 5: Memory Hydration & Dispatcher</span>
+<span class="font-code-badge text-code-badge bg-primary text-on-primary px-space-2xs py-0.5 rounded">Running</span>
+</div>
+<div class="flex items-center gap-space-sm font-label-xs text-label-xs text-on-surface-variant">
+<span>13:30 — active</span>
+<span>•</span>
+<span class="text-primary font-medium">0 active interruptions</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-space-xs flex-shrink-0">
+<span class="font-metric-mono-md text-metric-mono-md font-semibold text-primary">47m 32s</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Chronological Activity Timeline -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Execution Timeline</h2>
+<span class="font-code-badge text-code-badge bg-surface-container text-on-surface-variant px-space-xs py-space-2xs rounded">Audit Trace</span>
+</div>
+<button class="font-label-xs text-label-xs text-primary hover:underline flex items-center gap-space-2xs" type="button">
+<span>Filter events</span>
+<span class="material-symbols-outlined text-[14px]">tune</span>
+</button>
+</div>
+<!-- Vertical Timeline Stem -->
+<div class="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-surface-container-high">
+<!-- 10:50 Complete -->
+<div class="relative flex items-start gap-space-sm group">
+<span class="absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-metric-mono-md text-metric-mono-md font-semibold text-on-surface">10:50</span>
+<span class="font-body-sm text-body-sm font-medium text-on-surface">Session 2 completed</span>
+<span class="font-code-badge text-code-badge bg-surface-container-low text-on-surface-variant px-space-2xs py-0.5 rounded">+50m logged</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">Validated dispatcher routing table against test schema.</span>
+</div>
+</div>
+<!-- 10:27 Resume -->
+<div class="relative flex items-start gap-space-sm group">
+<span class="absolute -left-6 top-1.5 w-2 h-2 rounded-full bg-secondary-fixed-dim ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-metric-mono-md text-metric-mono-md text-on-surface-variant">10:27</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Resumed focus block</span>
+</div>
+</div>
+</div>
+<!-- 10:23 Break/Pause -->
+<div class="relative flex items-start gap-space-sm group">
+<span class="absolute -left-6 top-1.5 w-2 h-2 rounded-full bg-surface-container-highest ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-metric-mono-md text-metric-mono-md text-on-surface-variant">10:23</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Manual pause</span>
+<span class="font-code-badge text-code-badge bg-surface-container text-on-surface-variant px-space-2xs py-0.5 rounded">Coffee / Hydration (4m)</span>
+</div>
+</div>
+</div>
+<!-- 10:00 Started P2 -->
+<div class="relative flex items-start gap-space-sm group">
+<span class="absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full bg-secondary ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-metric-mono-md text-metric-mono-md font-semibold text-on-surface">10:00</span>
+<span class="font-body-sm text-body-sm font-medium text-on-surface">Session 2 initiated</span>
+</div>
+</div>
+</div>
+<!-- 09:50 Short Break -->
+<div class="relative flex items-start gap-space-sm group">
+<span class="absolute -left-6 top-1.5 w-2 h-2 rounded-full bg-surface-container-highest ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-metric-mono-md text-metric-mono-md text-on-surface-variant">09:50</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Scheduled short break (10m)</span>
+</div>
+</div>
+</div>
+<!-- 09:00 First Focus Start -->
+<div class="relative flex items-start gap-space-sm group">
+<span class="absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full bg-on-surface ring-4 ring-surface-container-lowest"></span>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-metric-mono-md text-metric-mono-md font-semibold text-on-surface">09:00</span>
+<span class="font-body-sm text-body-sm font-medium text-on-surface">Task initial focus cycle launched</span>
+<span class="font-code-badge text-code-badge bg-secondary-container text-on-secondary-fixed px-space-2xs py-0.5 rounded">Deep Work</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">Created and triggered via Alfred keyboard launcher.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT / CONTEXT & INSPECTOR COLUMN (5 cols on lg, 4 cols on xl) -->
+<div class="lg:col-span-5 xl:col-span-4 flex flex-col gap-space-base">
+<!-- Subtasks Checklist Section -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between pb-space-2xs">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">checklist</span>
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold">Subtasks</h3>
+</div>
+<span class="font-metric-mono-md text-metric-mono-md text-primary font-medium">3 / 4 completed</span>
+</div>
+<!-- Checkbox Items -->
+<div class="flex flex-col gap-space-xs">
+<!-- Item 1 -->
+<label class="flex items-start gap-space-sm p-space-xs rounded-lg hover:bg-surface transition-colors cursor-pointer group">
+<input checked="" class="mt-1 h-4 w-4 rounded accent-primary text-on-primary bg-surface-container cursor-pointer" type="checkbox"/>
+<div class="flex flex-col min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-through select-none truncate">Scaffold dispatcher runtime engine</span>
+<span class="font-label-xs text-label-xs text-secondary-fixed-dim">Done in Pomodoro 1</span>
+</div>
+</label>
+<!-- Item 2 -->
+<label class="flex items-start gap-space-sm p-space-xs rounded-lg hover:bg-surface transition-colors cursor-pointer group">
+<input checked="" class="mt-1 h-4 w-4 rounded accent-primary text-on-primary bg-surface-container cursor-pointer" type="checkbox"/>
+<div class="flex flex-col min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-through select-none truncate">Token routing schema & protocol</span>
+<span class="font-label-xs text-label-xs text-secondary-fixed-dim">Done in Pomodoro 2</span>
+</div>
+</label>
+<!-- Item 3 -->
+<label class="flex items-start gap-space-sm p-space-xs rounded-lg hover:bg-surface transition-colors cursor-pointer group">
+<input checked="" class="mt-1 h-4 w-4 rounded accent-primary text-on-primary bg-surface-container cursor-pointer" type="checkbox"/>
+<div class="flex flex-col min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant line-through select-none truncate">Circuit breaker fallback handlers</span>
+<span class="font-label-xs text-label-xs text-secondary-fixed-dim">Done in Pomodoro 3</span>
+</div>
+</label>
+<!-- Item 4 (Active/Unchecked) -->
+<label class="flex items-start gap-space-sm p-space-xs rounded-lg bg-surface-container-low transition-colors cursor-pointer group">
+<input class="mt-1 h-4 w-4 rounded accent-primary text-on-primary bg-surface cursor-pointer" type="checkbox"/>
+<div class="flex flex-col min-w-0">
+<span class="font-body-sm text-body-sm font-medium text-on-surface select-none truncate">Load benchmark test (1,000 req/s concurrency)</span>
+<span class="font-label-xs text-label-xs text-primary font-medium">Pending current session output</span>
+</div>
+</label>
+</div>
+<!-- Add subtask line -->
+<div class="pt-space-xs">
+<button class="w-full h-8 rounded-lg bg-surface hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm font-medium flex items-center justify-center gap-space-xs transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>Add subtask</span>
+<kbd class="font-code-badge text-code-badge bg-surface-container-high px-space-2xs py-0.5 rounded text-on-surface-variant">S</kbd>
+</button>
+</div>
+</div>
+<!-- Markdown Work Notes & Scratchpad -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-sm flex-1">
+<div class="flex items-center justify-between pb-space-2xs">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">description</span>
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold">Task Scratchpad</h3>
+</div>
+<button class="font-label-xs text-label-xs text-on-surface-variant hover:text-on-surface flex items-center gap-space-2xs" type="button">
+<span class="material-symbols-outlined text-[14px]">open_in_full</span>
+</button>
+</div>
+<!-- Scratchpad Content Container -->
+<div class="bg-surface rounded-lg p-space-sm font-body-sm text-body-sm text-on-surface flex flex-col gap-space-xs leading-relaxed">
+<p class="font-medium text-on-surface">Phase 2 execution: orchestration runtime, memory stream hydration & tool-dispatch protocol.</p>
+<ul class="space-y-1 list-disc pl-4 text-on-surface-variant">
+<li>Verify Pinecone vs pgvector latency fallbacks during high cold-start spikes</li>
+<li>Finalize Redis cluster eviction policy for stale thread sessions</li>
+<li>Draft integration tests for token limiter under synthetic jitter</li>
+</ul>
+</div>
+<button class="w-full text-left p-space-xs rounded-lg text-on-surface-variant hover:bg-surface transition-colors flex items-center justify-between font-label-xs text-label-xs" type="button">
+<span class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[15px]">edit_note</span>
+<span>Click to add notes or append markdown</span>
+</span>
+<kbd class="font-code-badge text-code-badge bg-surface-container-low px-space-2xs py-0.5 rounded">N</kbd>
+</button>
+</div>
+<!-- Linked Metadata Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm p-space-md flex flex-col gap-space-sm">
+<h3 class="font-headline-md text-headline-md text-on-surface font-semibold pb-space-2xs">Integrations & Trace</h3>
+<div class="flex flex-col gap-space-sm">
+<!-- Calendar Sync -->
+<div class="flex items-start gap-space-sm">
+<div class="w-7 h-7 rounded bg-surface-container flex items-center justify-center flex-shrink-0 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">calendar_month</span>
+</div>
+<div class="flex flex-col min-w-0 leading-tight">
+<span class="font-label-xs text-label-xs text-on-surface-variant">Linked Calendar Block</span>
+<span class="font-body-sm text-body-sm font-medium text-on-surface truncate">Deep Work: AI Engine RFC</span>
+<span class="font-code-badge text-code-badge text-secondary">09:00 — 12:00 (Google Calendar)</span>
+</div>
+</div>
+<!-- Task Owner / Author -->
+<div class="flex items-start gap-space-sm pt-space-xs">
+<div class="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-on-surface-variant overflow-hidden">
+<img alt="Neeraj avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHltj9nlFbLeMDE0eAGGZlRwugU0lwbuyipuRGg8iAkIIpey6W54yiRhAoYJiyAJjDm6f1FgajD1o0kLyux1xAsPyw7vtcRgv1p3i7umRN1EcE1oKrAICXhrVyk12hNNmZ4WJRHVOZNslCW2LmOJqFeRLtGGIYldbDJ9ywMBYw21YV_LmAToU0wvmlzBuqLHEXGiyppyxqkbJu_wfJElI3dSGcRwM6EXAeUw39yq_PisDX1x-NDcBt"/>
+</div>
+<div class="flex flex-col min-w-0 leading-tight">
+<span class="font-label-xs text-label-xs text-on-surface-variant">Created By</span>
+<span class="font-body-sm text-body-sm font-medium text-on-surface">Neeraj</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">Today, 08:30 AM via Mac Quick Capture</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    // Interactive active timer incrementer simulation
+    let seconds = 47 * 60 + 32;
+    const timerDisplay = document.getElementById('live-timer');
+    let isRunning = true;
+
+    function updateTimer() {
+      if (!isRunning) return;
+      seconds++;
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      const formatted = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      if (timerDisplay) {
+        timerDisplay.textContent = formatted;
+      }
+    }
+
+    const timerInterval = setInterval(updateTimer, 1000);
+
+    // Pause toggle micro-interaction
+    const pauseBtn = document.getElementById('btn-pause-session');
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', function() {
+        isRunning = !isRunning;
+        const icon = this.querySelector('.material-symbols-outlined');
+        if (icon) {
+          icon.textContent = isRunning ? 'pause' : 'play_arrow';
+        }
+        this.classList.toggle('bg-primary-fixed', !isRunning);
+      });
+    }
+
+    // Keyboard shortcut listeners (Tempo work console paradigm)
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      if (e.key === 'f' || e.key === 'F') {
+        const btnFocus = document.getElementById('btn-focus-toggle');
+        if (btnFocus) {
+          btnFocus.classList.add('scale-95');
+          setTimeout(() => btnFocus.classList.remove('scale-95'), 150);
+        }
+      }
+    });
+
+    // Ensure Tasks navigation element is highlighted in sidebar
+    const navItems = document.querySelectorAll('aside nav a[data-path]');
+    navItems.forEach(item => {
+      if (item.getAttribute('data-path') === 'tasks') {
+        item.className = 'flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg bg-secondary-container text-on-surface font-semibold transition-colors font-body-sm text-body-sm';
+      } else {
+        item.className = 'flex items-center gap-space-sm px-space-sm h-density-row-compact rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors font-body-sm text-body-sm';
+      }
+    });
+  })();
+</script></main></div></body></html>

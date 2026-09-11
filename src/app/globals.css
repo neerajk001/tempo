@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-surface text-on-surface antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+  /* Extremely subtle warm depth: charcoal base with barely-there green/amber ambience */
+  background-color: #12110f;
+  background-image:
+    radial-gradient(1100px 480px at 50% -8%, rgba(127, 176, 105, 0.055) 0%, transparent 62%),
+    radial-gradient(900px 420px at 88% 108%, rgba(232, 200, 106, 0.038) 0%, transparent 60%),
+    radial-gradient(800px 380px at 8% 100%, rgba(224, 145, 69, 0.03) 0%, transparent 58%);
+  background-attachment: fixed;
+}
+
+::selection {
+  @apply bg-primary-fixed text-on-primary-fixed;
+}
+
+/* Subtle warm scrollbars to match charcoal surfaces */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #12110f;
+}
+::-webkit-scrollbar-thumb {
+  background: #32302b;
+  border-radius: 8px;
+  border: 2px solid #12110f;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3d3b35;
+}
+
+/* Calm focus rings in warm green */
+:focus-visible {
+  outline: 2px solid rgba(127, 176, 105, 0.55);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe,
+  .animate-pulse-ring,
+  .animate-check,
+  .animate-rise {
+    animation: none !important;
+  }
+}

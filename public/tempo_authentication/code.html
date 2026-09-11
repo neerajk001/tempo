@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#fafafd]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tempo - Sign In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            tempo: {
+              50: '#f5f6ff',
+              100: '#ebedff',
+              500: '#4f46e5',
+              600: '#4338ca',
+              700: '#3730a3',
+              900: '#1e1b4b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      -webkit-font-smoothing: antialiased;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col justify-between text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
+
+  <!-- Subtle Top System Status Bar / Desktop Window Feel -->
+  <header class="w-full px-8 py-6 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <!-- Minimalist Precision Glyph -->
+      <div class="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-sm ring-1 ring-black/5">
+        <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <line x1="12" y1="7" x2="12" y2="12"></line>
+          <line x1="12" y1="12" x2="15" y2="15"></line>
+        </svg>
+      </div>
+      <span class="text-sm font-semibold tracking-tight text-slate-900">Tempo</span>
+      <span class="text-[11px] font-mono uppercase tracking-wider text-slate-400 ml-1.5 px-1.5 py-0.5 rounded border border-slate-200/70 bg-slate-100/50">v2.4</span>
+    </div>
+
+    <!-- Right subtle utility / status indicator -->
+    <div class="flex items-center gap-4 text-xs text-slate-500">
+      <div class="flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        <span class="text-slate-500 font-medium">All systems operational</span>
+      </div>
+      <span class="text-slate-300">/</span>
+      <a href="#" class="hover:text-slate-800 transition-colors">Documentation</a>
+      <a href="#" class="hover:text-slate-800 transition-colors">Support</a>
+    </div>
+  </header>
+
+  <!-- Main Centered Authentication Stage -->
+  <main class="w-full flex-1 flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-[440px] flex flex-col items-center text-center">
+
+      <!-- Tempo Brand Monogram Symbol -->
+      <div class="relative mb-8 group">
+        <div class="w-16 h-16 rounded-2xl bg-white border border-slate-200/90 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] flex items-center justify-center transition-all duration-300 group-hover:border-slate-300 group-hover:shadow-[0_8px_28px_-6px_rgba(79,70,229,0.12)]">
+          <!-- Architectural Caliper / Tempo Icon -->
+          <svg class="w-8 h-8 text-slate-900" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.75" stroke-dasharray="2 3" opacity="0.4"/>
+            <path d="M16 6V16L22 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="16" cy="16" r="2.5" fill="currentColor"/>
+          </svg>
+        </div>
+        <!-- Active indicator pulse badge -->
+        <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-indigo-600 border-2 border-[#fafafd] flex items-center justify-center shadow-sm">
+          <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+        </span>
+      </div>
+
+      <!-- App Wordmark & Scope -->
+      <div class="inline-flex items-center gap-2 mb-3">
+        <span class="text-base font-semibold tracking-tight text-slate-900">Tempo</span>
+        <span class="text-[11px] font-mono uppercase tracking-wider text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded-full border border-indigo-100/80">Personal Console</span>
+      </div>
+
+      <!-- Headline -->
+      <h1 class="text-2xl sm:text-[28px] font-semibold text-slate-900 tracking-[-0.025em] leading-snug mb-3">
+        Focus on the work that matters.
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="text-[14.5px] leading-relaxed text-slate-500 font-normal max-w-[380px] mb-8">
+        Plan your time, run focused sessions, and understand where your day actually went.
+      </p>
+
+      <!-- Main Interaction Card / Panel -->
+      <div class="w-full bg-white border border-slate-200/80 rounded-2xl p-7 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04),0_12px_32px_-8px_rgba(0,0,0,0.05)] text-left">
+        
+        <!-- Primary Button: Continue with Google -->
+        <button type="button" class="w-full group relative flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-medium text-[14.5px] shadow-sm hover:shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+          <!-- Google 'G' official colored glyph -->
+          <svg class="w-4 h-4 bg-white rounded-full p-[1px] flex-shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span>Continue with Google</span>
+          <span class="text-xs font-mono text-slate-400 group-hover:text-slate-300 ml-1 transition-colors">↵</span>
+        </button>
+
+        <!-- Divider with subtle badge -->
+        <div class="relative my-5">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-slate-100"></div>
+          </div>
+          <div class="relative flex justify-center text-xs">
+            <span class="bg-white px-2.5 text-slate-400 font-mono text-[11px] uppercase tracking-wider">Workspace Sync</span>
+          </div>
+        </div>
+
+        <!-- Supporting Calendar Integration Micro-Callout -->
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-slate-50/80 border border-slate-100 text-slate-600">
+          <div class="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100/60 flex items-center justify-center flex-shrink-0 text-indigo-600 mt-0.5">
+            <!-- Calendar Icon -->
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs leading-relaxed text-slate-600 font-medium">
+              Connect Google Calendar to bring your planned work into Tempo.
+            </p>
+            <p class="text-[11px] text-slate-400 mt-0.5">
+              Read-only availability inspection and deliberate focus block protection.
+            </p>
+          </div>
+        </div>
+
+        <!-- Single-Click Fast Sign-in Hint for returning accounts -->
+        <div class="mt-4 pt-3.5 border-t border-slate-100/80 flex items-center justify-between text-xs text-slate-400">
+          <span class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            OAuth 2.0 AES-256 Encrypted
+          </span>
+          <a href="#" class="text-slate-500 hover:text-slate-800 transition-colors font-medium">Use SSO</a>
+        </div>
+
+      </div>
+
+      <!-- Micro Keyboard Hint -->
+      <div class="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
+        <span>Press</span>
+        <kbd class="px-1.5 py-0.5 rounded border border-slate-200 bg-white font-mono text-[11px] text-slate-600 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">Enter ↵</kbd>
+        <span>to continue with default account</span>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Quiet, Minimal Footer -->
+  <footer class="w-full px-8 py-5 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 border-t border-slate-100">
+    <div class="flex items-center gap-3 mb-2 sm:mb-0">
+      <span>Tempo Technologies Inc.</span>
+      <span class="text-slate-300">•</span>
+      <span>Designed for deep work</span>
+    </div>
+    <div class="flex items-center gap-5">
+      <a href="#" class="hover:text-slate-600 transition-colors">Privacy Policy</a>
+      <a href="#" class="hover:text-slate-600 transition-colors">Terms of Service</a>
+      <a href="#" class="hover:text-slate-600 transition-colors">Security Architecture</a>
+      <span class="text-slate-300">|</span>
+      <span class="font-mono text-[11px] text-slate-400">ESC to exit</span>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum SessionStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum SessionType {
+  FOCUS
+  SHORT_BREAK
+  LONG_BREAK
+}
+
+enum SessionEventType {
+  START
+  PAUSE
+  RESUME
+  COMPLETE
+  CANCEL
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tasks     Task[]
+  sessions  PomodoroSession[]
+}
+
+model Task {
+  id               String            @id @default(cuid())
+  userId           String?
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  date             DateTime          @default(now()) @db.Date
+  allocatedMinutes Int               @default(60)
+  status           TaskStatus        @default(TODO)
+  // Per-task pomodoro overrides (nullable = use global defaults from constants)
+  focusDuration    Int?
+  shortBreak       Int?
+  longBreak        Int?
+  // Google Calendar link (Phase 06)
+  calendarEventId  String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  sessions         PomodoroSession[]
+
+  @@index([date])
+  @@index([status])
+  @@index([userId])
+  @@index([userId, date])
+}
+
+model PomodoroSession {
+  id             String         @id @default(cuid())
+  userId         String?
+  user           User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId         String?
+  task           Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  type           SessionType    @default(FOCUS)
+  status         SessionStatus  @default(IDLE)
+  plannedMinutes Int            @default(50)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  events         SessionEvent[]
+
+  @@index([taskId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([userId])
+}
+
+model SessionEvent {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   PomodoroSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type      SessionEventType
+  timestamp DateTime         @default(now())
+
+  @@index([sessionId])
+  @@index([timestamp])
+}
