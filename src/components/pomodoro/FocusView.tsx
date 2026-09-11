@@ -333,27 +333,31 @@ export default function FocusView() {
           <VideoToggleButton onModeChange={setVideoMode} />
           <MusicToggleButton />
           {immersive && (
-            <>
-              <button
-                type="button"
-                onClick={() => setPrefs({ timerFaded: !timerFaded })}
-                title={timerFaded ? "Unfade timer" : "Fade timer so the video shows through"}
-                className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors"
-              >
-                <Icon name="opacity" className={cn("text-[16px]", timerFaded ? "text-primary" : "text-on-surface-variant")} />
-                <span className="text-body-sm font-medium hidden sm:inline">Fade</span>
-                {timerFaded && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPrefs({ timerHidden: true })}
-                title="Hide timer (session keeps running)"
-                className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors"
-              >
-                <Icon name="visibility_off" className="text-[16px] text-on-surface-variant" />
-                <span className="text-body-sm font-medium hidden sm:inline">Hide</span>
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => setPrefs({ timerFaded: !timerFaded })}
+              title={timerFaded ? "Unfade timer" : "Fade timer so the video shows through"}
+              className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors"
+            >
+              <Icon name="opacity" className={cn("text-[16px]", timerFaded ? "text-primary" : "text-on-surface-variant")} />
+              <span className="text-body-sm font-medium hidden sm:inline">Fade</span>
+              {timerFaded && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+            </button>
+          )}
+          {(immersive || timerHidden) && (
+            <button
+              type="button"
+              onClick={() => setPrefs({ timerHidden: !timerHidden })}
+              title={timerHidden ? "Show timer" : "Hide timer (session keeps running)"}
+              className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors"
+            >
+              <Icon
+                name={timerHidden ? "visibility" : "visibility_off"}
+                className={cn("text-[16px]", timerHidden ? "text-primary" : "text-on-surface-variant")}
+              />
+              <span className="text-body-sm font-medium hidden sm:inline">{timerHidden ? "Show" : "Hide"}</span>
+              {timerHidden && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+            </button>
           )}
           <button
             type="button"
@@ -443,7 +447,7 @@ export default function FocusView() {
           )}
         </div>
 
-        {!timerHidden ? (
+        {!timerHidden && (
           <div
             className={`relative w-[min(78vw,300px)] h-[min(78vw,300px)] sm:w-[400px] sm:h-[400px] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
           >
@@ -454,19 +458,6 @@ export default function FocusView() {
             ) : (
               <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
             )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-10 gap-2">
-            <button
-              type="button"
-              onClick={() => setPrefs({ timerHidden: false })}
-              title="Show timer"
-              className="h-9 px-4 rounded-full bg-surface-container-lowest/85 border border-outline-variant backdrop-blur flex items-center gap-2 text-on-surface-variant hover:text-on-surface shadow-lg text-body-sm font-medium"
-            >
-              <Icon name="visibility" className="text-[18px]" />
-              <span>Show timer</span>
-            </button>
-            <span className="text-label-xs text-on-surface-variant">Timer hidden — session still running</span>
           </div>
         )}
 
