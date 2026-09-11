@@ -35,7 +35,9 @@ export default function FocusSessionCard() {
   const startQuick = usePomodoroStore((s) => s.startQuick);
   const reset = usePomodoroStore((s) => s.reset);
   const clearQuickTitle = usePomodoroStore((s) => s.setActiveTask);
+  const unlinkActiveTask = usePomodoroStore((s) => s.setActiveTask);
   const tasks = useTaskStore((s) => s.tasks);
+  const moveTaskToToday = useTaskStore((s) => s.updateTask);
   const { handleComplete, handleCancel } = useFinishSession();
   const [mounted, setMounted] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -91,6 +93,8 @@ export default function FocusSessionCard() {
   const [quickCredit, setQuickCredit] = useCreditChoice(creditCandidates);
   const isQuick = quickLabel !== null;
   const isCreditedQuick = isQuick && activeTaskId !== null;
+  // Linked task dated another day: card and daily numbers disagree.
+  const isStaleDate = activeTask != null && activeTask.date !== todayKey();
   const beginQuickBlock = () => {
     if (session.status !== "IDLE") return;
     startQuick(undefined, quickMinutes * 60000, undefined, quickCredit);
@@ -267,6 +271,27 @@ export default function FocusSessionCard() {
             <span className="self-start inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-mono text-code-badge font-medium">
               <span>Quick {plannedMin}m · separate session</span>
             </span>
+          )}
+          {isStaleDate && activeTask && (
+            <div className="self-start flex items-center gap-2 mt-1.5 px-2.5 py-1.5 rounded-lg bg-accent-amber-container/60 border border-accent-amber/25 flex-wrap">
+              <span className="text-body-sm text-on-surface">
+                Dated {activeTask.date} — move it to today so stats count it?
+              </span>
+              <button
+                type="button"
+                onClick={() => moveTaskToToday(activeTask.id, { date: todayKey() })}
+                className="h-7 px-3 rounded-lg bg-primary text-on-primary text-body-sm font-semibold hover:bg-primary-container transition-colors"
+              >
+                Move to today
+              </button>
+              <button
+                type="button"
+                onClick={() => unlinkActiveTask(null)}
+                className="h-7 px-2 rounded-lg text-on-surface-variant hover:text-on-surface text-body-sm font-medium transition-colors"
+              >
+                Unlink
+              </button>
+            </div>
           )}
         </div>
 
