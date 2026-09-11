@@ -24,11 +24,16 @@ import { useSessionHistoryStore } from "@/stores/session-history-store";
 interface PomodoroActions {
   start: (phase?: PomodoroPhase, plannedMs?: number) => void;
   startForTask: (taskId: string, taskTitle: string, plannedMs?: number) => void;
-  /** Allocation-free quick focus: no task link, optional label + duration. */
+  /**
+   * Quick focus with a custom duration. Pass `credit` to count the finished
+   * minutes toward a task (its progress absorbs them); omit it (null) and
+   * the session stays independent — logged to History, credited nowhere.
+   */
   startQuick: (
     title?: string | null,
     plannedMs?: number,
-    breaks?: BreakOverride
+    breaks?: BreakOverride,
+    credit?: QuickCredit | null
   ) => void;
   setActiveTask: (taskId: string | null, taskTitle?: string | null) => void;
   pause: () => void;
@@ -53,11 +58,27 @@ interface PomodoroStore extends PomodoroActions {
   activeTaskId: string | null;
   activeTaskTitle: string | null;
   /**
+   * The custom label typed for a quick session (null = not a quick session).
+   * When set alongside `activeTaskId`, the quick block counts toward that
+   * task; with a null task id it runs independent. Cleared by task starts
+   * and by `reset()` back to standby.
+   */
+  quickLabel: string | null;
+  /**
    * Per-quick-session break cadence (ms + interval). Set by `startQuick`,
    * cleared by task sessions and by global cadence edits in Settings.
    * Null = follow the workspace `config`.
    */
   breakOverride: BreakOverride | null;
+}
+
+/**
+ * Attribution target for a quick session: the in-progress task its finished
+ * minutes should count toward. Null = independent session.
+ */
+export interface QuickCredit {
+  taskId: string;
+  taskTitle: string;
 }
 
 /**
@@ -151,6 +172,7 @@ export const usePomodoroStore = create<PomodoroStore>()(
       config: DEFAULT_POMODORO_CONFIG,
       activeTaskId: null,
       activeTaskTitle: null,
+      quickLabel: null,
       breakOverride: null,
 
       start: (phase, plannedMs) => {
@@ -174,6 +196,8 @@ export const usePomodoroStore = create<PomodoroStore>()(
         set({
           activeTaskId: taskId,
           activeTaskTitle: taskTitle,
+          // A task slice is not a quick session — clear the quick label.
+          quickLabel: null,
           // Task sessions follow task/global cadence — drop any quick override.
           breakOverride: null,
           session: startSession(fresh, now, {
@@ -184,7 +208,7 @@ export const usePomodoroStore = create<PomodoroStore>()(
         });
       },
 
-      startQuick: (title, plannedMs, breaks) => {
+      startQuick: (title, plannedMs, breaks, credit) => {
         preemptIfActive();
         const { session, config } = get();
         const now = Date.now();
@@ -195,8 +219,11 @@ export const usePomodoroStore = create<PomodoroStore>()(
             : undefined;
         const fresh = createIdleState("FOCUS", config, session.completedFocusCount);
         set({
-          activeTaskId: null,
-          activeTaskTitle: label,
+          // Credited quick: minutes count toward the task on completion.
+          // Independent quick: no link, logged to History only.
+          activeTaskId: credit?.taskId ?? null,
+          activeTaskTitle: credit?.taskTitle ?? label,
+          quickLabel: label,
           breakOverride:
             breaks &&
             (breaks.shortBreakMs !== undefined ||
@@ -239,6 +266,8 @@ export const usePomodoroStore = create<PomodoroStore>()(
       reset: () => {
         const { config, session } = get();
         set({
+          // Back to standby: no live quick session anymore.
+          quickLabel: null,
           session: createIdleState(
             session.phase as PomodoroPhase,
             config,
@@ -333,6 +362,7 @@ export const usePomodoroStore = create<PomodoroStore>()(
         config: s.config,
         activeTaskId: s.activeTaskId,
         activeTaskTitle: s.activeTaskTitle,
+        quickLabel: s.quickLabel,
         breakOverride: s.breakOverride,
       }) as unknown as PomodoroStore,
     }

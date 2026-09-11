@@ -10,6 +10,7 @@ beforeEach(() => {
     config: DEFAULT_POMODORO_CONFIG,
     activeTaskId: null,
     activeTaskTitle: null,
+    quickLabel: null,
     breakOverride: null,
   });
   useSessionHistoryStore.setState({ sessions: [] });
@@ -83,6 +84,33 @@ describe("single-active pomodoro invariant", () => {
     expect(s.session.status).toBe("RUNNING");
     expect(s.activeTaskId).toBeNull();
     expect(s.activeTaskTitle).toBe("Deep Work Session");
+    expect(s.quickLabel).toBe("Deep Work Session");
+  });
+
+  it("startQuick with credit links the task and keeps the quick label", () => {
+    usePomodoroStore.getState().startQuick("Evening burst", 15 * 60000, undefined, {
+      taskId: "task-a",
+      taskTitle: "Task A",
+    });
+    const s = usePomodoroStore.getState();
+    expect(s.session.status).toBe("RUNNING");
+    expect(s.session.plannedMs).toBe(15 * 60000);
+    expect(s.activeTaskId).toBe("task-a");
+    expect(s.activeTaskTitle).toBe("Task A");
+    expect(s.quickLabel).toBe("Evening burst");
+  });
+
+  it("startForTask and reset clear the quick label", () => {
+    usePomodoroStore.getState().startQuick("Evening burst", 15 * 60000, undefined, {
+      taskId: "task-a",
+      taskTitle: "Task A",
+    });
+    expect(usePomodoroStore.getState().quickLabel).not.toBeNull();
+    usePomodoroStore.getState().startForTask("task-a", "Task A");
+    expect(usePomodoroStore.getState().quickLabel).toBeNull();
+    usePomodoroStore.getState().startQuick("Solo", 20 * 60000);
+    usePomodoroStore.getState().reset();
+    expect(usePomodoroStore.getState().quickLabel).toBeNull();
   });
 
   it("startQuick stores a normalized break override", () => {

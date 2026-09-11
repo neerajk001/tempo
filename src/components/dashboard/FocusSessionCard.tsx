@@ -8,12 +8,13 @@ import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
 import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
-import { calculatePomodoroPlan } from "@/lib/task-planning";
+import { calculatePomodoroPlan, todayKey } from "@/lib/task-planning";
 import { formatClock } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DurationPicker from "@/components/dashboard/DurationPicker";
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
+import QuickCreditPicker, { useCreditChoice } from "@/components/dashboard/QuickCreditPicker";
 import Icon from "@/components/ui/Icon";
 
 function scratchKey(taskId: string | null): string {
@@ -26,6 +27,7 @@ export default function FocusSessionCard() {
   const config = usePomodoroStore((s) => s.config);
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
   const activeTaskTitle = usePomodoroStore((s) => s.activeTaskTitle);
+  const quickLabel = usePomodoroStore((s) => s.quickLabel);
   const pause = usePomodoroStore((s) => s.pause);
   const resume = usePomodoroStore((s) => s.resume);
   const extend = usePomodoroStore((s) => s.extend);
@@ -52,6 +54,8 @@ export default function FocusSessionCard() {
   );
   const [newInterval, setNewInterval] = useState(config.longBreakInterval);
   const [note, setNote] = useState("");
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickMinutes, setQuickMinutes] = useState(15);
   const prevStatus = useRef(session.status);
   useEffect(() => setMounted(true), []);
 
@@ -76,6 +80,22 @@ export default function FocusSessionCard() {
   }, [session, router]);
 
   const activeTask = selectTaskById(tasks, activeTaskId);
+  // Quick-block candidates: today's open tasks, falling back to any open task.
+  const creditCandidates = useMemo(() => {
+    const open = tasks.filter(
+      (t) => t.status !== "COMPLETED" && t.status !== "CANCELLED"
+    );
+    const todayOpen = open.filter((t) => t.date === todayKey());
+    return todayOpen.length > 0 ? todayOpen : open;
+  }, [tasks]);
+  const [quickCredit, setQuickCredit] = useCreditChoice(creditCandidates);
+  const isQuick = quickLabel !== null;
+  const isCreditedQuick = isQuick && activeTaskId !== null;
+  const beginQuickBlock = () => {
+    if (session.status !== "IDLE") return;
+    startQuick(undefined, quickMinutes * 60000, undefined, quickCredit);
+    setQuickOpen(false);
+  };
   const breakOverride = usePomodoroStore((s) => s.breakOverride);
   const effBreaks = resolveBreaks(config, breakOverride);
   const displayTask = activeTask ?? tasks.find((t) => t.date === new Date().toISOString().slice(0, 10) && t.status !== "COMPLETED" && t.status !== "CANCELLED") ?? null;
@@ -235,6 +255,19 @@ export default function FocusSessionCard() {
         <div className="flex flex-col gap-0.5">
           <h2 className="text-headline-lg text-on-surface tracking-tight font-semibold">{title}</h2>
           <p className="text-body-md text-on-surface-variant line-clamp-2">{description}</p>
+          {isCreditedQuick && ticking && (
+            <span className="self-start inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-code-badge font-semibold">
+              <Icon name="bolt" className="text-[12px]" />
+              <span>
+                Quick {plannedMin}m → counts in {activeTask?.title ?? activeTaskTitle}
+              </span>
+            </span>
+          )}
+          {isQuick && !activeTaskId && ticking && (
+            <span className="self-start inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-mono text-code-badge font-medium">
+              <span>Quick {plannedMin}m · separate session</span>
+            </span>
+          )}
         </div>
 
         <div className="bg-surface-container-low rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-5">
@@ -301,6 +334,17 @@ export default function FocusSessionCard() {
         <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             {session.status === "IDLE" && <Button onClick={startPrimary}>Start</Button>}
+            {session.status === "IDLE" && (activeTask ?? displayTask) && (
+              <button
+                type="button"
+                onClick={() => setQuickOpen((v) => !v)}
+                title="Start a shorter quick block instead of the full slice"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-body-sm font-medium transition-colors"
+              >
+                <Icon name="bolt" className="text-[16px]" />
+                <span>Short on time?</span>
+              </button>
+            )}
             {session.status === "RUNNING" && (
               <button
                 type="button"
@@ -403,6 +447,34 @@ export default function FocusSessionCard() {
             </button>
           </div>
         </div>
+
+        {quickOpen && session.status === "IDLE" && (activeTask ?? displayTask) && (
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant">
+            <span className="text-label-xs text-on-surface-variant">
+              Quick block instead of the full {currentSliceMin}m slice — finished
+              minutes count wherever you choose below.
+            </span>
+            <DurationPicker compact minutes={quickMinutes} onChange={setQuickMinutes} />
+            <QuickCreditPicker
+              tasks={creditCandidates}
+              value={quickCredit}
+              onChange={setQuickCredit}
+            />
+            <div className="flex items-center gap-2">
+              <Button onClick={beginQuickBlock}>
+                Start {quickMinutes}m quick block
+                {quickCredit ? ` → ${quickCredit.taskTitle}` : " (separate)"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setQuickOpen(false)}
+                className="h-8 px-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-body-sm font-medium transition-colors"
+              >
+                Keep full slice
+              </button>
+            </div>
+          </div>
+        )}
 
         {replacing && ticking && (
           <div className="flex flex-col gap-2 p-3 rounded-xl bg-surface-container-low border border-outline-variant">

@@ -12,12 +12,13 @@ import {
   getRemainingMs,
   isExpired,
 } from "@/lib/pomodoro-machine";
-import { calculatePomodoroPlan, nextSliceMinutes } from "@/lib/task-planning";
+import { calculatePomodoroPlan, nextSliceMinutes, todayKey } from "@/lib/task-planning";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
 import { formatClock } from "@/lib/utils";
 import Icon from "@/components/ui/Icon";
 import DurationPicker, { QUICK_DURATIONS } from "@/components/dashboard/DurationPicker";
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
+import QuickCreditPicker, { useCreditChoice } from "@/components/dashboard/QuickCreditPicker";
 import { VideoToggleButton, VideoPill, AmbientVideo, type VideoMode } from "@/components/ambient/AmbientVideo";
 import { MusicToggleButton, MusicPill } from "@/components/ambient/AmbientMusic";
 import { TimerAnalog, TimerCircular, TimerFlip } from "@/components/pomodoro/FocusTimer";
@@ -66,6 +67,16 @@ export default function FocusView() {
   const [quickShortMin, setQuickShortMin] = useState(10);
   const [quickLongMin, setQuickLongMin] = useState(30);
   const [quickInterval, setQuickInterval] = useState(4);
+  const quickTasks = useTaskStore((s) => s.tasks);
+  const quickCandidates = useMemo(() => {
+    const open = quickTasks.filter(
+      (t) => t.status !== "COMPLETED" && t.status !== "CANCELLED"
+    );
+    const todayOpen = open.filter((t) => t.date === todayKey());
+    return todayOpen.length > 0 ? todayOpen : open;
+  }, [quickTasks]);
+  const [quickCredit, setQuickCredit] = useCreditChoice(quickCandidates);
+  const quickLabel = usePomodoroStore((s) => s.quickLabel);
   const [videoMode, setVideoMode] = useState<VideoMode>("background");
   const [chromeVisible, setChromeVisible] = useState(true);
   const timerStyle = usePrefsStore((s) => s.timerStyle);
@@ -213,11 +224,16 @@ export default function FocusView() {
             : null;
           if (linked) st.startForTask(linked.id, linked.title, nextSliceMinutes(linked.allocatedMinutes, linked.focusMinutes, linked.completedPomodoros) * 60000);
           else
-            st.startQuick(quickTitle || undefined, quickMinutes * 60000, {
-              shortBreakMs: quickShortMin * 60000,
-              longBreakMs: quickLongMin * 60000,
-              longBreakInterval: quickInterval,
-            });
+            st.startQuick(
+              quickTitle || undefined,
+              quickMinutes * 60000,
+              {
+                shortBreakMs: quickShortMin * 60000,
+                longBreakMs: quickLongMin * 60000,
+                longBreakInterval: quickInterval,
+              },
+              quickCredit
+            );
         }
       } else if (e.code === "Escape") {
         // Fullscreen video captures Esc first so Focus Mode stays put.
@@ -238,7 +254,7 @@ export default function FocusView() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.status, ticking, drawerOpen, pause, resume, startQuick, quickTitle, quickMinutes, quickShortMin, quickLongMin, quickInterval, videoMode]);
+  }, [session.status, ticking, drawerOpen, pause, resume, startQuick, quickTitle, quickMinutes, quickShortMin, quickLongMin, quickInterval, quickCredit, videoMode]);
 
   useEffect(() => {
     document.title =
@@ -275,7 +291,7 @@ export default function FocusView() {
 
   const startPrimary = () => {
     if (activeTask) startForTask(activeTask.id, activeTask.title, sliceMin * 60000);
-    else startQuick(quickTitle || undefined, quickMinutes * 60000, quickBreaks);
+    else startQuick(quickTitle || undefined, quickMinutes * 60000, quickBreaks, quickCredit);
   };
   const showQuickForm = session.status === "IDLE" && !activeTask;
 
@@ -418,6 +434,11 @@ export default function FocusView() {
           <h1 className="text-headline-lg sm:text-[32px] sm:leading-[38px] text-on-surface tracking-tight font-semibold mt-0.5">
             {title}
           </h1>
+          {quickLabel !== null && activeTaskId && ticking && (
+            <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-code-badge font-semibold">
+              <span>Quick {Math.max(1, Math.round(session.plannedMs / 60000))}m → counts in {title}</span>
+            </span>
+          )}
           <p className="text-body-sm text-on-surface-variant flex items-center gap-1.5">
             <span>Pomodoro {pomoIdx} of {planLen}</span>
             <span>•</span>
@@ -432,6 +453,13 @@ export default function FocusView() {
                 className="w-full h-10 sm:h-9 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 text-base sm:text-body-sm text-center focus:outline-none focus:border-primary"
               />
               <DurationPicker compact minutes={quickMinutes} onChange={setQuickMinutes} />
+              <div className="w-full text-left">
+                <QuickCreditPicker
+                  tasks={quickCandidates}
+                  value={quickCredit}
+                  onChange={setQuickCredit}
+                />
+              </div>
               <div className="w-full">
                 <QuickCadenceFields
                   shortBreakMin={quickShortMin}
@@ -443,7 +471,9 @@ export default function FocusView() {
                 />
               </div>
               <span className="text-label-xs text-on-surface-variant">
-                No task needed — logs to History without allocation
+                {quickCredit
+                  ? `Counts toward ${quickCredit.taskTitle} when finished`
+                  : "Logs to History without allocation"}
               </span>
             </div>
           )}

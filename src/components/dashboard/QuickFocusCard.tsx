@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import DurationPicker, { QUICK_DURATIONS } from "@/components/dashboard/DurationPicker";
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
+import QuickCreditPicker, { useCreditChoice } from "@/components/dashboard/QuickCreditPicker";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
+import { useTaskStore } from "@/stores/task-store";
+import { todayKey } from "@/lib/task-planning";
 
 /**
  * Allocation-free entry point: start a pomodoro with just a label +
@@ -31,6 +34,18 @@ export default function QuickFocusCard() {
     Math.round(config.longBreakMs / 60000)
   );
   const [interval, setInterval] = useState(config.longBreakInterval);
+  const tasks = useTaskStore((s) => s.tasks);
+  const openTasks = useMemo(
+    () =>
+      tasks.filter(
+        (t) =>
+          t.date === todayKey() &&
+          t.status !== "COMPLETED" &&
+          t.status !== "CANCELLED"
+      ),
+    [tasks]
+  );
+  const [credit, setCredit] = useCreditChoice(openTasks);
 
   const ticking =
     session.status === "RUNNING" || session.status === "PAUSED";
@@ -38,11 +53,16 @@ export default function QuickFocusCard() {
   const begin = () => {
     // startQuick safely preempts: a live run is archived to History as
     // CANCELLED before the new session starts, so replacing never loses data.
-    startQuick(title || undefined, minutes * 60000, {
-      shortBreakMs: shortMin * 60000,
-      longBreakMs: longMin * 60000,
-      longBreakInterval: interval,
-    });
+    startQuick(
+      title || undefined,
+      minutes * 60000,
+      {
+        shortBreakMs: shortMin * 60000,
+        longBreakMs: longMin * 60000,
+        longBreakInterval: interval,
+      },
+      credit
+    );
     setTitle("");
     router.push("/focus");
   };
@@ -61,8 +81,8 @@ export default function QuickFocusCard() {
         </span>
       </div>
       <p className="text-body-sm text-on-surface-variant">
-        Just a pomodoro — pick a label and duration. Logs to History without
-        allocating time.
+        Just a pomodoro — pick a label and duration, then choose whether its
+        minutes count toward a task or stay separate.
       </p>
       <input
         value={title}
@@ -74,6 +94,7 @@ export default function QuickFocusCard() {
         className="h-8 rounded-lg border border-outline bg-surface-container-low px-2.5 text-body-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:border-primary"
       />
       <DurationPicker minutes={minutes} onChange={setMinutes} />
+      <QuickCreditPicker tasks={openTasks} value={credit} onChange={setCredit} />
       <QuickCadenceFields
         shortBreakMin={shortMin}
         longBreakMin={longMin}
