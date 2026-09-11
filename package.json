@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "predev": "node scripts/sync-focus-library.mjs",
+    "prebuild": "node scripts/sync-focus-library.mjs",
+    "library:sync": "node scripts/sync-focus-library.mjs",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

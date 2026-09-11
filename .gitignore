@@ -29,3 +29,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Focus media binaries live in object storage, never in git (GitHub rejects
+# files over 100MB and Vercel can't deploy them sanely).
+public/focus/videos/
+public/focus/music/
+# Generated catalog (rebuilt by `npm run library:sync` / predev / prebuild).
+src/lib/focus-library.generated.ts

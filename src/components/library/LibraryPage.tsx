@@ -241,7 +241,7 @@ export default function LibraryPage() {
             <p className="text-body-md font-medium text-on-surface">No videos yet</p>
             <p className="text-body-sm text-secondary max-w-sm">
               Drop .mp4 files into <span className="font-mono text-code-badge text-on-surface">public/focus/videos/</span> and
-              list them in <span className="font-mono text-code-badge text-on-surface">src/lib/focus-library.ts</span> — no component changes needed.
+              run <span className="font-mono text-code-badge text-on-surface">npm run library:sync</span> (automatic on dev/build) — they appear here.
             </p>
           </div>
         ) : (
@@ -260,7 +260,7 @@ export default function LibraryPage() {
             <p className="text-body-md font-medium text-on-surface">No music yet</p>
             <p className="text-body-sm text-secondary max-w-sm">
               Drop .mp3 files into <span className="font-mono text-code-badge text-on-surface">public/focus/music/</span> and
-              list them in <span className="font-mono text-code-badge text-on-surface">src/lib/focus-library.ts</span> — no component changes needed.
+              run <span className="font-mono text-code-badge text-on-surface">npm run library:sync</span> (automatic on dev/build) — they appear here.
             </p>
           </div>
         ) : (

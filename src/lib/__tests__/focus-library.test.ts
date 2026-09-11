@@ -7,9 +7,13 @@ describe("focus library catalog", () => {
     expect(new Set(FOCUS_TRACKS.map((t) => t.id)).size).toBe(FOCUS_TRACKS.length);
   });
 
-  it("points at the public/focus folders", () => {
-    for (const v of FOCUS_VIDEOS) expect(v.src.startsWith("/focus/videos/")).toBe(true);
-    for (const t of FOCUS_TRACKS) expect(t.src.startsWith("/focus/music/")).toBe(true);
+  it("points at playable sources (local public/focus folders or remote URLs)", () => {
+    const okVideo = (src: string) =>
+      src.startsWith("/focus/videos/") || src.startsWith("https://");
+    const okAudio = (src: string) =>
+      src.startsWith("/focus/music/") || src.startsWith("https://");
+    for (const v of FOCUS_VIDEOS) expect(okVideo(v.src)).toBe(true);
+    for (const t of FOCUS_TRACKS) expect(okAudio(t.src)).toBe(true);
   });
 
   it("looks entries up by id, null-safe", () => {
