@@ -150,11 +150,11 @@ export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss }: TimerProps
     transition: "transform 0.95s linear",
   } as const;
   return (
-    <div className="flex flex-col items-center justify-center text-center select-text py-2">
-      <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-2 font-medium">
+    <div className="flex flex-col items-center justify-center text-center select-text">
+      <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-1 font-medium">
         Time Remaining
       </span>
-      <svg className="w-[min(64vw,270px)] h-[min(64vw,270px)] sm:w-[300px] sm:h-[300px]" viewBox="0 0 300 300" fill="none">
+      <svg className="w-[min(58vw,220px)] h-[min(58vw,220px)] sm:w-[240px] sm:h-[240px]" viewBox="0 0 300 300" fill="none">
         <circle cx="150" cy="150" r="140" className="stroke-surface-container-high" strokeWidth="4" />
         <circle
           cx="150" cy="150" r="140"
@@ -194,7 +194,7 @@ export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss }: TimerProps
         />
         <circle cx="150" cy="150" r="6" className="fill-primary" />
       </svg>
-      <div className="font-mono text-2xl sm:text-3xl font-medium text-on-surface tabular-nums mt-1">
+      <div className="font-mono text-xl sm:text-2xl font-medium text-on-surface tabular-nums mt-1 leading-none">
         {mm}<span className="text-primary mx-0.5">:</span>{ss}
       </div>
       <TimerMeta elapsedMs={elapsedMs} pct={pct} paused={paused} />
