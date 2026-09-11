@@ -9,6 +9,7 @@ describe("timer style preference", () => {
   it("defaults to the circular timer", () => {
     expect(usePrefsStore.getState().timerStyle).toBe("circular");
   });
+
   it("switches style without touching anything else", () => {
     const before = usePrefsStore.getState();
     before.set({ timerStyle: "analog" });
@@ -23,25 +24,5 @@ describe("timer style preference", () => {
     usePrefsStore.getState().set({ timerStyle: "flip" });
     usePrefsStore.getState().resetPrefs();
     expect(usePrefsStore.getState().timerStyle).toBe("circular");
-  });
-
-  it("defaults the floating overlay to centered, full-size, visible", () => {
-    const s = usePrefsStore.getState();
-    expect(s.timerScale).toBe(1);
-    expect(s.timerPos).toBeNull();
-    expect(s.timerHidden).toBe(false);
-  });
-
-  it("persists overlay prefs through set/reset", () => {
-    usePrefsStore.getState().set({ timerScale: 1.3, timerPos: { x: 40, y: -20 }, timerHidden: true });
-    const s = usePrefsStore.getState();
-    expect(s.timerScale).toBe(1.3);
-    expect(s.timerPos).toEqual({ x: 40, y: -20 });
-    expect(s.timerHidden).toBe(true);
-    usePrefsStore.getState().resetPrefs();
-    const r = usePrefsStore.getState();
-    expect(r.timerScale).toBe(1);
-    expect(r.timerPos).toBeNull();
-    expect(r.timerHidden).toBe(false);
   });
 });

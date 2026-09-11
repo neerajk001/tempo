@@ -124,32 +124,6 @@ export function TimerFlip({ mm, ss, pct, paused, elapsedMs }: TimerProps) {
   );
 }
 
-/** Shared scale system for the floating timer — one path for all variants. */
-export const TIMER_SCALE = { min: 0.6, max: 1.6, step: 0.15, def: 1 } as const;
-
-export function stepTimerScale(current: number, dir: 1 | -1): number {
-  const next = Math.round((current + dir * TIMER_SCALE.step) * 100) / 100;
-  return Math.min(TIMER_SCALE.max, Math.max(TIMER_SCALE.min, next));
-}
-
-/** Clamp a center offset so the whole (scaled) timer stays in the viewport. */
-export function clampTimerOffset(
-  x: number,
-  y: number,
-  scale: number,
-  vw: number,
-  vh: number
-): { x: number; y: number } {
-  const half = 210 * scale;
-  const rx = Math.max(0, vw / 2 - half - 12);
-  const top = Math.max(0, vh / 2 - half - 64);
-  const bottom = Math.max(0, vh / 2 - half - 12);
-  const cx = Math.min(rx, Math.max(-rx, Number.isFinite(x) ? x : 0));
-  const cy = Math.min(bottom, Math.max(-top, Number.isFinite(y) ? y : 0));
-  // +0 normalizes -0 so persisted positions stay clean.
-  return { x: Math.round(cx) + 0, y: Math.round(cy) + 0 };
-}
-
 /** Angles for the analog variant. Hands sweep forward monotonically (never
  * spinning backwards across the 12) while a session runs. */
 export function clockAngles(elapsedMs: number, plannedMs: number): {
