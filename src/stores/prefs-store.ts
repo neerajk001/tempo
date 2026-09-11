@@ -7,6 +7,11 @@ export type CollisionMode = "auto" | "flag";
 export type ChimeTheme = "chime" | "marimba" | "bell" | "muted";
 export type TimerStyle = "circular" | "flip" | "analog";
 
+export interface TimerPos {
+  x: number;
+  y: number;
+}
+
 interface PrefsState {
   autoStartBreaks: boolean;
   autoStartFocus: boolean;
@@ -17,6 +22,10 @@ interface PrefsState {
   compact: boolean;
   collisionMode: CollisionMode;
   timerStyle: TimerStyle;
+  /** Floating-timer prefs (immersive Focus Mode). Null pos = centered. */
+  timerScale: number;
+  timerPos: TimerPos | null;
+  timerHidden: boolean;
   set: (patch: Partial<PrefsState>) => void;
   resetPrefs: () => void;
 }
@@ -31,6 +40,9 @@ const DEFAULTS = {
   compact: false,
   collisionMode: "auto" as CollisionMode,
   timerStyle: "circular" as TimerStyle,
+  timerScale: 1,
+  timerPos: null,
+  timerHidden: false,
 };
 
 const STORAGE_KEY = "tempo-prefs-v1";
@@ -64,6 +76,9 @@ export const usePrefsStore = create<PrefsState>()(
         compact: s.compact,
         collisionMode: s.collisionMode,
         timerStyle: s.timerStyle,
+        timerScale: s.timerScale,
+        timerPos: s.timerPos,
+        timerHidden: s.timerHidden,
       }) as PrefsState,
     }
   )

@@ -20,7 +20,7 @@ import DurationPicker, { QUICK_DURATIONS } from "@/components/dashboard/Duration
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
 import { VideoToggleButton, VideoPill, AmbientVideo, type VideoMode } from "@/components/ambient/AmbientVideo";
 import { MusicToggleButton, MusicPill, AmbientMusic } from "@/components/ambient/AmbientMusic";
-import { TimerAnalog, TimerCircular, TimerFlip } from "@/components/pomodoro/FocusTimer";
+import { TimerAnalog, TimerCircular, TimerFlip, clampTimerOffset, stepTimerScale } from "@/components/pomodoro/FocusTimer";
 import { usePrefsStore } from "@/stores/prefs-store";
 import { useAmbientStore } from "@/stores/ambient-store";
 import { findVideo } from "@/lib/focus-library";
@@ -69,8 +69,15 @@ export default function FocusView() {
   const [videoMode, setVideoMode] = useState<VideoMode>("background");
   const [chromeVisible, setChromeVisible] = useState(true);
   const timerStyle = usePrefsStore((s) => s.timerStyle);
+  const setPrefs = usePrefsStore((s) => s.set);
+  const timerScale = usePrefsStore((s) => s.timerScale);
+  const timerPos = usePrefsStore((s) => s.timerPos);
+  const timerHidden = usePrefsStore((s) => s.timerHidden);
   const ambientVideoOn = useAmbientStore((s) => s.videoEnabled);
   const ambientVideo = findVideo(useAmbientStore((s) => s.videoId));
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [viewport, setViewport] = useState({ w: 1280, h: 800 });
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number; x: number; y: number; moved: boolean } | null>(null);
   const prevStatus = useRef(session.status);
   useEffect(() => setMounted(true), []);
   // Seed the allocation-free quick form from workspace defaults (once).
@@ -126,6 +133,47 @@ export default function FocusView() {
       events.forEach((e) => window.removeEventListener(e, poke));
     };
   }, [immersive]);
+
+  useEffect(() => {
+    if (!immersive) return;
+    const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [immersive]);
+
+  // Floating-timer drag (Pointer Events cover mouse + touch). Clicks on
+  // buttons are ignored so tapping controls never moves the timer.
+  const basePos = dragPos ?? timerPos ?? { x: 0, y: 0 };
+  const timerAt = clampTimerOffset(basePos.x, basePos.y, timerScale, viewport.w, viewport.h);
+
+  const onTimerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!immersive || (e.target as HTMLElement).closest("button")) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Capture unsupported — drag still works while held.
+    }
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: basePos.x, oy: basePos.y, x: basePos.x, y: basePos.y, moved: false };
+  };
+
+  const onTimerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || !immersive || (e.target as HTMLElement).closest("button")) return;
+    if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 4) d.moved = true;
+    const c = clampTimerOffset(d.ox + (e.clientX - d.sx), d.oy + (e.clientY - d.sy), timerScale, viewport.w, viewport.h);
+    d.x = c.x;
+    d.y = c.y;
+    setDragPos(c);
+  };
+
+  const endTimerDrag = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d) return;
+    if (d.moved) setPrefs({ timerPos: { x: d.x, y: d.y } });
+    setDragPos(null);
+  };
 
   useEffect(() => {
     if (session.status === "RUNNING" && isExpired(session, Date.now())) handleComplete();
@@ -269,6 +317,15 @@ export default function FocusView() {
   const breakMin = session.phase === "FOCUS" ? Math.round(effBreaks.shortBreakMs / 60000) : 0;
   const breakAt = fmtHM(now + remainingMs + 60000);
   const startedLabel = session.startedAt ? fmtClock(session.startedAt) : "—";
+
+  const timerFace =
+    timerStyle === "flip" ? (
+      <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+    ) : timerStyle === "analog" ? (
+      <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+    ) : (
+      <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+    );
 
   const startPrimary = () => {
     if (activeTask) startForTask(activeTask.id, activeTask.title, sliceMin * 60000);
@@ -417,15 +474,65 @@ export default function FocusView() {
           )}
         </div>
 
-        <div className="relative w-[min(78vw,300px)] h-[min(78vw,300px)] sm:w-[400px] sm:h-[400px] flex items-center justify-center">
-          {timerStyle === "flip" ? (
-            <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
-          ) : timerStyle === "analog" ? (
-            <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+        {!timerHidden ? (
+          immersive ? (
+            <div
+              onPointerDown={onTimerDown}
+              onPointerMove={onTimerMove}
+              onPointerUp={endTimerDrag}
+              onPointerCancel={endTimerDrag}
+              onDoubleClick={() => setPrefs({ timerPos: null })}
+              title="Drag to move • Double-click to recenter"
+              className={`absolute z-10 touch-none select-none ${chromeHidden ? "" : "cursor-move"}`}
+              style={{ left: "50%", top: "50%", transform: `translate(calc(-50% + ${timerAt.x}px), calc(-50% + ${timerAt.y}px))` }}
+            >
+              <div className={`absolute -top-12 right-0 flex items-center gap-0.5 px-1.5 py-1 rounded-xl bg-surface-container-lowest/90 border border-outline-variant shadow-lg backdrop-blur ${chromeClass}`}>
+                <button
+                  type="button"
+                  title="Smaller timer"
+                  onClick={() => setPrefs({ timerScale: stepTimerScale(timerScale, -1) })}
+                  className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                >
+                  <Icon name="remove" className="text-[16px]" />
+                </button>
+                <span className="font-mono text-code-badge text-on-surface-variant w-11 text-center tabular-nums">
+                  {Math.round(timerScale * 100)}%
+                </span>
+                <button
+                  type="button"
+                  title="Larger timer"
+                  onClick={() => setPrefs({ timerScale: stepTimerScale(timerScale, 1) })}
+                  className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                >
+                  <Icon name="add" className="text-[16px]" />
+                </button>
+                <button
+                  type="button"
+                  title="Hide timer"
+                  onClick={() => setPrefs({ timerHidden: true })}
+                  className="w-8 h-8 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                >
+                  <Icon name="timer_off" className="text-[16px]" />
+                </button>
+              </div>
+              <div style={{ transform: `scale(${timerScale})` }}>{timerFace}</div>
+            </div>
           ) : (
-            <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
-          )}
-        </div>
+            <div className="relative w-[min(78vw,300px)] h-[min(78vw,300px)] sm:w-[400px] sm:h-[400px] flex items-center justify-center">
+              {timerFace}
+            </div>
+          )
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPrefs({ timerHidden: false })}
+            title="Show timer"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[65] h-9 px-3 rounded-full bg-surface-container-lowest/85 border border-outline-variant backdrop-blur flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface shadow-lg text-body-sm font-medium"
+          >
+            <Icon name="schedule" className="text-[16px]" />
+            <span>Show timer</span>
+          </button>
+        )}
 
         <div className={`flex flex-col items-center gap-3 mt-5 w-full ${chromeClass}`}>
           <div className="flex items-center gap-2 flex-wrap justify-center">
