@@ -69,6 +69,9 @@ export default function FocusView() {
   const [videoMode, setVideoMode] = useState<VideoMode>("background");
   const [chromeVisible, setChromeVisible] = useState(true);
   const timerStyle = usePrefsStore((s) => s.timerStyle);
+  const setPrefs = usePrefsStore((s) => s.set);
+  const timerFaded = usePrefsStore((s) => s.timerFaded);
+  const timerHidden = usePrefsStore((s) => s.timerHidden);
   const ambientVideoOn = useAmbientStore((s) => s.videoEnabled);
   const ambientVideo = findVideo(useAmbientStore((s) => s.videoId));
   const prevStatus = useRef(session.status);
@@ -104,7 +107,7 @@ export default function FocusView() {
   const chromeHidden = immersive && !chromeVisible;
   const chromeClass = `transition-opacity duration-500 ${chromeHidden ? "opacity-0 pointer-events-none" : "opacity-100"}`;
 
-  // Any activity reveals chrome; 30s of stillness returns to minimal.
+  // Any activity reveals chrome; 5s of stillness returns to minimal.
   // Mouse, touch, wheel, keys, and focus all count — interacting with a
   // control therefore keeps it visible. Timer + shortcuts keep working hidden.
   useEffect(() => {
@@ -117,7 +120,7 @@ export default function FocusView() {
     const poke = () => {
       setChromeVisible(true);
       if (t) clearTimeout(t);
-      t = setTimeout(() => setChromeVisible(false), 30000);
+      t = setTimeout(() => setChromeVisible(false), 5000);
     };
     const events = ["mousemove", "pointerdown", "touchstart", "wheel", "keydown", "focusin"];
     events.forEach((e) => window.addEventListener(e, poke));
@@ -329,6 +332,29 @@ export default function FocusView() {
           </div>
           <VideoToggleButton onModeChange={setVideoMode} />
           <MusicToggleButton />
+          {immersive && (
+            <>
+              <button
+                type="button"
+                onClick={() => setPrefs({ timerFaded: !timerFaded })}
+                title={timerFaded ? "Unfade timer" : "Fade timer so the video shows through"}
+                className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors"
+              >
+                <Icon name="opacity" className={cn("text-[16px]", timerFaded ? "text-primary" : "text-on-surface-variant")} />
+                <span className="text-body-sm font-medium hidden sm:inline">Fade</span>
+                {timerFaded && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrefs({ timerHidden: true })}
+                title="Hide timer (session keeps running)"
+                className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors"
+              >
+                <Icon name="visibility_off" className="text-[16px] text-on-surface-variant" />
+                <span className="text-body-sm font-medium hidden sm:inline">Hide</span>
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={doSound}
@@ -417,15 +443,28 @@ export default function FocusView() {
           )}
         </div>
 
-        <div className="relative w-[min(78vw,300px)] h-[min(78vw,300px)] sm:w-[400px] sm:h-[400px] flex items-center justify-center">
-          {timerStyle === "flip" ? (
-            <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
-          ) : timerStyle === "analog" ? (
-            <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
-          ) : (
-            <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
-          )}
-        </div>
+        {!timerHidden ? (
+          <div
+            className={`relative w-[min(78vw,300px)] h-[min(78vw,300px)] sm:w-[400px] sm:h-[400px] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
+          >
+            {timerStyle === "flip" ? (
+              <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+            ) : timerStyle === "analog" ? (
+              <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+            ) : (
+              <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPrefs({ timerHidden: false })}
+            title="Show timer"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[65] h-9 w-9 rounded-full bg-surface-container-lowest/85 border border-outline-variant backdrop-blur flex items-center justify-center text-on-surface-variant hover:text-on-surface shadow-lg"
+          >
+            <Icon name="visibility" className="text-[18px]" />
+          </button>
+        )}
 
         <div className={`flex flex-col items-center gap-3 mt-5 w-full ${chromeClass}`}>
           <div className="flex items-center gap-2 flex-wrap justify-center">

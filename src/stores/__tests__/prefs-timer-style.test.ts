@@ -25,4 +25,16 @@ describe("timer style preference", () => {
     usePrefsStore.getState().resetPrefs();
     expect(usePrefsStore.getState().timerStyle).toBe("circular");
   });
+
+  it("defaults timer fade/hide to off and round-trips them", () => {
+    const s = usePrefsStore.getState();
+    expect(s.timerFaded).toBe(false);
+    expect(s.timerHidden).toBe(false);
+    usePrefsStore.getState().set({ timerFaded: true, timerHidden: true });
+    expect(usePrefsStore.getState().timerFaded).toBe(true);
+    expect(usePrefsStore.getState().timerHidden).toBe(true);
+    usePrefsStore.getState().resetPrefs();
+    expect(usePrefsStore.getState().timerFaded).toBe(false);
+    expect(usePrefsStore.getState().timerHidden).toBe(false);
+  });
 });

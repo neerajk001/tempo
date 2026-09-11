@@ -17,6 +17,10 @@ interface PrefsState {
   compact: boolean;
   collisionMode: CollisionMode;
   timerStyle: TimerStyle;
+  /** Fade the focus timer so the ambient video shows through. */
+  timerFaded: boolean;
+  /** Hide the focus timer entirely (recoverable via the Show pill). */
+  timerHidden: boolean;
   set: (patch: Partial<PrefsState>) => void;
   resetPrefs: () => void;
 }
@@ -31,6 +35,8 @@ const DEFAULTS = {
   compact: false,
   collisionMode: "auto" as CollisionMode,
   timerStyle: "circular" as TimerStyle,
+  timerFaded: false,
+  timerHidden: false,
 };
 
 const STORAGE_KEY = "tempo-prefs-v1";
@@ -64,6 +70,8 @@ export const usePrefsStore = create<PrefsState>()(
         compact: s.compact,
         collisionMode: s.collisionMode,
         timerStyle: s.timerStyle,
+        timerFaded: s.timerFaded,
+        timerHidden: s.timerHidden,
       }) as PrefsState,
     }
   )
