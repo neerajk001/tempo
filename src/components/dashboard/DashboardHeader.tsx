@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
-import { CAL_SYNC_STAMP_KEY } from "@/lib/assets";
-
-function relativeAgo(ms: number | null): string | null {
-  if (ms === null) return null;
-  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
-}
 
 function isoWeek(d: Date): number {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -30,23 +19,13 @@ export function greetingForHour(h: number): string {
 }
 
 export default function DashboardHeader({ flowActive }: { flowActive: boolean }) {
-  const { data: session, status } = useSession();
-  const [syncStamp, setSyncStamp] = useState<number | null>(null);
-  useEffect(() => {
-    try {
-      const v = window.localStorage.getItem(CAL_SYNC_STAMP_KEY);
-      setSyncStamp(v ? Number(v) : null);
-    } catch {
-      setSyncStamp(null);
-    }
-  }, []);
+  const { data: session } = useSession();
 
   const now = new Date();
   const dateLine = now
     .toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
     .toUpperCase();
   const name = session?.user?.name?.split(" ")[0] ?? "Neeraj";
-  const ago = relativeAgo(syncStamp);
 
   return (
     <div className="flex flex-col gap-4 mb-6">
@@ -96,17 +75,6 @@ export default function DashboardHeader({ flowActive }: { flowActive: boolean })
               <Icon name="chevron_right" className="text-[16px]" />
             </Link>
           </div>
-          <Link
-            href="/calendar"
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-surface-container-lowest shadow-sm hover:bg-surface-container-low text-on-surface transition-colors text-body-sm"
-          >
-            <Icon name="sync" className="text-[16px] text-tertiary" />
-            <span className="font-medium">Google Cal</span>
-            <span className="w-1 h-1 rounded-full bg-outline-variant" />
-            <span className="text-label-xs text-secondary">
-              {status === "authenticated" ? (ago ?? "synced") : "connect"}
-            </span>
-          </Link>
           <Link
             href="/tasks"
             className="hidden lg:flex items-center gap-1 h-8 px-3 rounded-lg bg-surface-container text-on-surface-variant font-mono text-code-badge shadow-sm hover:bg-surface-container-high transition-colors"

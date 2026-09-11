@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import type { CalendarEvent } from "@/services/google-calendar";
 import {
   detectConflicts,
   generatePomodoroBlocks,
@@ -35,7 +33,6 @@ function toLocalInput(ms: number): string {
 
 export default function DayPlanner() {
   const router = useRouter();
-  const { status } = useSession();
   const tasks = useTaskStore((s) => s.tasks);
   const sessions = useSessionHistoryStore((s) => s.sessions);
   const pomodoroConfig = usePomodoroStore((s) => s.config);
@@ -53,34 +50,7 @@ export default function DayPlanner() {
   const task = todayTasks.find((t) => t.id === taskId);
   const remainingMs = (taskStat?.remainingMinutes ?? task?.allocatedMinutes ?? 0) * 60000;
 
-  // Calendar container (when connected)
-  const [events, setEvents] = useState<CalendarEvent[] | null>(null);
-  const [calError, setCalError] = useState<string | null>(null);
-  const [eventId, setEventId] = useState<string>("");
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    // Browser-local day bounds: correct even when the server is in another timezone.
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    fetch(
-      `/api/calendar/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
-    )
-      .then(async (r) => {
-        const data = (await r.json()) as { events?: CalendarEvent[]; error?: string };
-        if (!r.ok) {
-          setCalError(data.error ?? "Calendar unavailable.");
-          return;
-        }
-        const list = (data.events ?? []).filter((e) => !e.allDay);
-        setEvents(list);
-        if (!eventId && list.length > 0) setEventId(list[0].id);
-      })
-      .catch(() => setCalError("Calendar unavailable."));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
-
-  // Manual window fallback (works offline)
+  // Manual work window (works offline)
   const [manualStart, setManualStart] = useState(() => {
     const d = new Date();
     d.setHours(9, 0, 0, 0);
@@ -96,22 +66,15 @@ export default function DayPlanner() {
   const [breakMin, setBreakMin] = useState(() => Math.round(pomodoroConfig.shortBreakMs / 60000));
   const [blocks, setBlocks] = useState<UIBlock[] | null>(null);
 
-  const useCalendar = status === "authenticated" && events !== null && !calError;
-  const containerEvent = events?.find((e) => e.id === eventId);
-  const busy = useMemo(
-    () => (events ?? []).filter((e) => e.id !== eventId).map((e) => ({ id: e.id, title: e.title, startMs: e.startMs, endMs: e.endMs })),
-    [events, eventId]
-  );
+  const busy: Array<{ id: string; title: string; startMs: number; endMs: number }> = [];
 
-  const container = containerEvent
-    ? { startMs: containerEvent.startMs, endMs: containerEvent.endMs }
-    : { startMs: Date.parse(manualStart), endMs: Date.parse(manualEnd) };
+  const container = { startMs: Date.parse(manualStart), endMs: Date.parse(manualEnd) };
 
   const free = useMemo(() => {
     if (!Number.isFinite(container.startMs) || !Number.isFinite(container.endMs) || container.endMs <= container.startMs) return [];
     return subtractBusy(container, busy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerEvent, manualStart, manualEnd, busy]);
+  }, [manualStart, manualEnd]);
 
   const generate = () => {
     if (free.length === 0 || remainingMs <= 0) {
@@ -180,55 +143,32 @@ export default function DayPlanner() {
                 </p>
               )}
 
-              {useCalendar && events && events.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <label className="text-sm">
-                  <span className="text-on-surface-variant">Work window (calendar event)</span>
-                  <select
+                  <span className="text-on-surface-variant">Window start</span>
+                  <input
+                    type="datetime-local"
                     className="mt-1 w-full rounded-md border border-outline bg-surface-container-low px-2 py-1.5 text-on-surface"
-                    value={eventId}
+                    value={manualStart}
                     onChange={(e) => {
-                      setEventId(e.target.value);
+                      setManualStart(e.target.value);
                       setBlocks(null);
                     }}
-                  >
-                    {events.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {fmt(e.startMs)}–{fmt(e.endMs)} · {e.title}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="text-sm">
-                    <span className="text-on-surface-variant">Window start {status !== "authenticated" && "(manual — offline)"}</span>
-                    <input
-                      type="datetime-local"
-                      className="mt-1 w-full rounded-md border border-outline bg-surface-container-low px-2 py-1.5 text-on-surface"
-                      value={manualStart}
-                      onChange={(e) => {
-                        setManualStart(e.target.value);
-                        setBlocks(null);
-                      }}
-                    />
-                  </label>
-                  <label className="text-sm">
-                    <span className="text-on-surface-variant">Window end</span>
-                    <input
-                      type="datetime-local"
-                      className="mt-1 w-full rounded-md border border-outline bg-surface-container-low px-2 py-1.5 text-on-surface"
-                      value={manualEnd}
-                      onChange={(e) => {
-                        setManualEnd(e.target.value);
-                        setBlocks(null);
-                      }}
-                    />
-                  </label>
-                </div>
-              )}
-              {calError && (
-                <p className="text-xs text-on-surface-variant">Calendar unavailable — using manual window. Timer and tasks keep working.</p>
-              )}
+                <label className="text-sm">
+                  <span className="text-on-surface-variant">Window end</span>
+                  <input
+                    type="datetime-local"
+                    className="mt-1 w-full rounded-md border border-outline bg-surface-container-low px-2 py-1.5 text-on-surface"
+                    value={manualEnd}
+                    onChange={(e) => {
+                      setManualEnd(e.target.value);
+                      setBlocks(null);
+                    }}
+                  />
+                </label>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xs">
                 <label className="text-sm">
@@ -256,7 +196,6 @@ export default function DayPlanner() {
               </div>
               <p className="text-xs text-on-surface-variant">
                 Free in window: {formatDurationMinutes(Math.round(totalMs(free) / 60000))}
-                {busy.length > 0 && ` · ${busy.length} other event${busy.length === 1 ? "" : "s"} avoided (never overwritten)`}
               </p>
               <div>
                 <Button onClick={generate} disabled={remainingMs <= 0}>
@@ -330,7 +269,7 @@ export default function DayPlanner() {
                     ))}
                   </ul>
                   <p className="mt-1 text-xs text-on-surface-variant">
-                    Adjust the plan (shift, uncheck blocks, or move the calendar event) — Tempo never overwrites calendar events.
+                    Adjust the plan (shift or uncheck blocks) to resolve the overlap.
                   </p>
                 </div>
               )}

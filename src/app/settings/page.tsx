@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
@@ -13,7 +12,6 @@ import { playChime } from "@/lib/chime";
 import { setNotifyEnabled } from "@/lib/notifications";
 import { syncNow } from "@/lib/sync";
 import { useSyncStore } from "@/stores/sync-store";
-import { CAL_SYNC_STAMP_KEY } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
@@ -57,7 +55,6 @@ const NAV = [
   { id: "section-focus", label: "Focus Rhythm", icon: "timer" },
   { id: "section-notifications", label: "Audio & Alerts", icon: "notifications_active" },
   { id: "section-appearance", label: "Appearance", icon: "palette" },
-  { id: "section-calendar", label: "Calendar & Sync", icon: "sync_alt" },
   { id: "section-privacy", label: "Data & Privacy", icon: "shield" },
   { id: "section-shortcuts", label: "Shortcuts", icon: "keyboard" },
 ];
@@ -162,16 +159,7 @@ export default function SettingsPage() {
     setTimeout(() => setResetNote(null), 1500);
   };
 
-  let syncLabel = "Never synced";
-  try {
-    const v = typeof window !== "undefined" ? window.localStorage.getItem(CAL_SYNC_STAMP_KEY) : null;
-    if (v) {
-      const s = Math.floor((Date.now() - Number(v)) / 1000);
-      syncLabel = s < 60 ? "just now" : s < 3600 ? `${Math.floor(s / 60)} minutes ago` : `${Math.floor(s / 3600)} hours ago`;
-    }
-  } catch {
-    // Ignore.
-  }
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -430,53 +418,6 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Calendar & Sync */}
-          <section id="section-calendar" className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant p-4 sm:p-6 flex flex-col gap-4 scroll-mt-24">
-            <div className="flex flex-col pb-1">
-              <h2 className="text-headline-lg text-on-surface tracking-tight">Calendar Integrations & Conflict Engine</h2>
-              <p className="text-body-sm text-on-surface-variant">Synchronize focus blocks directly with your Google calendar feed.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-surface-container-low/60 gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary shadow-sm">
-                  <Icon name="event_available" className="text-[24px]" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-headline-md font-semibold text-on-surface break-all">{session?.user?.email ?? "Not signed in"}</span>
-                    <span className="font-mono text-code-badge bg-primary-fixed text-on-primary-fixed px-1.5 py-0.5 rounded font-medium">GOOGLE CALENDAR</span>
-                  </div>
-                  <span className="text-body-sm text-on-surface-variant">Last synchronized: {syncLabel}</span>
-                </div>
-              </div>
-              <Link href="/settings/integrations/google-calendar" className="h-8 px-4 bg-surface-container-lowest border border-outline-variant text-on-surface hover:bg-surface-container rounded text-body-sm font-medium shadow-sm transition-colors self-start sm:self-auto inline-flex items-center">
-                Manage Connection
-              </Link>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-surface-container-low/30 gap-3">
-              <div className="flex flex-col">
-                <span className="text-headline-md text-on-surface font-semibold">Default calendar stream</span>
-                <span className="text-body-sm text-on-surface-variant">Tempo reads availability from your primary calendar.</span>
-              </div>
-              <span className="text-body-sm text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg px-3 h-8 inline-flex items-center shadow-sm">
-                Primary Calendar (Work & Deep Work)
-              </span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-surface-container-low transition-colors">
-                <div className="flex flex-col pr-4 min-w-0">
-                  <span className="text-body-md font-semibold text-on-surface">Auto-Shift focus blocks on conflict</span>
-                  <span className="text-body-sm text-on-surface-variant">When meetings overlap, offer one-tap deferral to adjacent open gaps. Otherwise flag for review.</span>
-                </div>
-                <Toggle
-                  on={prefs.collisionMode === "auto"}
-                  onClick={() => prefs.set({ collisionMode: prefs.collisionMode === "auto" ? "flag" : "auto" })}
-                  label="Auto-Shift focus blocks on conflict"
-                />
-              </div>
-            </div>
-          </section>
-
           {/* Data & Privacy */}
           <section id="section-privacy" className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant p-4 sm:p-6 flex flex-col gap-4 scroll-mt-24">
             <div className="flex flex-col pb-1">
@@ -561,7 +502,7 @@ export default function SettingsPage() {
                 <h2 className="text-headline-lg text-on-surface tracking-tight">System Hotkeys & Keyboard Command</h2>
                 <p className="text-body-sm text-on-surface-variant">Operate Tempo without lifting your hands from the keyboard row.</p>
               </div>
-              <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-semibold hidden sm:inline">6 Global Hotkeys</span>
+              <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-semibold hidden sm:inline">5 Global Hotkeys</span>
             </div>
             <div className="flex flex-col divide-y divide-surface-container">
               {(
@@ -571,7 +512,6 @@ export default function SettingsPage() {
                   ["Resume paused session", ["R"], "Focus view · Dashboard (paused)"],
                   ["Quick menu", ["⌘", "K"], "Everywhere → Tasks"],
                   ["Enter Focus Mode directly", ["F"], "Dashboard · Task details"],
-                  ["Trigger calendar sync", ["S"], "Calendar page"],
                 ] as Array<[string, string[], string]>
               ).map(([label, keys, scope]) => (
                 <div key={label} className="flex items-center justify-between py-3 gap-3">

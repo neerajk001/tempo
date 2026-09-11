@@ -6,6 +6,7 @@ import AuthSessionProvider from "@/components/providers/SessionProvider";
 import ServiceWorkerRegister from "@/components/providers/ServiceWorkerRegister";
 import GlobalShortcuts from "@/components/providers/GlobalShortcuts";
 import SyncManager from "@/components/providers/SyncManager";
+import { AmbientMusic } from "@/components/ambient/AmbientMusic";
 
 export const metadata: Metadata = {
   title: "Tempo — Focus Console",
@@ -53,6 +54,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ServiceWorkerRegister />
           <GlobalShortcuts />
           <SyncManager />
+          {/* Global music player — survives route changes and exiting Focus Mode, driven only by the ambient store. */}
+          <AmbientMusic />
         </AuthSessionProvider>
       </body>
     </html>

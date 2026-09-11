@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
 import { countPlannedPomodoros, todayKey } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
@@ -12,7 +11,6 @@ import {
   type Task,
 } from "@/stores/task-store";
 import type { TaskPriority } from "@/types";
-import type { CalendarEvent } from "@/services/google-calendar";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [120, 240, 360];
@@ -39,7 +37,6 @@ export default function NewTaskModal({
 }) {
   const createTask = useTaskStore((s) => s.createTask);
   const updateTask = useTaskStore((s) => s.updateTask);
-  const { status: authStatus } = useSession();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -56,8 +53,6 @@ export default function NewTaskModal({
   const [shortBreak, setShortBreak] = useState(10);
   const [longBreak, setLongBreak] = useState(30);
   const [longInterval, setLongInterval] = useState(4);
-  const [events, setEvents] = useState<CalendarEvent[] | null>(null);
-  const [eventId, setEventId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,7 +74,6 @@ export default function NewTaskModal({
       setShortBreak(initial.shortBreakMinutes ?? 10);
       setLongBreak(initial.longBreakMinutes ?? 30);
       setLongInterval(initial.longBreakInterval ?? 4);
-      setEventId(initial.calendarEventId ?? "");
     } else {
       setTitle("");
       setDescription("");
@@ -96,26 +90,8 @@ export default function NewTaskModal({
       setShortBreak(10);
       setLongBreak(30);
       setLongInterval(4);
-      setEventId("");
     }
-    setEvents(null);
   }, [open, initial]);
-
-  useEffect(() => {
-    if (!open || authStatus !== "authenticated") return;
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    fetch(
-      `/api/calendar/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
-    )
-      .then(async (r) => {
-        const data = (await r.json()) as { events?: CalendarEvent[] };
-        if (!r.ok) return;
-        setEvents((data.events ?? []).filter((e) => !e.allDay));
-      })
-      .catch(() => setEvents([]));
-  }, [open, authStatus]);
 
   const effectiveAllocated = useCustom ? Math.round(customHours * 60 + customMins) : allocated;
   const effectiveFocus = useCustomFocus ? Math.min(180, Math.max(5, Math.round(customFocus))) : focusMinutes;
@@ -136,13 +112,12 @@ export default function NewTaskModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, title, description, date, effectiveAllocated, effectiveFocus, customFocus, useCustomFocus, shortBreak, longBreak, longInterval, project, priority, eventId, initial]);
+  }, [open, title, description, date, effectiveAllocated, effectiveFocus, customFocus, useCustomFocus, shortBreak, longBreak, longInterval, project, priority, initial]);
 
   if (!open) return null;
 
   const submit = () => {
     try {
-      const linked = events?.find((e) => e.id === eventId);
       const payload = {
         title,
         description,
@@ -154,9 +129,6 @@ export default function NewTaskModal({
         longBreakInterval: longInterval,
         project,
         priority,
-        calendarEventId: linked?.id,
-        startMs: linked?.startMs,
-        endMs: linked?.endMs,
       };
       if (initial) updateTask(initial.id, payload);
       else createTask(payload);
@@ -399,43 +371,6 @@ export default function NewTaskModal({
                 </div>
               </label>
             </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold flex items-center gap-1">
-                <Icon name="event" className="text-[14px] text-tertiary" />
-                <span>Link Calendar Event (Optional)</span>
-              </label>
-              {authStatus === "authenticated" && (
-                <span className="text-label-xs text-primary font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  Calendar ready
-                </span>
-              )}
-            </div>
-            {authStatus === "authenticated" ? (
-              <div className="relative">
-                <Icon name="calendar_month" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px] pointer-events-none" />
-                <select
-                  value={eventId}
-                  onChange={(e) => setEventId(e.target.value)}
-                  className="w-full h-9 pl-9 pr-8 rounded-lg bg-surface-container-low text-on-surface text-body-sm border border-outline-variant/30 focus:border-primary-container focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary-container appearance-none transition-all cursor-pointer"
-                >
-                  <option value="">Do not link to calendar</option>
-                  {(events ?? []).map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.title} ({new Date(e.startMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} — {new Date(e.endMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })})
-                    </option>
-                  ))}
-                </select>
-                <Icon name="unfold_more" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px] pointer-events-none" />
-              </div>
-            ) : (
-              <p className="text-body-sm text-secondary">
-                Sign in to link a calendar event — <a href="/calendar" className="underline">Connect</a>
-              </p>
-            )}
           </div>
 
           <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary-container/40 border border-outline-variant/20">

@@ -19,7 +19,7 @@ import Icon from "@/components/ui/Icon";
 import DurationPicker, { QUICK_DURATIONS } from "@/components/dashboard/DurationPicker";
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
 import { VideoToggleButton, VideoPill, AmbientVideo, type VideoMode } from "@/components/ambient/AmbientVideo";
-import { MusicToggleButton, MusicPill, AmbientMusic } from "@/components/ambient/AmbientMusic";
+import { MusicToggleButton, MusicPill } from "@/components/ambient/AmbientMusic";
 import { TimerAnalog, TimerCircular, TimerFlip } from "@/components/pomodoro/FocusTimer";
 import { usePrefsStore } from "@/stores/prefs-store";
 import { useAmbientStore } from "@/stores/ambient-store";
@@ -291,9 +291,8 @@ export default function FocusView() {
         {/* Subtle green aura behind the timer */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full pointer-events-none" style={{ background: "radial-gradient(circle 260px at 50% 50%, rgba(127,176,105,0.09) 0%, transparent 70%)" }} />
       </div>
-      {/* Ambient layers — independent of the Pomodoro timer */}
+      {/* Ambient layers — independent of the Pomodoro timer (music plays globally from the root layout) */}
       <AmbientVideo mode={videoMode} setMode={setVideoMode} immersive={immersive} />
-      <AmbientMusic />
       {immersive && (
         <div
           className="absolute inset-0 pointer-events-none"

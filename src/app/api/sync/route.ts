@@ -236,8 +236,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // One calendar event links to exactly one task: drop server rows the
-    // client already replaced (e.g. legacy /api/calendar/to-task copies).
+    // One external event links to exactly one task: drop server rows the
+    // client already replaced.
     const incomingIds = tasks
       .filter((t) => t && typeof t.id === "string" && t.id)
       .map((t) => String((t as TaskPayload).id));

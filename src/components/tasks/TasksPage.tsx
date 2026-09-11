@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
 import NewTaskModal from "@/components/tasks/NewTaskModal";
 import { TaskRow, sortTasks } from "@/components/tasks/TaskTable";
 import { computeDashboardStats, localDateKey } from "@/lib/dashboard-stats";
 import { todayKey } from "@/lib/task-planning";
-import { calendarEventToTaskDraft, type CalendarEvent } from "@/services/google-calendar";
 import { formatDurationMinutes } from "@/lib/utils";
 import { useTaskStore, type Task } from "@/stores/task-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
@@ -18,14 +14,7 @@ import type { TaskStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
 type Tab = "today" | "upcoming" | "completed";
-type Source = "all" | "calendar" | "manual";
 type Sort = "priority" | "allocated" | "newest";
-
-const SOURCES: Array<{ id: Source; label: (n: number) => string }> = [
-  { id: "all", label: (n) => `Source: All (${n})` },
-  { id: "calendar", label: () => "Source: Calendar" },
-  { id: "manual", label: () => "Source: Manual" },
-];
 const STATUSES: Array<{ id: TaskStatus | "all"; label: string }> = [
   { id: "all", label: "Status: All" },
   { id: "TODO", label: "Status: Todo" },
@@ -40,53 +29,12 @@ const SORTS: Array<{ id: Sort; label: string }> = [
 ];
 
 export default function TasksPage() {
-  const router = useRouter();
-  const { status: authStatus } = useSession();
-  const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[] | null>(null);
-  const [upcomingLoading, setUpcomingLoading] = useState(false);
-  const [upcomingError, setUpcomingError] = useState<string | null>(null);
-
-  const loadUpcomingEvents = async () => {
-    // From right now through the next 7 days — tonight's remaining events count.
-    const start = new Date();
-    const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
-    setUpcomingLoading(true);
-    setUpcomingError(null);
-    try {
-      const res = await fetch(
-        `/api/calendar/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
-      );
-      const data = (await res.json()) as { events?: CalendarEvent[]; error?: string };
-      if (!res.ok) {
-        setUpcomingError(data.error ?? "Calendar unavailable.");
-        setUpcomingEvents([]);
-        return;
-      }
-      setUpcomingEvents((data.events ?? []).filter((e) => !e.allDay && e.endMs > start.getTime()).sort((a, b) => a.startMs - b.startMs));
-    } catch {
-      setUpcomingError("Calendar unavailable. Local tasks keep working.");
-      setUpcomingEvents([]);
-    } finally {
-      setUpcomingLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (authStatus !== "authenticated") {
-      setUpcomingEvents(null);
-      setUpcomingError(null);
-      return;
-    }
-    void loadUpcomingEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus]);
   const tasks = useTaskStore((s) => s.tasks);
   const sessions = useSessionHistoryStore((s) => s.sessions);
   const timerTaskId = usePomodoroStore((s) => s.activeTaskId);
   const timerRunning = usePomodoroStore((s) => s.session.status === "RUNNING" || s.session.status === "PAUSED");
   const [tab, setTab] = useState<Tab>("today");
   const [query, setQuery] = useState("");
-  const [source, setSource] = useState<Source>("all");
   const [status, setStatus] = useState<TaskStatus | "all">("all");
   const [sort, setSort] = useState<Sort>("priority");
   const [modalOpen, setModalOpen] = useState(false);
@@ -99,11 +47,6 @@ export default function TasksPage() {
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName;
       const inField = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable;
-      if ((e.metaKey || e.ctrlKey) && (e.key === "i" || e.key === "I")) {
-        e.preventDefault();
-        router.push("/calendar");
-        return;
-      }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (modalOpen) return; // modal owns Esc / ⌘↵
       if ((e.key === "c" || e.key === "C") && !inField) {
@@ -117,7 +60,7 @@ export default function TasksPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modalOpen, router]);
+  }, [modalOpen]);
 
   const today = todayKey();
   const stats = useMemo(() => computeDashboardStats(tasks, sessions, today), [tasks, sessions, today]);
@@ -138,15 +81,13 @@ export default function TasksPage() {
       if (tab === "today" && (t.date !== today || (!live && (t.status === "COMPLETED" || t.status === "CANCELLED")))) return false;
       if (tab === "upcoming" && (t.date <= today || t.status === "COMPLETED" || t.status === "CANCELLED")) return false;
       if (tab === "completed" && t.status !== "COMPLETED") return false;
-      if (source === "calendar" && !t.calendarEventId) return false;
-      if (source === "manual" && t.calendarEventId) return false;
       if (status !== "all" && t.status !== status) return false;
       if (q && !`${t.title} ${t.description}`.toLowerCase().includes(q)) return false;
       return true;
     });
     list = sortTasks(list, sort === "newest" ? "newest" : sort);
     return list;
-  }, [tasks, tab, today, source, status, query, sort, timerTaskId, timerRunning]);
+  }, [tasks, tab, today, status, query, sort, timerTaskId, timerRunning]);
 
   const todayList = tab === "today" ? filtered : [];
   const upcomingList = useMemo(
@@ -155,38 +96,6 @@ export default function TasksPage() {
   );
   const upcomingAllocated = upcomingList.reduce((s, t) => s + t.allocatedMinutes, 0);
 
-  // Upcoming Google Calendar events (next 7 days): timing + allotted hours,
-  // plannable in one click. Explicit fetch only — no background polling.
-  const createTask = useTaskStore((s) => s.createTask);
-  useEffect(() => {
-    if (authStatus !== "authenticated") {
-      setUpcomingEvents(null);
-      setUpcomingError(null);
-      return;
-    }
-    void loadUpcomingEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus]);
-
-  const plannedEventIds = useMemo(() => new Set(tasks.map((t) => t.calendarEventId).filter(Boolean)), [tasks]);
-  const unplannedEvents = useMemo(
-    () => (upcomingEvents ?? []).filter((e) => !plannedEventIds.has(e.id)).slice(0, 5),
-    [upcomingEvents, plannedEventIds]
-  );
-
-  const planEventAsTask = async (e: CalendarEvent) => {
-    const draft = calendarEventToTaskDraft(e);
-    createTask({ ...draft, focusMinutes: 50, startMs: e.startMs, endMs: e.endMs });
-    try {
-      await fetch("/api/calendar/to-task", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: e }),
-      });
-    } catch {
-      // Local task already created — server sync is best-effort.
-    }
-  };
   const todayPlanned = todayList.reduce((s, t) => s + t.allocatedMinutes, 0);
   const todayFocused = todayList.reduce((s, t) => s + t.focusedMinutes, 0);
   const yesterdayKey = localDateKey(Date.now() - 24 * 60 * 60 * 1000);
@@ -228,14 +137,6 @@ export default function TasksPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
-          <Link
-            href="/calendar"
-            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors shadow-sm text-body-sm font-medium"
-          >
-            <Icon name="save_as" className="text-[16px] text-tertiary" />
-            <span>Import Calendar</span>
-            <kbd className="ml-0.5 font-mono text-label-xs text-on-surface-variant px-1 rounded bg-surface-container">⌘I</kbd>
-          </Link>
           <button
             type="button"
             onClick={openCreate}
@@ -287,16 +188,6 @@ export default function TasksPage() {
             <kbd className="absolute right-2 top-1/2 -translate-y-1/2 font-mono text-label-xs text-on-surface-variant bg-surface-container-high px-1 py-0.5 rounded">/</kbd>
           </div>
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              title="Filter by source"
-              onClick={() => setSource(SOURCES[(SOURCES.findIndex((s) => s.id === source) + 1) % SOURCES.length].id)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface text-body-sm transition-colors"
-            >
-              <span className="w-2 h-2 rounded-full bg-primary-container" />
-              <span>{SOURCES.find((s) => s.id === source)!.label(tasks.filter((t) => (source === "all" ? true : source === "calendar" ? !!t.calendarEventId : !t.calendarEventId)).length)}</span>
-              <Icon name="expand_more" className="text-[14px] text-on-surface-variant" />
-            </button>
             <button
               type="button"
               title="Filter by status"
@@ -391,7 +282,7 @@ export default function TasksPage() {
           </div>
           {todayList.length === 0 ? (
             <div className="px-6 py-8 text-body-sm text-secondary">
-              No tasks match. <button type="button" onClick={openCreate} className="underline">Create one</button> or sync your calendar.
+              No tasks match. <button type="button" onClick={openCreate} className="underline">Create one</button>.
             </div>
           ) : (
             <div className="divide-y divide-surface-container-high/40">
@@ -471,105 +362,8 @@ export default function TasksPage() {
               )}
             </div>
           )}
-          {authStatus !== "authenticated" ? (
-            <div className="border-t border-surface-container-high/40">
-              <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
-                <span className="text-body-sm text-secondary">Connect Google Calendar to pull upcoming events here.</span>
-                <Link href="/calendar" className="text-body-sm font-medium text-primary underline shrink-0">Connect</Link>
-              </div>
-            </div>
-          ) : upcomingLoading && upcomingEvents === null ? (
-            <div className="border-t border-surface-container-high/40">
-              <div className="px-4 sm:px-6 py-3 text-body-sm text-secondary">Checking Google Calendar…</div>
-            </div>
-          ) : upcomingError ? (
-            <div className="border-t border-surface-container-high/40">
-              <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
-                <span className="text-body-sm text-secondary">{upcomingError}</span>
-                <button
-                  type="button"
-                  onClick={() => void loadUpcomingEvents()}
-                  className="text-body-sm font-medium text-primary underline shrink-0"
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          ) : unplannedEvents.length === 0 ? (
-            <div className="border-t border-surface-container-high/40">
-              <div className="px-4 sm:px-6 py-3 text-body-sm text-secondary">No upcoming Google events in the next 7 days.</div>
-            </div>
-          ) : (
-            <div className="border-t border-surface-container-high/40">
-              <div className="px-4 sm:px-6 pt-3 pb-1 flex items-center gap-1.5">
-                <Icon name="event" className="text-[14px] text-tertiary" />
-                <span className="text-label-xs font-semibold uppercase tracking-wider text-on-surface-variant">
-                  From Google Calendar — plan with one click
-                </span>
-              </div>
-              <div className="divide-y divide-surface-container-high/40">
-                {unplannedEvents.map((e) => {
-                  const mins = Math.max(1, Math.ceil((e.endMs - e.startMs) / 60000));
-                  const f = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-                  return (
-                    <div key={e.id} className="grid grid-cols-12 gap-2 items-center px-4 sm:px-6 py-2.5 hover:bg-surface-container-low/40 transition-all">
-                      <div className="col-span-6 md:col-span-5 flex items-center gap-2.5 min-w-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-tertiary flex-shrink-0" />
-                        <span className="text-body-md text-on-surface font-medium truncate">{e.title}</span>
-                      </div>
-                      <div className="hidden md:flex md:col-span-3 items-center">
-                        <span className="text-label-xs px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">
-                          {new Date(e.startMs).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • {f(e.startMs)} — {f(e.endMs)}
-                        </span>
-                      </div>
-                      <div className="col-span-3 md:col-span-2 font-mono text-label-xs text-on-surface-variant">
-                        {formatDurationMinutes(mins)} allotted
-                      </div>
-                      <div className="col-span-3 md:col-span-2 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => planEventAsTask(e)}
-                          className="inline-flex items-center gap-1 h-8 sm:h-7 px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high text-body-sm font-medium transition-colors"
-                        >
-                          <Icon name="add" className="text-[14px]" />
-                          <span>Plan{` `}<span className="hidden sm:inline">as Task</span></span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )}
-
-      {/* Sync banner */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 rounded-xl bg-surface-container-low shadow-sm border border-outline-variant">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-surface-container-lowest hidden sm:flex items-center justify-center text-primary shadow-sm">
-            <Icon name="event_repeat" className="text-[24px]" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-headline-md text-on-surface">Synchronize External Schedules</span>
-            <span className="text-body-sm text-on-surface-variant">
-              No more fragmented focus. Auto-block focus intervals directly from Google Calendar.
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Link href="/calendar" className="h-8 px-4 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container text-body-sm font-medium shadow-sm transition-colors inline-flex items-center">
-            Connect Calendar
-          </Link>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="h-8 px-4 rounded-lg bg-primary-container text-on-primary hover:bg-primary text-body-sm font-medium shadow-sm transition-colors"
-          >
-            Quick Add Task
-          </button>
-        </div>
-      </div>
 
       <NewTaskModal open={modalOpen} initial={editing} onClose={() => { setModalOpen(false); setEditing(null); }} />
     </div>

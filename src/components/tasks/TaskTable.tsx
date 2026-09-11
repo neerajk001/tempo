@@ -257,15 +257,6 @@ export function TaskRow({
       </div>
       <div className="col-span-5 order-2 md:order-none md:col-span-2 flex items-center justify-end gap-1">
         <PrimaryAction task={task} />
-        {task.calendarEventId ? (
-          <span title="Calendar synced" className="p-1 text-tertiary">
-            <Icon name="event_available" className="text-[16px]" />
-          </span>
-        ) : (
-          <a title="Sync with calendar" href="/calendar" className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors hidden sm:inline-flex">
-            <Icon name="sync" className="text-[16px]" />
-          </a>
-        )}
         <button
           type="button"
           title="Delete task"

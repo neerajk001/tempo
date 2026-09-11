@@ -11,7 +11,6 @@ const NAV = [
   { href: "/", label: "Dashboard", icon: "grid_view" },
   { href: "/", label: "Today", icon: "schedule", exact: true },
   { href: "/tasks", label: "Tasks", icon: "task_alt" },
-  { href: "/calendar", label: "Calendar", icon: "calendar_month" },
   { href: "/history", label: "History", icon: "bar_chart" },
   { href: "/library", label: "Focus Library", icon: "video_library" },
 ];

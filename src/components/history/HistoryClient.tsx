@@ -6,7 +6,6 @@ import Icon from "@/components/ui/Icon";
 import SessionInspector from "@/components/history/SessionInspector";
 import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
-import { CAL_SYNC_STAMP_KEY } from "@/lib/assets";
 import { formatDurationMinutes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -92,15 +91,6 @@ export default function HistoryClient() {
   const [metricsOn, setMetricsOn] = useState(true);
   const [page, setPage] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [syncStamp, setSyncStamp] = useState<number | null>(null);
-  useEffect(() => {
-    try {
-      const v = window.localStorage.getItem(CAL_SYNC_STAMP_KEY);
-      setSyncStamp(v ? Number(v) : null);
-    } catch {
-      setSyncStamp(null);
-    }
-  }, []);
 
   const bounds = rangeBounds(range, nav, customA, customB);
   useEffect(() => setPage(0), [range, nav, customA, customB, query, project, group]);
@@ -253,18 +243,6 @@ export default function HistoryClient() {
           <p className="text-body-sm text-on-surface-variant">See where your focused time actually went.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface-variant font-mono text-code-badge">
-            <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span>
-              {(() => {
-                if (syncStamp === null) return "Calendar never synced";
-                const s = Math.max(0, Math.floor((Date.now() - syncStamp) / 1000));
-                if (s < 60) return "Google Cal Sync: Just now";
-                if (s < 3600) return `Google Cal Sync: ${Math.floor(s / 60)}m ago`;
-                return `Google Cal Sync: ${Math.floor(s / 3600)}h ago`;
-              })()}
-            </span>
-          </div>
           <button
             type="button"
             onClick={() => setMetricsOn((v) => !v)}

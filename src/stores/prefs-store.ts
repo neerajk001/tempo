@@ -3,7 +3,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type CollisionMode = "auto" | "flag";
 export type ChimeTheme = "chime" | "marimba" | "bell" | "muted";
 export type TimerStyle = "circular" | "flip" | "analog";
 
@@ -15,7 +14,6 @@ interface PrefsState {
   reviewPrompt: boolean;
   chimeTheme: ChimeTheme;
   compact: boolean;
-  collisionMode: CollisionMode;
   timerStyle: TimerStyle;
   /** Fade the focus timer so the ambient video shows through. */
   timerFaded: boolean;
@@ -33,7 +31,6 @@ const DEFAULTS = {
   reviewPrompt: false,
   chimeTheme: "chime" as ChimeTheme,
   compact: false,
-  collisionMode: "auto" as CollisionMode,
   timerStyle: "circular" as TimerStyle,
   timerFaded: false,
   timerHidden: false,
@@ -68,7 +65,6 @@ export const usePrefsStore = create<PrefsState>()(
         reviewPrompt: s.reviewPrompt,
         chimeTheme: s.chimeTheme,
         compact: s.compact,
-        collisionMode: s.collisionMode,
         timerStyle: s.timerStyle,
         timerFaded: s.timerFaded,
         timerHidden: s.timerHidden,

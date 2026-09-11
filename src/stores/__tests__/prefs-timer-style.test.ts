@@ -16,7 +16,6 @@ describe("timer style preference", () => {
     const after = usePrefsStore.getState();
     expect(after.timerStyle).toBe("analog");
     expect(after.compact).toBe(before.compact);
-    expect(after.collisionMode).toBe(before.collisionMode);
     expect(after.chimeTheme).toBe(before.chimeTheme);
   });
 

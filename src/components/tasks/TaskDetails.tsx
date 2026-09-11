@@ -312,13 +312,6 @@ export default function TaskDetails() {
               <kbd className="font-mono text-code-badge bg-surface-container-highest text-on-surface-variant px-1 rounded py-0.5 ml-0.5">E</kbd>
             </button>
             <div className="h-6 w-px bg-surface-container-high mx-0.5 hidden sm:block" />
-            <Link
-              href="/calendar"
-              title={task.calendarEventId ? "Linked to a Calendar event" : "Link via the Calendar page"}
-              className="w-8 h-8 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors"
-            >
-              <Icon name="event" className="text-[18px]" />
-            </Link>
             <button
               type="button"
               title={shared ? "Link copied!" : "Share and export task"}
@@ -650,26 +643,10 @@ export default function TaskDetails() {
             )}
           </div>
 
-          {/* Integrations */}
+          {/* Trace */}
           <div className="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-2">
-            <h3 className="text-headline-md text-on-surface font-semibold pb-0.5">Integrations & Trace</h3>
+            <h3 className="text-headline-md text-on-surface font-semibold pb-0.5">Trace</h3>
             <div className="flex flex-col gap-2">
-              <div className="flex items-start gap-2.5">
-                <div className="w-7 h-7 rounded bg-surface-container flex items-center justify-center flex-shrink-0 text-on-surface-variant">
-                  <Icon name="calendar_month" className="text-[16px]" />
-                </div>
-                <div className="flex flex-col min-w-0 leading-tight">
-                  <span className="text-label-xs text-on-surface-variant">Linked Calendar Block</span>
-                  {task.calendarEventId && task.startMs && task.endMs ? (
-                    <>
-                      <span className="text-body-sm font-medium text-on-surface truncate">{task.title}</span>
-                      <span className="font-mono text-code-badge text-secondary">{fmtHM(task.startMs)} — {fmtHM(task.endMs)} (Google Calendar)</span>
-                    </>
-                  ) : (
-                    <Link href="/calendar" className="text-body-sm text-primary underline">Link a calendar block</Link>
-                  )}
-                </div>
-              </div>
               <div className="flex items-start gap-2.5 pt-1">
                 <div className="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 overflow-hidden">
                   {/* eslint-disable-next-line @next/next/no-img-element */}

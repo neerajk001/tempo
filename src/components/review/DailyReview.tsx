@@ -2,14 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
 import { computeDashboardStats, localDateKey } from "@/lib/dashboard-stats";
 import { countPlannedPomodoros } from "@/lib/task-planning";
 import { useTaskStore } from "@/stores/task-store";
 import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
 import { formatDurationMinutes } from "@/lib/utils";
-import type { CalendarEvent } from "@/services/google-calendar";
 import { cn } from "@/lib/utils";
 
 function fmtHM(ms: number): string {
@@ -28,31 +26,13 @@ function download(name: string, text: string, type: string) {
 
 export default function DailyReview() {
   const router = useRouter();
-  const { status } = useSession();
   const tasks = useTaskStore((s) => s.tasks);
   const sessions = useSessionHistoryStore((s) => s.sessions);
   const [dayOffset, setDayOffset] = useState(0);
-  const [meetings, setMeetings] = useState<CalendarEvent[] | null>(null);
 
   const viewedMs = Date.now() + dayOffset * 86400000;
   const viewedKey = localDateKey(viewedMs);
   const viewedDate = useMemo(() => new Date(viewedMs), [viewedMs]);
-
-  useEffect(() => {
-    if (status !== "authenticated") {
-      setMeetings([]);
-      return;
-    }
-    const start = new Date(viewedDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start.getTime() + 86400000);
-    fetch(`/api/calendar/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`)
-      .then(async (r) => {
-        const data = (await r.json()) as { events?: CalendarEvent[] };
-        setMeetings(r.ok ? (data.events ?? []).filter((e) => !e.allDay) : []);
-      })
-      .catch(() => setMeetings([]));
-  }, [status, viewedKey, viewedDate]);
 
   const stats = useMemo(() => computeDashboardStats(tasks, sessions, viewedKey), [tasks, sessions, viewedKey]);
   const dayTasks = useMemo(() => tasks.filter((t) => t.date === viewedKey), [tasks, viewedKey]);
@@ -70,9 +50,8 @@ export default function DailyReview() {
   const cadence = focusSessions.length > 0
     ? Math.round((focusSessions.filter((x) => { const m = x.focusedMs / 60000; return m >= 40 && m <= 60; }).length / focusSessions.length) * 100)
     : 0;
-  const meetMin = Math.round((meetings ?? []).reduce((s, e) => s + (e.endMs - e.startMs), 0) / 60000);
   const pausedMin = Math.round(pausedMs / 60000);
-  const total = Math.max(1, stats.focusedMinutes + meetMin + pausedMin);
+  const total = Math.max(1, stats.focusedMinutes + pausedMin);
 
   const adherence = stats.plannedMinutes > 0 ? Math.min(100, Math.round((stats.focusedMinutes / stats.plannedMinutes) * 100)) : 0;
   const variance = stats.focusedMinutes - stats.plannedMinutes;
@@ -83,7 +62,7 @@ export default function DailyReview() {
   }, [focusSessions]);
 
   const sequence = useMemo(() => {
-    type Entry = { at: number; kind: "focus" | "break" | "meeting"; title: string; sub: string; minutes: number };
+    type Entry = { at: number; kind: "focus" | "break"; title: string; sub: string; minutes: number };
     const list: Entry[] = daySessions.map((x) => ({
       at: x.startedAt,
       kind: x.phase === "FOCUS" ? ("focus" as const) : ("break" as const),
@@ -93,11 +72,8 @@ export default function DailyReview() {
         : "Hydration & physical movement",
       minutes: Math.round(x.focusedMs / 60000),
     }));
-    (meetings ?? []).forEach((e) => {
-      list.push({ at: e.startMs, kind: "meeting", title: e.title, sub: "Calendar meeting", minutes: Math.round((e.endMs - e.startMs) / 60000) });
-    });
     return list.sort((a, b) => a.at - b.at);
-  }, [daySessions, meetings]);
+  }, [daySessions]);
 
   const firstStart = daySessions[0]?.startedAt ?? null;
   const lastEnd = daySessions.length > 0 ? daySessions[daySessions.length - 1].endedAt : null;
@@ -242,13 +218,11 @@ export default function DailyReview() {
             <span className="uppercase tracking-wider">Temporal Composition ({formatDurationMinutes(stats.plannedMinutes)} Planned Horizon)</span>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-primary-container" /> Deep Focus ({formatDurationMinutes(stats.focusedMinutes)})</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-secondary-fixed" /> Calendar Meetings ({formatDurationMinutes(meetMin)})</span>
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-surface-variant" /> Pause / Variance ({formatDurationMinutes(pausedMin)})</span>
             </div>
           </div>
           <div className="h-4 w-full bg-surface-container rounded-md overflow-hidden flex p-0.5 gap-0.5">
             <div className="h-full bg-primary-container rounded-l-sm transition-all duration-500" style={{ width: `${Math.round((stats.focusedMinutes / total) * 100)}%` }} />
-            <div className="h-full bg-secondary-fixed transition-all duration-500" style={{ width: `${Math.round((meetMin / total) * 100)}%` }} />
             <div className="h-full bg-surface-variant rounded-r-sm transition-all duration-500" style={{ width: `${Math.max(2, Math.round((pausedMin / total) * 100))}%` }} />
           </div>
           <div className="flex justify-between gap-x-3 gap-y-1 flex-wrap text-label-xs font-mono text-on-surface-variant">
@@ -373,7 +347,7 @@ export default function DailyReview() {
                 <span className={cn("font-mono text-[11px] w-14 shrink-0 pt-0.5", e.kind === "focus" ? "text-primary font-medium" : "text-on-surface-variant")}>
                   {fmtHM(e.at)}
                 </span>
-                <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", e.kind === "focus" ? "bg-primary" : e.kind === "meeting" ? "bg-secondary-fixed-dim" : "bg-outline-variant")} />
+                <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", e.kind === "focus" ? "bg-primary" : "bg-outline-variant")} />
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className={cn("text-body-sm truncate", e.kind === "focus" ? "font-semibold text-on-surface" : "text-secondary")}>{e.title}</span>
@@ -388,7 +362,6 @@ export default function DailyReview() {
           </div>
           <div className="mt-auto pt-2 flex items-center justify-between text-[11px] text-on-surface-variant">
             <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" /><span>Deep Focus</span></div>
-            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-secondary-fixed-dim" /><span>Calendar</span></div>
             <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-outline-variant" /><span>Buffer / Rest</span></div>
           </div>
         </section>
@@ -408,10 +381,6 @@ export default function DailyReview() {
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Link href="/calendar" className="flex items-center gap-1.5 h-8 sm:h-7 px-3 rounded bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors text-body-sm">
-              <Icon name="sync_alt" className="text-[14px] text-secondary" />
-              <span>Import Calendar</span>
-            </Link>
             <Link href="/plan" className="flex items-center gap-1.5 h-8 sm:h-7 px-3 rounded bg-primary text-on-primary hover:bg-primary-container transition-colors text-body-sm font-medium">
               <span>Adjust Plan</span>
               <kbd className="font-mono text-[10px] bg-black/15 px-1 rounded">T</kbd>

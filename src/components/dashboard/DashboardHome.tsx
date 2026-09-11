@@ -136,15 +136,12 @@ export default function DashboardHome() {
           <div className="lg:col-span-8 bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant p-6">
             <p className="text-body-md font-medium text-on-surface">Nothing tracked yet.</p>
             <p className="mt-1 text-body-sm text-secondary">
-              Create a task or connect Google Calendar to plan your day — or
+              Create a task to plan your day — or
               just start a pomodoro with no allocation.
             </p>
             <div className="mt-3 flex gap-2 flex-wrap">
               <Link href="/tasks" className="h-8 px-3 rounded-lg bg-primary text-on-primary text-body-sm font-medium inline-flex items-center">
                 Create a task
-              </Link>
-              <Link href="/calendar" className="h-8 px-3 rounded-lg bg-surface-container border border-outline text-body-sm font-medium inline-flex items-center">
-                Connect calendar
               </Link>
             </div>
           </div>

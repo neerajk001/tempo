@@ -169,7 +169,7 @@ export default function SessionInspector({
               <Icon name="task_alt" className="text-[16px] text-primary" />
               <span className="truncate font-medium text-on-surface">{task.title}</span>
             </div>
-            <span className="font-mono text-code-badge text-on-surface-variant">{task.calendarEventId ? "Google Cal" : "Local task"}</span>
+            <span className="font-mono text-code-badge text-on-surface-variant">Local task</span>
           </Link>
         ) : (
           <p className="text-body-sm text-secondary">Unlinked session — no task attached.</p>

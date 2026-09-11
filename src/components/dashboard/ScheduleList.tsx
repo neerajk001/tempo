@@ -99,7 +99,7 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
       <div className="flex flex-col gap-2">
         {visible.length === 0 && (
           <div className="p-4 bg-surface-container-lowest rounded-xl shadow-sm text-body-sm text-secondary">
-            Nothing here. Create a task or sync your calendar to fill the schedule.
+            Nothing here. Create a task to fill the schedule.
           </div>
         )}
         {visible.map((t, i) => {
@@ -114,7 +114,7 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
                     "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
                     active ? "bg-primary-fixed text-primary" : "bg-surface-container text-secondary"
                   )}>
-                    <Icon name={active ? "bolt" : t.calendarEventId ? "event" : i % 2 ? "dns" : "menu_book"} className="text-[18px]" />
+                    <Icon name={active ? "bolt" : i % 2 ? "dns" : "menu_book"} className="text-[18px]" />
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -125,12 +125,6 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
                       )}>
                         {t.focusMinutes}m blocks
                       </span>
-                      {t.calendarEventId && (
-                        <span className="inline-flex items-center gap-1 text-secondary text-label-xs">
-                          <Icon name="event" className="text-[13px] text-tertiary" />
-                          <span>Cal Synced</span>
-                        </span>
-                      )}
                     </div>
                     <Link href={`/tasks/${t.id}`} className="text-headline-md text-on-surface font-semibold tracking-tight mt-0.5 truncate hover:text-primary transition-colors">{t.title}</Link>
                     {t.description && (

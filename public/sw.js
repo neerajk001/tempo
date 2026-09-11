@@ -1,7 +1,7 @@
 /* Minimal Tempo service worker: enables installability + resilient desktop use.
  * - Cache-first for immutable build assets (_next/static), icons, manifest.
  * - Network-first for navigations (offline falls back to cached /).
- * - Network-only for /api (never cache auth, calendar, or data responses).
+ * - Network-only for /api (never cache auth or data responses).
  */
 const STATIC_CACHE = "tempo-static-v1";
 const PAGE_CACHE = "tempo-pages-v1";
