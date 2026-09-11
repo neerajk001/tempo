@@ -12,6 +12,7 @@ import {
 } from "@/lib/pomodoro-machine";
 import { sendCompletionNotification } from "@/lib/notifications";
 import { playChime } from "@/lib/chime";
+import { useAmbientStore } from "@/stores/ambient-store";
 
 /**
  * Shared finish actions (Complete / Cancel) so the dashboard timer and the
@@ -40,6 +41,13 @@ export function useFinishSession() {
     }
     const taskTitle = activeTask?.title ?? activeTaskTitle;
     complete();
+    // Natural or manual completion only (never pause/cancel): stop ambient
+    // music first so the completion chime is clearly audible.
+    try {
+      useAmbientStore.getState().setMusicPlaying(false);
+    } catch {
+      // Ambient store optional — never block completion.
+    }
     if (snapshot.phase === "FOCUS" && activeTaskId) {
       recordFocus(activeTaskId, Math.max(1, Math.round(getElapsedFocusMs(snapshot, at) / 60000)));
     }

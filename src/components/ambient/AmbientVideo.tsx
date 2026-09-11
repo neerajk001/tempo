@@ -47,37 +47,6 @@ export function VideoToggleButton({ onModeChange }: { onModeChange: (m: VideoMod
   );
 }
 
-function VolumeSlider({ small = false }: { small?: boolean }) {
-  const volume = useAmbientStore((s) => s.videoVolume);
-  const setVolume = useAmbientStore((s) => s.setVideoVolume);
-  const muted = useAmbientStore((s) => s.videoMuted);
-  const setMuted = useAmbientStore((s) => s.setVideoMuted);
-  return (
-    <span className="flex items-center gap-1">
-      <button
-        type="button"
-        title={muted ? "Unmute video" : "Mute video"}
-        onClick={() => setMuted(!muted)}
-        className="text-on-surface-variant hover:text-on-surface transition-colors flex"
-      >
-        <Icon name={muted ? "volume_off" : "volume_up"} className="text-[16px]" />
-      </button>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={Math.round(muted ? 0 : volume * 100)}
-        onChange={(e) => {
-          setVolume(Number(e.target.value) / 100);
-          if (muted && Number(e.target.value) > 0) setMuted(false);
-        }}
-        aria-label="Video volume"
-        className={cn("accent-primary cursor-pointer", small ? "w-14" : "w-20")}
-      />
-    </span>
-  );
-}
-
 /** Compact in-flow controls, rendered by FocusView when video is active. */
 export function VideoPill({ mode, setMode }: { mode: VideoMode; setMode: (m: VideoMode) => void }) {
   const video = findVideo(useAmbientStore((s) => s.videoId));
@@ -98,7 +67,6 @@ export function VideoPill({ mode, setMode }: { mode: VideoMode; setMode: (m: Vid
       <button type="button" title={playing ? "Pause video" : "Play video"} onClick={() => setPlaying(!playing)} className={btn}>
         <Icon name={playing ? "pause" : "play_arrow"} className="text-[16px]" />
       </button>
-      <VolumeSlider small />
       <button
         type="button"
         title={loop ? "Looping on" : "Looping off"}
@@ -128,9 +96,6 @@ export function AmbientVideo({ mode, setMode, immersive = false }: { mode: Video
   const enabled = useAmbientStore((s) => s.videoEnabled);
   const playing = useAmbientStore((s) => s.videoPlaying);
   const setPlaying = useAmbientStore((s) => s.setVideoPlaying);
-  const volume = useAmbientStore((s) => s.videoVolume);
-  const muted = useAmbientStore((s) => s.videoMuted);
-  const setMuted = useAmbientStore((s) => s.setVideoMuted);
   const loop = useAmbientStore((s) => s.videoLoop);
   const setEnabled = useAmbientStore((s) => s.setVideoEnabled);
   const [missing, setMissing] = useState(false);
@@ -169,8 +134,6 @@ export function AmbientVideo({ mode, setMode, immersive = false }: { mode: Video
           src={video.src}
           poster={video.poster}
           playing={playing}
-          muted={muted}
-          volume={volume}
           loop={loop}
           className={mode === "fullscreen" ? "absolute inset-0" : "w-full h-full"}
           videoClassName={
@@ -196,14 +159,6 @@ export function AmbientVideo({ mode, setMode, immersive = false }: { mode: Video
             className={miniBtn}
           >
             <Icon name={playing ? "pause" : "play_arrow"} className="text-[16px]" />
-          </button>
-          <button
-            type="button"
-            title={muted ? "Unmute video" : "Mute video"}
-            onClick={() => setMuted(!muted)}
-            className={miniBtn}
-          >
-            <Icon name={muted ? "volume_off" : "volume_up"} className="text-[16px]" />
           </button>
           <span className="font-mono text-code-badge text-on-surface-variant truncate flex-1 px-1">{video.title}</span>
           <button

@@ -8,8 +8,10 @@ interface LoopingVideoProps {
   src: string;
   poster?: string;
   playing: boolean;
-  muted: boolean;
-  volume: number;
+  /** Kept for API compat — videos are always muted internally, this is ignored. */
+  muted?: boolean;
+  /** Kept for API compat — videos are always muted internally, this is ignored. */
+  volume?: number;
   loop: boolean;
   fadeMs?: number;
   /** Sizing for the root box. */
@@ -38,8 +40,8 @@ export default function LoopingVideo({
   src,
   poster,
   playing,
-  muted,
-  volume,
+  muted: _muted,
+  volume: _volume,
   loop,
   fadeMs = 600,
   className = "w-full h-full",
@@ -132,9 +134,11 @@ export default function LoopingVideo({
     }
     const f = frontRef.current === 0 ? a : b;
     const o = frontRef.current === 0 ? b : a;
-    f.muted = muted;
-    f.volume = volume;
+    // Videos are picture-only — always muted internally. Music is the only audio source.
+    f.muted = true;
+    f.volume = 0;
     o.muted = true;
+    o.volume = 0;
     if (playing) {
       const p = f.play();
       if (p && typeof p.catch === "function") p.catch(() => failRef.current?.());
@@ -142,7 +146,7 @@ export default function LoopingVideo({
       f.pause();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src, playing, front, muted, volume]);
+  }, [src, playing, front]);
 
   const beginSwap = (current: HTMLVideoElement) => {
     const nf = (frontRef.current === 0 ? 1 : 0) as 0 | 1;
@@ -154,6 +158,7 @@ export default function LoopingVideo({
       // Will play from wherever it can.
     }
     next.muted = true;
+    next.volume = 0;
     void next.play().catch(() => {});
     const gen = ++genRef.current;
     busyRef.current = true;
@@ -260,6 +265,7 @@ export default function LoopingVideo({
             key={i}
             ref={i === 0 ? aRef : bRef}
             playsInline
+            muted
             preload="auto"
             poster={poster}
             onTimeUpdate={handleTimeUpdate}

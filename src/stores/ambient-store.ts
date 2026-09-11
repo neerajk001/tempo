@@ -65,7 +65,7 @@ export const useAmbientStore = create<AmbientStore>()(
       trackId: null,
       videoVolume: 0.5,
       musicVolume: 0.5,
-      videoMuted: false,
+      videoMuted: true,
       musicMuted: false,
       videoEnabled: false,
       musicEnabled: false,

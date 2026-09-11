@@ -10,6 +10,7 @@ import { useTaskStore } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useDiversionStore } from "@/stores/diversion-store";
 import { playChime } from "@/lib/chime";
+import { setNotifyEnabled } from "@/lib/notifications";
 import { syncNow } from "@/lib/sync";
 import { useSyncStore } from "@/stores/sync-store";
 import { CAL_SYNC_STAMP_KEY } from "@/lib/assets";
@@ -84,6 +85,8 @@ export default function SettingsPage() {
   const toggleNotify = async (kind: "notifyFocus" | "notifyBreak") => {
     if (prefs[kind]) {
       prefs.set({ [kind]: false } as Partial<typeof prefs>);
+      // Keep the legacy global flag in sync (harmless, used by older builds).
+      if (!prefs.notifyFocus && !prefs.notifyBreak) setNotifyEnabled(false);
       return;
     }
     try {
@@ -100,6 +103,7 @@ export default function SettingsPage() {
       }
       setPermNote(null);
       prefs.set({ [kind]: true } as Partial<typeof prefs>);
+      setNotifyEnabled(true);
     } catch {
       setPermNote("Could not enable notifications in this browser.");
     }

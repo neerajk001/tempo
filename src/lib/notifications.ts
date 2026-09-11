@@ -51,10 +51,15 @@ export async function enableNotifications(): Promise<boolean> {
   }
 }
 
-/** Fire-and-forget completion notice. No-op unless enabled + granted. */
+/**
+ * Fire-and-forget completion notice. No-op unless granted.
+ * Enablement is decided by the caller via prefs (notifyFocus/notifyBreak) —
+ * this helper only checks browser support + permission so the Settings
+ * toggles in `src/app/settings/page.tsx` actually fire.
+ */
 export function sendCompletionNotification(phase: PomodoroPhase, taskTitle?: string | null): boolean {
   try {
-    if (!isNotifyEnabled() || !notificationsSupported()) return false;
+    if (!notificationsSupported()) return false;
     if (Notification.permission !== "granted") return false;
     const { title, body } = completionNotification(phase, taskTitle);
     new Notification(title, { body, icon: "/icons/icon-192.png" });

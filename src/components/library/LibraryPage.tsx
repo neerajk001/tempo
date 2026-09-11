@@ -30,8 +30,6 @@ function PreviewVideo({
       src={src}
       poster={poster}
       playing={!paused}
-      muted={false}
-      volume={0.9}
       loop
       className="w-full h-full"
       videoClassName="w-full h-full object-cover"
