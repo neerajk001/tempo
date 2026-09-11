@@ -10,6 +10,8 @@ import { useTaskStore } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useDiversionStore } from "@/stores/diversion-store";
 import { playChime } from "@/lib/chime";
+import { syncNow } from "@/lib/sync";
+import { useSyncStore } from "@/stores/sync-store";
 import { CAL_SYNC_STAMP_KEY } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +62,10 @@ const NAV = [
 ];
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { data: session, status: authStatus } = useSession();
+  const syncing = useSyncStore((s) => s.syncing);
+  const syncError = useSyncStore((s) => s.error);
+  const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
   const { config, setConfig, session: pomoSession } = usePomodoroStore();
   const prefs = usePrefsStore();
   const [activeNav, setActiveNav] = useState("section-focus");
@@ -444,6 +449,40 @@ export default function SettingsPage() {
             <div className="flex flex-col pb-1">
               <h2 className="text-headline-lg text-on-surface tracking-tight">Data Sovereignty & Privacy</h2>
               <p className="text-body-sm text-on-surface-variant">Export raw telemetry, download offline session archives, or clear local browser cache storage.</p>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-surface-container-low/50 gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary shadow-sm flex-shrink-0">
+                  <Icon name="cloud_sync" className="text-[24px]" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-headline-md font-semibold text-on-surface">Cloud Backup</span>
+                  <span className="text-body-sm text-on-surface-variant">
+                    {authStatus !== "authenticated"
+                      ? "Sign in to back up tasks and history across devices."
+                      : syncing
+                        ? "Syncing…"
+                        : syncError
+                          ? `Last sync failed — ${syncError}`
+                          : lastSyncedAt
+                            ? `Last synced ${(() => {
+                              const s = Math.max(0, Math.floor((Date.now() - lastSyncedAt) / 1000));
+                              if (s < 60) return "just now";
+                              if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+                              return `${Math.floor(s / 3600)}h ago`;
+                            })()} · tasks and history converge across devices`
+                            : "Never synced on this device yet."}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void syncNow(authStatus === "authenticated")}
+                disabled={authStatus !== "authenticated" || syncing}
+                className="px-4 h-8 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium shadow-sm transition-colors self-start sm:self-auto disabled:opacity-50 flex-shrink-0"
+              >
+                {syncing ? "Syncing…" : "Sync now"}
+              </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="flex flex-col justify-between p-4 rounded-lg bg-surface-container-low/50 gap-4">

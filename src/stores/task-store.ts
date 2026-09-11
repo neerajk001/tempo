@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { TaskPriority, TaskStatus } from "@/types";
 import { todayKey } from "@/lib/task-planning";
+import { addTaskTombstone } from "@/lib/tombstones";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 
 export const TASK_PROJECTS = ["Core Platform", "API Services", "Engineering", "Personal"] as const;
@@ -205,6 +206,8 @@ export const useTaskStore = create<TaskStore>()(
       removeTask: (id) => {
         // Stop + unlink the timer first so a deleted task never lingers on the dashboard.
         usePomodoroStore.getState().detachTask(id);
+        // Remember the delete for cloud sync so other devices drop it too.
+        addTaskTombstone(id);
         set((s) => ({
           tasks: s.tasks.filter((t) => t.id !== id),
           activeTaskId: s.activeTaskId === id ? null : s.activeTaskId,

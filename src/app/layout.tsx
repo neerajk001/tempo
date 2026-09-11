@@ -5,6 +5,7 @@ import TopBar from "@/components/layout/TopBar";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
 import ServiceWorkerRegister from "@/components/providers/ServiceWorkerRegister";
 import GlobalShortcuts from "@/components/providers/GlobalShortcuts";
+import SyncManager from "@/components/providers/SyncManager";
 
 export const metadata: Metadata = {
   title: "Tempo — Focus Console",
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           <ServiceWorkerRegister />
           <GlobalShortcuts />
+          <SyncManager />
         </AuthSessionProvider>
       </body>
     </html>

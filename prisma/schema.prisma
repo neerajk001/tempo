@@ -60,6 +60,15 @@ model Task {
   focusDuration    Int?
   shortBreak       Int?
   longBreak        Int?
+  // Cloud-sync mirrors of the local-first client state (see src/lib/sync.ts)
+  longBreakInterval  Int?
+  project            String?
+  priority           String            @default("medium")
+  focusedMinutes     Int               @default(0)
+  completedPomodoros Int               @default(0)
+  subtasks           Json              @default("[]")
+  startMs            BigInt?
+  endMs              BigInt?
   // Google Calendar link (Phase 06)
   calendarEventId  String?
   createdAt        DateTime          @default(now())
@@ -81,6 +90,11 @@ model PomodoroSession {
   type           SessionType    @default(FOCUS)
   status         SessionStatus  @default(IDLE)
   plannedMinutes Int            @default(50)
+  // Cloud-sync mirrors of the local-first client state (see src/lib/sync.ts)
+  taskTitle      String?
+  focusedMs      Int            @default(0)
+  pausedMs       Int            @default(0)
+  interruptions  Int            @default(0)
   startedAt      DateTime?
   endedAt        DateTime?
   createdAt      DateTime       @default(now())

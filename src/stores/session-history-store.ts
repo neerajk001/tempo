@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { PomodoroPhase, PomodoroStatus, SessionEventType } from "@/types";
+import { addSessionTombstone, addSessionTombstones } from "@/lib/tombstones";
 
 export interface HistoryEvent {
   type: SessionEventType;
@@ -52,7 +53,7 @@ function uid(): string {
 
 export const useSessionHistoryStore = create<HistoryStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       sessions: [],
 
       logSession: (r) => {
@@ -61,10 +62,16 @@ export const useSessionHistoryStore = create<HistoryStore>()(
         return record;
       },
 
-      removeSession: (id) =>
-        set((s) => ({ sessions: s.sessions.filter((x) => x.id !== id) })),
+      removeSession: (id) => {
+        // Remember the delete for cloud sync so other devices drop it too.
+        addSessionTombstone(id);
+        set((s) => ({ sessions: s.sessions.filter((x) => x.id !== id) }));
+      },
 
-      clearHistory: () => set({ sessions: [] }),
+      clearHistory: () => {
+        addSessionTombstones(get().sessions.map((x) => x.id));
+        set({ sessions: [] });
+      },
     }),
     {
       name: STORAGE_KEY,

@@ -18,6 +18,8 @@ import { formatClock } from "@/lib/utils";
 import Icon from "@/components/ui/Icon";
 import DurationPicker, { QUICK_DURATIONS } from "@/components/dashboard/DurationPicker";
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
+import { VideoToggleButton, VideoPill, AmbientVideo, type VideoMode } from "@/components/ambient/AmbientVideo";
+import { MusicToggleButton, MusicPill, AmbientMusic } from "@/components/ambient/AmbientMusic";
 import { cn } from "@/lib/utils";
 
 function fmtClock(ms: number): string {
@@ -63,6 +65,7 @@ export default function FocusView() {
   const [quickShortMin, setQuickShortMin] = useState(10);
   const [quickLongMin, setQuickLongMin] = useState(30);
   const [quickInterval, setQuickInterval] = useState(4);
+  const [videoMode, setVideoMode] = useState<VideoMode>("background");
   const prevStatus = useRef(session.status);
   useEffect(() => setMounted(true), []);
   // Seed the allocation-free quick form from workspace defaults (once).
@@ -177,7 +180,9 @@ export default function FocusView() {
             });
         }
       } else if (e.code === "Escape") {
-        if (drawerOpen) setDrawerOpen(false);
+        // Fullscreen video captures Esc first so Focus Mode stays put.
+        if (videoMode === "fullscreen") setVideoMode("background");
+        else if (drawerOpen) setDrawerOpen(false);
         else exit();
       } else if ((e.code === "KeyL") && !inField) {
         e.preventDefault();
@@ -193,7 +198,7 @@ export default function FocusView() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.status, ticking, drawerOpen, pause, resume, startQuick, quickTitle, quickMinutes, quickShortMin, quickLongMin, quickInterval]);
+  }, [session.status, ticking, drawerOpen, pause, resume, startQuick, quickTitle, quickMinutes, quickShortMin, quickLongMin, quickInterval, videoMode]);
 
   useEffect(() => {
     document.title =
@@ -241,6 +246,9 @@ export default function FocusView() {
         {/* Subtle green aura behind the timer */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full pointer-events-none" style={{ background: "radial-gradient(circle 260px at 50% 50%, rgba(127,176,105,0.09) 0%, transparent 70%)" }} />
       </div>
+      {/* Ambient layers — independent of the Pomodoro timer */}
+      <AmbientVideo mode={videoMode} setMode={setVideoMode} />
+      <AmbientMusic />
 
       {/* Immersion header */}
       <header className="relative z-10 w-full px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between gap-3 flex-wrap">
@@ -274,6 +282,8 @@ export default function FocusView() {
             <span className="text-label-xs text-on-surface-variant">•</span>
             <span className="font-mono text-code-badge text-on-surface-variant font-medium">Session #{pomoIdx} of {planLen}</span>
           </div>
+          <VideoToggleButton onModeChange={setVideoMode} />
+          <MusicToggleButton />
           <button
             type="button"
             onClick={doSound}
@@ -447,6 +457,11 @@ export default function FocusView() {
               <span>Scratchpad</span>
               <Kbd>N</Kbd>
             </button>
+          </div>
+          {/* Ambient controls — video and music stay fully independent */}
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
+            <VideoPill mode={videoMode} setMode={setVideoMode} />
+            <MusicPill />
           </div>
         </div>
 
