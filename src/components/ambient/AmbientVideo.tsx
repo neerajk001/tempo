@@ -123,7 +123,7 @@ export function VideoPill({ mode, setMode }: { mode: VideoMode; setMode: (m: Vid
  * never restarts on mode switches. Driven only by the ambient store; the
  * Pomodoro timer never touches it.
  */
-export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: VideoMode) => void }) {
+export function AmbientVideo({ mode, setMode, immersive = false }: { mode: VideoMode; setMode: (m: VideoMode) => void; immersive?: boolean }) {
   const video = findVideo(useAmbientStore((s) => s.videoId));
   const enabled = useAmbientStore((s) => s.videoEnabled);
   const playing = useAmbientStore((s) => s.videoPlaying);
@@ -138,6 +138,9 @@ export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: 
   useEffect(() => {
     setMissing(false);
   }, [video?.src]);
+
+  const dimmed = mode === "background" && !immersive;
+  const vivid = mode === "background" && immersive;
 
   if (!enabled || !video) return null;
 
@@ -172,7 +175,7 @@ export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: 
           videoClassName={
             mode === "mini" ? "w-full aspect-video object-cover" : "w-full h-full object-cover"
           }
-          dimmed={mode === "background"}
+          dimmed={mode === "background" && !vivid}
           onToggle={() => setPlaying(!playing)}
           onEnded={() => {
             if (!loop) setPlaying(false);

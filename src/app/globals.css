@@ -64,7 +64,8 @@ select option {
   .animate-breathe,
   .animate-pulse-ring,
   .animate-check,
-  .animate-rise {
+  .animate-rise,
+  .animate-flip {
     animation: none !important;
   }
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
-import { usePrefsStore, type ChimeTheme } from "@/stores/prefs-store";
+import { usePrefsStore, type ChimeTheme, type TimerStyle } from "@/stores/prefs-store";
 import { useTaskStore } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useDiversionStore } from "@/stores/diversion-store";
@@ -386,6 +386,35 @@ export default function SettingsPage() {
                   <Icon name="check_circle" className="text-[18px] text-primary" />
                 </div>
                 <span className="text-body-sm text-on-surface-variant">Precision high contrast</span>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-surface-container-low/50 gap-3">
+              <div className="flex flex-col">
+                <span className="text-headline-md text-on-surface font-semibold">Focus timer style</span>
+                <span className="text-body-sm text-on-surface-variant">Circular, flip clock, or analog — same Pomodoro countdown, different face.</span>
+              </div>
+              <div className="flex items-center bg-surface-container-lowest border border-outline-variant p-0.5 rounded-lg shadow-sm self-start sm:self-auto">
+                {(
+                  [
+                    { id: "circular", label: "Circular" },
+                    { id: "flip", label: "Flip Clock" },
+                    { id: "analog", label: "Analog" },
+                  ] as Array<{ id: TimerStyle; label: string }>
+                ).map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => prefs.set({ timerStyle: t.id })}
+                    className={cn(
+                      "px-3 py-1 rounded-md text-body-sm transition-colors whitespace-nowrap",
+                      prefs.timerStyle === t.id
+                        ? "bg-primary text-on-primary font-semibold shadow-sm"
+                        : "text-on-surface-variant hover:text-on-surface font-medium"
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-surface-container-low/50">

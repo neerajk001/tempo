@@ -63,6 +63,7 @@ const config: Config = {
         "pulse-ring": "pulse-ring 6s ease-in-out infinite",
         check: "checkmark-in 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         rise: "fade-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        flip: "flip 0.24s ease-in forwards",
       },
       keyframes: {
         breathe: {
@@ -80,6 +81,10 @@ const config: Config = {
         "fade-rise": {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
+        },
+        flip: {
+          from: { transform: "rotateX(0deg)" },
+          to: { transform: "rotateX(-90deg)" },
         },
       },
       fontSize: {        "display-xl": ["32px", { lineHeight: "40px", letterSpacing: "-0.03em", fontWeight: "600" }],

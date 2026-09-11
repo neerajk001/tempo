@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 
 export type CollisionMode = "auto" | "flag";
 export type ChimeTheme = "chime" | "marimba" | "bell" | "muted";
+export type TimerStyle = "circular" | "flip" | "analog";
 
 interface PrefsState {
   autoStartBreaks: boolean;
@@ -15,6 +16,7 @@ interface PrefsState {
   chimeTheme: ChimeTheme;
   compact: boolean;
   collisionMode: CollisionMode;
+  timerStyle: TimerStyle;
   set: (patch: Partial<PrefsState>) => void;
   resetPrefs: () => void;
 }
@@ -28,6 +30,7 @@ const DEFAULTS = {
   chimeTheme: "chime" as ChimeTheme,
   compact: false,
   collisionMode: "auto" as CollisionMode,
+  timerStyle: "circular" as TimerStyle,
 };
 
 const STORAGE_KEY = "tempo-prefs-v1";
@@ -60,6 +63,7 @@ export const usePrefsStore = create<PrefsState>()(
         chimeTheme: s.chimeTheme,
         compact: s.compact,
         collisionMode: s.collisionMode,
+        timerStyle: s.timerStyle,
       }) as PrefsState,
     }
   )

@@ -20,6 +20,10 @@ import DurationPicker, { QUICK_DURATIONS } from "@/components/dashboard/Duration
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
 import { VideoToggleButton, VideoPill, AmbientVideo, type VideoMode } from "@/components/ambient/AmbientVideo";
 import { MusicToggleButton, MusicPill, AmbientMusic } from "@/components/ambient/AmbientMusic";
+import { TimerAnalog, TimerCircular, TimerFlip } from "@/components/pomodoro/FocusTimer";
+import { usePrefsStore } from "@/stores/prefs-store";
+import { useAmbientStore } from "@/stores/ambient-store";
+import { findVideo } from "@/lib/focus-library";
 import { cn } from "@/lib/utils";
 
 function fmtClock(ms: number): string {
@@ -37,9 +41,6 @@ function Kbd({ children }: { children: React.ReactNode }) {
     </kbd>
   );
 }
-
-const R = 174;
-const CIRC = 2 * Math.PI * R;
 
 export default function FocusView() {
   const router = useRouter();
@@ -66,6 +67,10 @@ export default function FocusView() {
   const [quickLongMin, setQuickLongMin] = useState(30);
   const [quickInterval, setQuickInterval] = useState(4);
   const [videoMode, setVideoMode] = useState<VideoMode>("background");
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const timerStyle = usePrefsStore((s) => s.timerStyle);
+  const ambientVideoOn = useAmbientStore((s) => s.videoEnabled);
+  const ambientVideo = findVideo(useAmbientStore((s) => s.videoId));
   const prevStatus = useRef(session.status);
   useEffect(() => setMounted(true), []);
   // Seed the allocation-free quick form from workspace defaults (once).
@@ -92,6 +97,35 @@ export default function FocusView() {
   const ticking = session.status === "RUNNING" || session.status === "PAUSED";
   const paused = session.status === "PAUSED";
   const now = useNow(ticking);
+
+  // Immersive calm state: video fills the screen and only the timer stays.
+  // Engages while a session ticks — never on standby, so Start is reachable.
+  const immersive = !!ambientVideoOn && !!ambientVideo && videoMode === "background" && ticking;
+  const chromeHidden = immersive && !chromeVisible;
+  const chromeClass = `transition-opacity duration-500 ${chromeHidden ? "opacity-0 pointer-events-none" : "opacity-100"}`;
+
+  // Any activity reveals chrome; 30s of stillness returns to minimal.
+  // Mouse, touch, wheel, keys, and focus all count — interacting with a
+  // control therefore keeps it visible. Timer + shortcuts keep working hidden.
+  useEffect(() => {
+    if (!immersive) {
+      setChromeVisible(true);
+      return;
+    }
+    setChromeVisible(false);
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const poke = () => {
+      setChromeVisible(true);
+      if (t) clearTimeout(t);
+      t = setTimeout(() => setChromeVisible(false), 30000);
+    };
+    const events = ["mousemove", "pointerdown", "touchstart", "wheel", "keydown", "focusin"];
+    events.forEach((e) => window.addEventListener(e, poke));
+    return () => {
+      if (t) clearTimeout(t);
+      events.forEach((e) => window.removeEventListener(e, poke));
+    };
+  }, [immersive]);
 
   useEffect(() => {
     if (session.status === "RUNNING" && isExpired(session, Date.now())) handleComplete();
@@ -243,7 +277,7 @@ export default function FocusView() {
   const showQuickForm = session.status === "IDLE" && !activeTask;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-between bg-surface text-on-surface select-none overflow-hidden overflow-y-auto">
+    <div className={`fixed inset-0 z-50 flex flex-col justify-between bg-surface text-on-surface select-none overflow-hidden overflow-y-auto ${chromeHidden ? "cursor-none" : ""}`}>
       {/* Ambient backdrop glow — barely-there warm green/amber depth */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-primary/[0.07] via-tertiary-fixed/30 to-transparent rounded-full blur-3xl" />
@@ -252,11 +286,17 @@ export default function FocusView() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full pointer-events-none" style={{ background: "radial-gradient(circle 260px at 50% 50%, rgba(127,176,105,0.09) 0%, transparent 70%)" }} />
       </div>
       {/* Ambient layers — independent of the Pomodoro timer */}
-      <AmbientVideo mode={videoMode} setMode={setVideoMode} />
+      <AmbientVideo mode={videoMode} setMode={setVideoMode} immersive={immersive} />
       <AmbientMusic />
+      {immersive && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse 360px 360px at 50% 54%, rgba(0,0,0,0.34) 0%, transparent 70%)" }}
+        />
+      )}
 
       {/* Immersion header */}
-      <header className="relative z-10 w-full px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between gap-3 flex-wrap">
+      <header className={`relative z-10 w-full px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between gap-3 flex-wrap ${chromeClass}`}>
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-surface-container-lowest border border-outline-variant shadow-sm flex items-center justify-center overflow-hidden">
@@ -336,7 +376,7 @@ export default function FocusView() {
 
       {/* Center immersion display */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 max-w-4xl mx-auto w-full">
-        <div className="flex flex-col items-center text-center gap-1 mb-4">
+        <div className={`flex flex-col items-center text-center gap-1 mb-4 ${chromeClass}`}>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant shadow-sm">
             <span className={cn("w-1.5 h-1.5 rounded-full", paused ? "bg-accent-amber" : "bg-primary")} />
             <span className={cn("text-label-xs tracking-widest uppercase font-semibold", paused ? "text-on-accent-amber" : "text-on-primary-fixed")}>
@@ -378,39 +418,16 @@ export default function FocusView() {
         </div>
 
         <div className="relative w-[min(78vw,300px)] h-[min(78vw,300px)] sm:w-[400px] sm:h-[400px] flex items-center justify-center">
-          <svg className="w-full h-full -rotate-90" fill="none" viewBox="0 0 400 400">
-            <circle className="stroke-surface-container-high" cx="200" cy="200" r={R} strokeLinecap="round" strokeWidth="5" />
-            <circle className="stroke-surface-variant/70" cx="200" cy="200" r="162" strokeDasharray="1 11" strokeWidth="1.5" />
-            <circle
-              className={cn("transition-all duration-700 ease-out", paused ? "stroke-secondary" : "stroke-primary")}
-              cx="200" cy="200" r={R}
-              strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - pct / 100)}
-              strokeLinecap="round" strokeWidth="6"
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-text">
-            <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-0.5 font-medium">
-              Time Remaining
-            </span>
-            <div className="flex items-baseline justify-center tracking-tight font-mono text-[68px] sm:text-[92px] leading-none text-on-surface font-medium tabular-nums my-0.5">
-              <span>{mm}</span>
-              <span className={cn("inline-block text-primary mx-0.5", ticking && !paused ? "animate-[pulse_1.5s_infinite]" : "opacity-40")}>:</span>
-              <span>{ss}</span>
-            </div>
-            <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
-              <span className="text-[11px] tabular-nums">{Math.floor(elapsedMs / 60000)}m {String(Math.floor((elapsedMs % 60000) / 1000)).padStart(2, "0")}s elapsed</span>
-              <span>•</span>
-              <span className="text-primary font-medium">{Math.round(pct)}% Completed</span>
-            </div>
-            {paused && (
-              <div className="mt-2 px-3 py-0.5 rounded bg-accent-amber-container border border-accent-amber/20 text-on-accent-amber text-label-xs font-semibold uppercase tracking-wider">
-                Countdown Suspended
-              </div>
-            )}
-          </div>
+          {timerStyle === "flip" ? (
+            <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+          ) : timerStyle === "analog" ? (
+            <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+          ) : (
+            <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+          )}
         </div>
 
-        <div className="flex flex-col items-center gap-3 mt-5 w-full">
+        <div className={`flex flex-col items-center gap-3 mt-5 w-full ${chromeClass}`}>
           <div className="flex items-center gap-2 flex-wrap justify-center">
             {session.status === "IDLE" && (
               <button type="button" onClick={startPrimary} className="h-10 px-6 rounded-xl bg-primary text-on-primary text-body-sm font-semibold hover:bg-primary-container active:scale-[0.98] transition-all flex items-center gap-2 shadow-md">
@@ -501,7 +518,7 @@ export default function FocusView() {
       </main>
 
       {/* Telemetry strip + hotkey legend */}
-      <footer className="relative z-10 w-full px-4 sm:px-8 py-3 sm:py-4 flex flex-col items-center gap-2">
+      <footer className={`relative z-10 w-full px-4 sm:px-8 py-3 sm:py-4 flex flex-col items-center gap-2 ${chromeClass}`}>
         <div className="w-full max-w-3xl hidden sm:flex flex-wrap items-center justify-between py-1.5 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm gap-2">
           <div className="flex items-center gap-1.5">
             <Icon name="schedule" className="text-[15px] text-on-surface-variant" />
