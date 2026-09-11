@@ -153,9 +153,10 @@ export function AmbientVideo({ mode, setMode, immersive = false }: { mode: Video
         mode === "background"
           ? "absolute inset-0 overflow-hidden pointer-events-none"
           : mode === "mini"
-            ? "fixed bottom-4 right-4 z-[60] w-44 sm:w-64 rounded-xl overflow-hidden border border-outline bg-black shadow-xl"
-            : "fixed inset-0 z-[70] bg-black"
+            ? "fixed right-4 z-[60] w-44 sm:w-64 rounded-xl overflow-hidden border border-outline bg-black shadow-xl bottom-[max(1rem,env(safe-area-inset-bottom))]"
+            : "fixed inset-x-0 top-0 z-[70] h-screen w-full bg-black"
       }
+      style={mode === "fullscreen" ? { height: "100dvh" } : undefined}
     >
       {missing ? (
         <div className={mode === "background" ? "absolute inset-0 flex items-center justify-center" : "aspect-video flex items-center justify-center p-3 text-center"}>

@@ -73,7 +73,7 @@ export default function DurationPicker({
             if (Number.isFinite(n)) onChange(clampQuickMinutes(n, minutes));
           }}
           onBlur={() => setText(null)}
-          className="h-7 w-20 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 font-mono text-label-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
+          className="h-8 sm:h-7 w-20 rounded-lg border border-outline-variant bg-surface-container-lowest px-2 font-mono text-base sm:text-label-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary"
         />
         <span className="flex-shrink-0">min (5–180)</span>
       </label>

@@ -280,7 +280,10 @@ export default function FocusView() {
   const showQuickForm = session.status === "IDLE" && !activeTask;
 
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col justify-between bg-surface text-on-surface select-none overflow-hidden overflow-y-auto ${chromeHidden ? "cursor-none" : ""}`}>
+    <div
+      className={`fixed inset-x-0 top-0 h-screen z-50 flex flex-col justify-between bg-surface text-on-surface select-none overflow-hidden overflow-y-auto ${chromeHidden ? "cursor-none" : ""}`}
+      style={{ height: "100dvh" }}
+    >
       {/* Ambient backdrop glow — barely-there warm green/amber depth */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-primary/[0.07] via-tertiary-fixed/30 to-transparent rounded-full blur-3xl" />
@@ -427,7 +430,7 @@ export default function FocusView() {
                 value={quickTitle}
                 onChange={(e) => setQuickTitle(e.target.value)}
                 placeholder="Quick session label (optional)"
-                className="w-full h-9 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 text-body-sm text-center focus:outline-none focus:border-primary"
+                className="w-full h-10 sm:h-9 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 text-base sm:text-body-sm text-center focus:outline-none focus:border-primary"
               />
               <DurationPicker compact minutes={quickMinutes} onChange={setQuickMinutes} />
               <div className="w-full">
@@ -449,7 +452,7 @@ export default function FocusView() {
 
         {!timerHidden && (
           <div
-            className={`relative w-[min(78vw,300px)] h-[min(78vw,300px)] sm:w-[400px] sm:h-[400px] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
+            className={`relative w-[min(78vw,300px,62dvh)] h-[min(78vw,300px,62dvh)] sm:w-[min(400px,62dvh)] sm:h-[min(400px,62dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
           >
             {timerStyle === "flip" ? (
               <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
@@ -541,7 +544,7 @@ export default function FocusView() {
               }}
               placeholder="Capture stray thought or task for later... (press Enter to park)"
               rows={2}
-              className="w-full bg-surface-container-low rounded-lg p-2.5 text-body-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+              className="w-full bg-surface-container-low rounded-lg p-2.5 text-base sm:text-body-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
             />
             <div className="flex items-center justify-between mt-0.5 text-[11px] text-on-surface-variant">
               <span>Stays private to this session</span>

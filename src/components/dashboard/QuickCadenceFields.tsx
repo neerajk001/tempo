@@ -44,7 +44,7 @@ export default function QuickCadenceFields({
           if (e.target.value.trim() === "" || !Number.isFinite(n)) return;
           apply(Math.min(max, Math.max(min, Math.round(n))));
         }}
-        className="h-8 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-2 font-mono text-body-sm text-on-surface focus:outline-none focus:border-primary"
+          className="h-9 sm:h-8 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-2 font-mono text-base sm:text-body-sm text-on-surface focus:outline-none focus:border-primary"
       />
     </label>
   );
