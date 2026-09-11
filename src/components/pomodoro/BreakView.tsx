@@ -9,7 +9,7 @@ import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
 import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
-import { calculatePomodoroPlan, countPlannedPomodoros, todayKey } from "@/lib/task-planning";
+import { calculatePomodoroPlan, countPlannedPomodoros, nextSliceMinutes, todayKey } from "@/lib/task-planning";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
 import Icon from "@/components/ui/Icon";
@@ -106,7 +106,7 @@ export default function BreakView() {
     // Auto-start preferences may have already advanced the timer — never double-start.
     const st = usePomodoroStore.getState().session.status;
     if (st === "COMPLETED" || st === "CANCELLED" || st === "IDLE") {
-      if (nextTask) startForTask(nextTask.id, nextTask.title);
+      if (nextTask) startForTask(nextTask.id, nextTask.title, nextSliceMinutes(nextTask.allocatedMinutes, nextTask.focusMinutes, nextTask.completedPomodoros) * 60000);
       else start("FOCUS");
     }
     router.push("/focus");

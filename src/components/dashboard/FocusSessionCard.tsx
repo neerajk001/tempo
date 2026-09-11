@@ -123,20 +123,25 @@ export default function FocusSessionCard() {
     return <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 text-body-sm text-secondary">Loading session…</div>;
   }
 
-  const remainingMs = getRemainingMs(session, now);
+  const remainingMs = session.status === "IDLE" && (activeTask ?? displayTask)
+    ? currentSliceMin * 60000
+    : getRemainingMs(session, now);
   const elapsedMs = getElapsedFocusMs(session, now);
   const remainingSec = Math.ceil(remainingMs / 1000);
   const elapsedMin = Math.floor(elapsedMs / 60000);
   const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
-  const plannedMin = Math.max(1, Math.round(session.plannedMs / 60000));
+  const plannedMin = session.status === "IDLE" && (activeTask ?? displayTask)
+    ? currentSliceMin
+    : Math.max(1, Math.round(session.plannedMs / 60000));
   const ringPct = session.plannedMs > 0 ? Math.min(100, Math.round((elapsedMs / session.plannedMs) * 100)) : 0;
   const R = 20;
   const CIRC = 2 * Math.PI * R;
 
   const startPrimary = () => {
     if (session.status !== "IDLE") return;
-    if (activeTask) startForTask(activeTask.id, activeTask.title);
-    else if (displayTask) startForTask(displayTask.id, displayTask.title);
+    // The timer counts the task's current slice — never the workspace default.
+    if (activeTask) startForTask(activeTask.id, activeTask.title, currentSliceMin * 60000);
+    else if (displayTask) startForTask(displayTask.id, displayTask.title, currentSliceMin * 60000);
     else startQuick();
   };
 

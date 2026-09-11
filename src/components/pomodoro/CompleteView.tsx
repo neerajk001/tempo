@@ -6,7 +6,7 @@ import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
 import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { computeDashboardStats } from "@/lib/dashboard-stats";
-import { calculatePomodoroPlan, todayKey } from "@/lib/task-planning";
+import { calculatePomodoroPlan, nextSliceMinutes, todayKey } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
 import Icon from "@/components/ui/Icon";
 
@@ -254,7 +254,7 @@ export default function CompleteView() {
             <button
               type="button"
               onClick={() => {
-                if (task) startForTask(task.id, task.title);
+      if (task) startForTask(task.id, task.title, nextSliceMinutes(task.allocatedMinutes, task.focusMinutes, task.completedPomodoros) * 60000);
                 else if (record) startQuick(record.taskTitle, record.plannedMs);
                 else start("FOCUS");
                 router.push("/focus");

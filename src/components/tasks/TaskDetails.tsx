@@ -12,7 +12,7 @@ import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-his
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
 import { getRemainingMs } from "@/lib/pomodoro-machine";
-import { calculatePomodoroPlan } from "@/lib/task-planning";
+import { calculatePomodoroPlan, nextSliceMinutes } from "@/lib/task-planning";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
 import { AVATAR_SRC } from "@/lib/assets";
 import { cn } from "@/lib/utils";
@@ -142,7 +142,7 @@ export default function TaskDetails() {
       return;
     }
     if (task.status === "TODO") setStatus(task.id, "IN_PROGRESS");
-    startForTask(task.id, task.title);
+    startForTask(task.id, task.title, nextSliceMinutes(task.allocatedMinutes, task.focusMinutes, task.completedPomodoros) * 60000);
     router.push("/focus");
   };
 

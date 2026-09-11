@@ -3,6 +3,7 @@ import {
   calculatePomodoroPlan,
   countPlannedPomodoros,
   getTaskProgress,
+  nextSliceMinutes,
 } from "@/lib/task-planning";
 
 describe("task pomodoro planning", () => {
@@ -61,5 +62,17 @@ describe("task pomodoro planning", () => {
     // Every planned minute is focus time; break cadence lives outside the plan.
     expect(plan.reduce((s, p) => s + p.minutes, 0)).toBe(60);
     expect(countPlannedPomodoros(60, 25)).toBe(3);
+  });
+
+  it("nextSliceMinutes returns the task's current block, not the workspace default", () => {
+    // 120m allocated / 40m focus, 1 done -> second 40m block.
+    expect(nextSliceMinutes(120, 40, 1)).toBe(40);
+    // Fresh task starts at the first block.
+    expect(nextSliceMinutes(120, 40, 0)).toBe(40);
+    // Over-completion clamps to the final (partial) block, never past the end.
+    expect(nextSliceMinutes(100, 40, 99)).toBe(20);
+    // Invalid input falls back to a sane focus length.
+    expect(nextSliceMinutes(0, 40, 0)).toBe(40);
+    expect(nextSliceMinutes(60, 0, 0)).toBe(25);
   });
 });

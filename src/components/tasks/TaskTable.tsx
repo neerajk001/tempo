@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { getTaskProgress } from "@/lib/task-planning";
+import { getTaskProgress, nextSliceMinutes } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
 import { useTaskStore, type Task } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
@@ -157,7 +157,7 @@ function PrimaryAction({ task }: { task: Task }) {
       type="button"
       onClick={() => {
         if (task.status === "TODO") setStatus(task.id, "IN_PROGRESS");
-        startForTask(task.id, task.title);
+        startForTask(task.id, task.title, nextSliceMinutes(task.allocatedMinutes, task.focusMinutes, task.completedPomodoros) * 60000);
         router.push("/focus");
       }}
       className="inline-flex items-center gap-1.5 h-8 px-2.5 md:h-7 md:px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high text-body-sm font-medium transition-colors"

@@ -12,7 +12,7 @@ import {
   getRemainingMs,
   isExpired,
 } from "@/lib/pomodoro-machine";
-import { calculatePomodoroPlan } from "@/lib/task-planning";
+import { calculatePomodoroPlan, nextSliceMinutes } from "@/lib/task-planning";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
 import { formatClock } from "@/lib/utils";
 import Icon from "@/components/ui/Icon";
@@ -124,7 +124,10 @@ export default function FocusView() {
     }
   }, [activeTask, session.completedFocusCount]);
   const pomoIdx = Math.min((activeTask?.completedPomodoros ?? session.completedFocusCount) + 1, Math.max(planLen, 1));
-  const sliceMin = Math.max(1, Math.round(session.plannedMs / 60000));
+  // A task run counts its own current slice — never the workspace default.
+  const sliceMin = activeTask
+    ? nextSliceMinutes(activeTask.allocatedMinutes, activeTask.focusMinutes, activeTask.completedPomodoros)
+    : Math.max(1, Math.round(session.plannedMs / 60000));
 
   const noteKey = `tempo-scratch-${activeTaskId ?? "general"}`;
   const countKey = `tempo-scratch-count-${activeTaskId ?? "general"}`;
@@ -171,7 +174,7 @@ export default function FocusView() {
           const linked = st.activeTaskId
             ? selectTaskById(useTaskStore.getState().tasks, st.activeTaskId)
             : null;
-          if (linked) st.startForTask(linked.id, linked.title);
+          if (linked) st.startForTask(linked.id, linked.title, nextSliceMinutes(linked.allocatedMinutes, linked.focusMinutes, linked.completedPomodoros) * 60000);
           else
             st.startQuick(quickTitle || undefined, quickMinutes * 60000, {
               shortBreakMs: quickShortMin * 60000,
@@ -217,7 +220,9 @@ export default function FocusView() {
 
   if (!mounted) return null;
 
-  const remainingMs = getRemainingMs(session, now);
+  const remainingMs = session.status === "IDLE" && activeTask
+    ? sliceMin * 60000
+    : getRemainingMs(session, now);
   const elapsedMs = getElapsedFocusMs(session, now);
   const pausedMs = getPausedMs(session, now);
   const remainingSec = Math.ceil(remainingMs / 1000);
@@ -232,7 +237,7 @@ export default function FocusView() {
   const startedLabel = session.startedAt ? fmtClock(session.startedAt) : "—";
 
   const startPrimary = () => {
-    if (activeTask) startForTask(activeTask.id, activeTask.title);
+    if (activeTask) startForTask(activeTask.id, activeTask.title, sliceMin * 60000);
     else startQuick(quickTitle || undefined, quickMinutes * 60000, quickBreaks);
   };
   const showQuickForm = session.status === "IDLE" && !activeTask;

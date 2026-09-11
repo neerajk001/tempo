@@ -57,6 +57,27 @@ export function countPlannedPomodoros(allocatedMinutes: number, focusMinutes: nu
   return calculatePomodoroPlan(allocatedMinutes, focusMinutes).length;
 }
 
+/**
+ * Minutes for a task's next focus run: its current plan block given how
+ * many pomodoros are already done (clamped into range). This is what the
+ * timer must count down — never the workspace default.
+ */
+export function nextSliceMinutes(
+  allocatedMinutes: number,
+  focusMinutes: number,
+  completedPomodoros: number
+): number {
+  const fallback = Math.max(1, Math.round(focusMinutes) || 25);
+  try {
+    const plan = calculatePomodoroPlan(allocatedMinutes, focusMinutes);
+    if (plan.length === 0) return fallback;
+    const idx = Math.min(Math.max(Math.floor(completedPomodoros) || 0, 0), plan.length - 1);
+    return Math.max(1, plan[idx].minutes);
+  } catch {
+    return fallback;
+  }
+}
+
 export function getTaskProgress(
   allocatedMinutes: number,
   focusedMinutes: number,
