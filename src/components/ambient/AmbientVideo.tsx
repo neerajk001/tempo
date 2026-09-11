@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { findVideo } from "@/lib/focus-library";
+import { useSeamlessLoop } from "@/hooks/useSeamlessLoop";
 import { useAmbientStore } from "@/stores/ambient-store";
 import { cn } from "@/lib/utils";
 
@@ -132,7 +133,7 @@ export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: 
   const setMuted = useAmbientStore((s) => s.setVideoMuted);
   const loop = useAmbientStore((s) => s.videoLoop);
   const setEnabled = useAmbientStore((s) => s.setVideoEnabled);
-  const ref = useRef<HTMLVideoElement | null>(null);
+  const { ref, fading, handleTimeUpdate } = useSeamlessLoop(enabled && playing, loop);
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
@@ -153,8 +154,8 @@ export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: 
     if (!el) return;
     el.volume = muted ? 0 : volume;
     el.muted = muted;
-    el.loop = loop;
-  }, [volume, muted, loop, video?.src]);
+    el.loop = false;
+  }, [volume, muted, video?.src]);
 
   if (!enabled || !video) return null;
 
@@ -181,13 +182,19 @@ export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: 
         <video
           ref={ref}
           playsInline
+          preload="auto"
+          onTimeUpdate={handleTimeUpdate}
           onError={() => setMissing(true)}
+          onEnded={() => {
+            if (!loop) setPlaying(false);
+          }}
           className={
-            mode === "background"
-              ? "w-full h-full object-cover opacity-35"
+            (mode === "background"
+              ? "w-full h-full object-cover"
               : mode === "mini"
                 ? "w-full aspect-video object-cover"
-                : "absolute inset-0 w-full h-full object-cover"
+                : "absolute inset-0 w-full h-full object-cover") +
+            ` transition-opacity duration-300 ${fading ? "opacity-0" : mode === "background" ? "opacity-35" : "opacity-100"}`
           }
         />
       )}
