@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { findVideo } from "@/lib/focus-library";
-import { useSeamlessLoop } from "@/hooks/useSeamlessLoop";
+import LoopingVideo from "@/components/ambient/LoopingVideo";
 import { useAmbientStore } from "@/stores/ambient-store";
 import { cn } from "@/lib/utils";
 
@@ -133,29 +133,11 @@ export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: 
   const setMuted = useAmbientStore((s) => s.setVideoMuted);
   const loop = useAmbientStore((s) => s.videoLoop);
   const setEnabled = useAmbientStore((s) => s.setVideoEnabled);
-  const { ref, fading, handleTimeUpdate } = useSeamlessLoop(enabled && playing, loop);
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     setMissing(false);
   }, [video?.src]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !video) return;
-    if (el.getAttribute("src") !== video.src) el.setAttribute("src", video.src);
-    if (playing) void el.play().catch(() => setPlaying(false));
-    else el.pause();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [video?.src, playing, enabled]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.volume = muted ? 0 : volume;
-    el.muted = muted;
-    el.loop = false;
-  }, [volume, muted, video?.src]);
 
   if (!enabled || !video) return null;
 
@@ -179,23 +161,24 @@ export function AmbientVideo({ mode, setMode }: { mode: VideoMode; setMode: (m: 
           </p>
         </div>
       ) : (
-        <video
-          ref={ref}
-          playsInline
-          preload="auto"
-          onTimeUpdate={handleTimeUpdate}
-          onError={() => setMissing(true)}
+        <LoopingVideo
+          src={video.src}
+          poster={video.poster}
+          playing={playing}
+          muted={muted}
+          volume={volume}
+          loop={loop}
+          className={mode === "fullscreen" ? "absolute inset-0" : "w-full h-full"}
+          videoClassName={
+            mode === "mini" ? "w-full aspect-video object-cover" : "w-full h-full object-cover"
+          }
+          dimmed={mode === "background"}
+          onToggle={() => setPlaying(!playing)}
           onEnded={() => {
             if (!loop) setPlaying(false);
           }}
-          className={
-            (mode === "background"
-              ? "w-full h-full object-cover"
-              : mode === "mini"
-                ? "w-full aspect-video object-cover"
-                : "absolute inset-0 w-full h-full object-cover") +
-            ` transition-opacity duration-300 ${fading ? "opacity-0" : mode === "background" ? "opacity-35" : "opacity-100"}`
-          }
+          onError={() => setMissing(true)}
+          onPlayFail={() => setPlaying(false)}
         />
       )}
       {mode === "background" && !missing && <div className="absolute inset-0 bg-surface/70" />}

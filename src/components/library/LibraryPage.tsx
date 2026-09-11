@@ -9,12 +9,12 @@ import {
   type FocusVideo,
 } from "@/lib/focus-library";
 import { useAmbientStore } from "@/stores/ambient-store";
-import { useSeamlessLoop } from "@/hooks/useSeamlessLoop";
+import LoopingVideo from "@/components/ambient/LoopingVideo";
 import { cn } from "@/lib/utils";
 
 type Tab = "videos" | "music";
 
-/** Chromeless inline preview: tap to play/pause, seamless faded loop. */
+/** Chromeless inline preview: tap for play/pause, seamless loop, PiP + fullscreen. */
 function PreviewVideo({
   src,
   poster,
@@ -25,47 +25,22 @@ function PreviewVideo({
   onMissing: () => void;
 }) {
   const [paused, setPaused] = useState(false);
-  const { ref, fading, handleTimeUpdate } = useSeamlessLoop(true, true);
-
-  const toggle = () => {
-    const el = ref.current;
-    if (!el) return;
-    if (el.paused) {
-      el.play().then(
-        () => setPaused(false),
-        () => setPaused(true)
-      );
-    } else {
-      el.pause();
-      setPaused(true);
-    }
-  };
-
   return (
-    <div className="relative w-full h-full cursor-pointer" onClick={toggle}>
-      <video
-        ref={ref}
-        src={src}
-        poster={poster}
-        autoPlay
-        playsInline
-        preload="auto"
-        onTimeUpdate={handleTimeUpdate}
-        onError={onMissing}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${fading ? "opacity-0" : "opacity-100"}`}
-      />
-      {paused ? (
-        <span className="absolute inset-0 flex items-center justify-center">
-          <span className="w-11 h-11 rounded-full bg-black/55 border border-white/20 backdrop-blur-sm flex items-center justify-center text-white">
-            <Icon name="play_arrow" className="text-[22px]" />
-          </span>
-        </span>
-      ) : (
-        <span className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-black/55 border border-white/20 backdrop-blur-sm flex items-center justify-center text-white">
-          <Icon name="pause" className="text-[16px]" />
-        </span>
-      )}
-    </div>
+    <LoopingVideo
+      src={src}
+      poster={poster}
+      playing={!paused}
+      muted={false}
+      volume={0.9}
+      loop
+      className="w-full h-full"
+      videoClassName="w-full h-full object-cover"
+      chrome
+      playOverlay
+      onToggle={() => setPaused((p) => !p)}
+      onError={onMissing}
+      onPlayFail={() => setPaused(true)}
+    />
   );
 }
 
