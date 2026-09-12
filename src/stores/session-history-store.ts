@@ -31,7 +31,7 @@ export interface SessionRecord {
   sessionMode?: FocusMode;
   /** User-provided Infinite session label (falls back to taskTitle). */
   sessionName?: string | null;
-  /** Break time tracked separately from focused time (infinite pause-breaks). */
+  /** Break time tracked separately from focused time (0 unless a break was logged). */
   breakMs?: number;
 }
 

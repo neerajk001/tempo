@@ -22,8 +22,6 @@ export interface TimerProps {
   infinite?: boolean;
   /** Preformatted elapsed HH:MM:SS for infinite mode. */
   hms?: string;
-  /** Break ms accumulated in the current infinite run (display only). */
-  breakMs?: number;
 }
 
 /** Format ms as HH:MM:SS elapsed (always with hours for infinite focus). */
@@ -33,13 +31,6 @@ export function formatElapsedHMS(ms: number): string {
   const m = Math.floor((s % 3600) / 60);
   const r = s % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
-}
-
-function formatBreakShort(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${m}m ${String(r).padStart(2, "0")}s`;
 }
 
 const R = 174;
@@ -65,7 +56,7 @@ function TimerMeta({ elapsedMs, pct, paused }: Pick<TimerProps, "elapsedMs" | "p
 }
 
 /** Variant 1 — the existing circular progress timer (default). */
-export function TimerCircular({ mm, ss, pct, paused, ticking, elapsedMs, infinite, hms, breakMs }: TimerProps) {
+export function TimerCircular({ mm, ss, pct, paused, ticking, elapsedMs, infinite, hms }: TimerProps) {
   if (infinite) {
     return (
       <div className="relative w-full h-full flex items-center justify-center">
@@ -88,16 +79,10 @@ export function TimerCircular({ mm, ss, pct, paused, ticking, elapsedMs, infinit
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
             <span className="text-primary font-medium">Focused</span>
-            {(breakMs ?? 0) > 0 && (
-              <>
-                <span>•</span>
-                <span>Break {formatBreakShort(breakMs ?? 0)}</span>
-              </>
-            )}
           </div>
           {paused && (
             <div className="mt-2 px-3 py-0.5 rounded bg-accent-amber-container border border-accent-amber/20 text-on-accent-amber text-label-xs font-semibold uppercase tracking-wider">
-              Focus Paused — Break Tracking
+              Paused
             </div>
           )}
         </div>
@@ -171,7 +156,7 @@ function FlipUnit({ value, label }: { value: string; label: string }) {
 }
 
 /** Variant 2 — split-flap inspired flip clock. Same countdown state. */
-export function TimerFlip({ mm, ss, pct, paused, elapsedMs, infinite, hms, breakMs }: TimerProps) {
+export function TimerFlip({ mm, ss, pct, paused, elapsedMs, infinite, hms }: TimerProps) {
   if (infinite) {
     const parts = (hms ?? formatElapsedHMS(elapsedMs)).split(":");
     const [hh = "00", fmm = "00", fss = "00"] = parts.length === 3 ? parts : ["00", mm, ss];
@@ -189,16 +174,10 @@ export function TimerFlip({ mm, ss, pct, paused, elapsedMs, infinite, hms, break
         </div>
         <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
           <span className="text-primary font-medium">Focused</span>
-          {(breakMs ?? 0) > 0 && (
-            <>
-              <span>•</span>
-              <span>Break {formatBreakShort(breakMs ?? 0)}</span>
-            </>
-          )}
         </div>
         {paused && (
           <div className="mt-2 px-3 py-0.5 rounded bg-accent-amber-container border border-accent-amber/20 text-on-accent-amber text-label-xs font-semibold uppercase tracking-wider">
-            Focus Paused — Break Tracking
+            Paused
           </div>
         )}
       </div>
@@ -236,7 +215,7 @@ export function clockAngles(elapsedMs: number, plannedMs: number): {
 }
 
 /** Variant 3 — minimalist analog countdown. Same countdown state. */
-export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss, infinite, hms, breakMs }: TimerProps) {
+export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss, infinite, hms }: TimerProps) {
   if (infinite) {
     return (
       <div className="flex flex-col items-center justify-center text-center select-text">
@@ -248,16 +227,10 @@ export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss, infinite, hm
         </div>
         <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
           <span className="text-primary font-medium">Focused</span>
-          {(breakMs ?? 0) > 0 && (
-            <>
-              <span>•</span>
-              <span>Break {formatBreakShort(breakMs ?? 0)}</span>
-            </>
-          )}
         </div>
         {paused && (
           <div className="mt-2 px-3 py-0.5 rounded bg-accent-amber-container border border-accent-amber/20 text-on-accent-amber text-label-xs font-semibold uppercase tracking-wider">
-            Focus Paused — Break Tracking
+            Paused
           </div>
         )}
       </div>

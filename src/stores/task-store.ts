@@ -466,15 +466,14 @@ export const useTaskStore = create<TaskStore>()(
         // so reading the live timer here keeps the engine centralized
         // without introducing a new import cycle.
         const pomo = usePomodoroStore.getState();
-        const { session, activeTaskId, infiniteBreak, infiniteBreakTotalMs } = pomo;
+        const { session, activeTaskId } = pomo;
         if (!activeTaskId) return null;
         if (session.status !== "RUNNING" && session.status !== "PAUSED") return null;
         if (session.startedAt === null) return null;
         const focusedMs = Math.max(0, Math.round(getElapsedFocusMs(session, at)));
-        const isInfinite = session.isInfinite === true;
-        const breakMs = isInfinite
-          ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
-          : 0;
+        // Pauses are manual — there is no automatic break countdown, so no
+        // break time accrues here (paused time is tracked on the session).
+        const breakMs = 0;
         const interruptions = Math.max(0, Math.round(session.pauseCount ?? 0));
         const completedFocusCount = Math.max(0, Math.round(session.completedFocusCount ?? 0));
         const lastPhase = session.phase;

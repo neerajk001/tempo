@@ -133,9 +133,6 @@ export default function NewTaskModal({
             date,
             allocatedMinutes: 0,
             focusMinutes: 25,
-            shortBreakMinutes: shortBreak,
-            longBreakMinutes: longBreak,
-            longBreakInterval: longInterval,
             project,
             priority,
             focusMode: "infinite" as const,
@@ -327,8 +324,8 @@ export default function NewTaskModal({
             {isInfinite && (
               <div className="flex flex-col gap-1 justify-center p-3 rounded-xl bg-surface-container-low/60 border border-outline-variant/30">
                 <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold">Open-ended session</span>
-                <span className="text-body-sm text-on-surface">No fixed end time — elapsed focus is tracked until you pause or end the session.</span>
-                <span className="text-label-xs text-on-surface-variant">Pausing starts a {shortBreak}m break countdown (configurable below).</span>
+                <span className="text-body-sm text-on-surface">No fixed end time — elapsed focus is tracked until you end the session.</span>
+                <span className="text-label-xs text-on-surface-variant">Pause anytime and resume right where you left off.</span>
               </div>
             )}
           </div>
@@ -456,22 +453,9 @@ export default function NewTaskModal({
           <div className="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5 text-on-surface text-body-sm">
               <Icon name="timer" className="text-[16px] text-primary" />
-              <span className="font-medium text-[13px]">Infinite Break Cadence</span>
+              <span className="font-medium text-[13px]">How Infinite Works</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              <label className="flex flex-col p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
-                <span className="text-label-xs text-on-surface-variant">Break on Pause</span>
-                <select value={shortBreak} onChange={(e) => setShortBreak(Number(e.target.value))} className="mt-0.5 font-mono text-body-sm font-semibold text-on-surface bg-transparent focus:outline-none cursor-pointer">
-                  {SHORT_BREAK_OPTIONS.map((m) => (
-                    <option key={m} value={m}>{m}m</option>
-                  ))}
-                </select>
-              </label>
-              <div className="flex flex-col p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20 justify-center">
-                <span className="text-label-xs text-on-surface-variant">Tracking</span>
-                <span className="mt-0.5 text-body-sm font-medium text-on-surface">Elapsed focus + separate break time</span>
-              </div>
-            </div>
+            <span className="text-body-sm text-on-surface-variant">Start, pause, and resume freely — every focused minute is saved to the task, History, and Dashboard.</span>
           </div>
           )}
 

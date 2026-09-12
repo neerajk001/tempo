@@ -25,8 +25,6 @@ export function useFinishSession() {
   const activeTaskTitle = usePomodoroStore((s) => s.activeTaskTitle);
   const focusMode = usePomodoroStore((s) => s.focusMode);
   const sessionName = usePomodoroStore((s) => s.sessionName);
-  const infiniteBreak = usePomodoroStore((s) => s.infiniteBreak);
-  const infiniteBreakTotalMs = usePomodoroStore((s) => s.infiniteBreakTotalMs);
   const complete = usePomodoroStore((s) => s.complete);
   const cancel = usePomodoroStore((s) => s.cancel);
   const tasks = useTaskStore((s) => s.tasks);
@@ -44,10 +42,8 @@ export function useFinishSession() {
     } catch {
       return;
     }
-    // Capture the Infinite break total before the store clears the open break.
-    const breakMs = isInfinite
-      ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
-      : 0;
+    // Pauses are manual — no automatic break accrues, so break time is 0.
+    const breakMs = 0;
     const focusedMs = getElapsedFocusMs(snapshot, at);
     const taskTitle = activeTask?.title ?? activeTaskTitle;
     complete();
@@ -128,9 +124,7 @@ export function useFinishSession() {
     } catch {
       return;
     }
-    const breakMs = isInfinite
-      ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
-      : 0;
+    const breakMs = 0;
     const focusedMs = getElapsedFocusMs(snapshot, at);
     cancel();
     // Stopping preserves state: fold partial work into the task so returning

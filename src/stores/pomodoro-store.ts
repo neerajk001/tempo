@@ -48,12 +48,7 @@ interface PomodoroActions {
     credit?: QuickCredit | null
   ) => void;
   setActiveTask: (taskId: string | null, taskTitle?: string | null) => void;
-  /**
-   * Pause the live session. Accepts an optional break length for Infinite
-   * Focus (pause auto-starts break tracking); extra event args from
-   * `onClick={pause}` are safely ignored.
-   */
-  pause: (arg?: unknown) => void;
+  pause: () => void;
   resume: () => void;
   complete: () => void;
   cancel: () => void;
@@ -99,27 +94,6 @@ interface PomodoroStore extends PomodoroActions {
    * Shown in Focus Mode, History and Dashboard. Null = use task title.
    */
   sessionName: string | null;
-  /**
-   * Active break countdown for a PAUSED Infinite Focus session. Started
-   * automatically on pause with the user's configured break duration;
-   * cleared on resume/complete/cancel. Focus time stays frozen while set;
-   * break time is tracked separately from focused time.
-   */
-  infiniteBreak: InfiniteBreakState | null;
-  /**
-   * Accumulated break ms across resumed pause-breaks in the current
-   * Infinite run. Added to on resume; the open break (if paused) is added
-   * on top at completion/switch time. Reset on start.
-   */
-  infiniteBreakTotalMs: number;
-}
-
-/**
- * Break countdown attached to a paused Infinite Focus session.
- */
-export interface InfiniteBreakState {
-  startedAt: number;
-  plannedMs: number;
 }
 
 /**
@@ -169,52 +143,6 @@ export function resolveBreaks(
   };
 }
 
-/** Elapsed break ms for a paused Infinite session (capped at >= 0). */
-export function getInfiniteBreakElapsed(
-  brk: InfiniteBreakState | null,
-  now: number
-): number {
-  if (!brk) return 0;
-  return Math.max(0, now - brk.startedAt);
-}
-
-/** Remaining break ms for a paused Infinite session (0 when complete). */
-export function getInfiniteBreakRemaining(
-  brk: InfiniteBreakState | null,
-  now: number
-): number {
-  if (!brk) return 0;
-  return Math.max(0, brk.plannedMs - getInfiniteBreakElapsed(brk, now));
-}
-
-/** True once the Infinite pause-break countdown has fully elapsed. */
-export function isInfiniteBreakComplete(
-  brk: InfiniteBreakState | null,
-  now: number
-): boolean {
-  if (!brk) return false;
-  return now - brk.startedAt >= brk.plannedMs;
-}
-
-/** Resolve the break length for an Infinite pause (task override wins). */
-export function resolveInfiniteBreakMs(
-  config: PomodoroConfig,
-  opts?: { taskShortBreakMinutes?: number | null; breakMs?: number }
-): number {
-  if (opts?.breakMs && Number.isFinite(opts.breakMs) && opts.breakMs > 0) {
-    return Math.max(60000, Math.min(120 * 60000, Math.round(opts.breakMs)));
-  }
-  if (
-    opts?.taskShortBreakMinutes !== undefined &&
-    opts.taskShortBreakMinutes !== null &&
-    Number.isFinite(opts.taskShortBreakMinutes)
-  ) {
-    const m = Math.round(opts.taskShortBreakMinutes);
-    if (m >= 1 && m <= 60) return m * 60000;
-  }
-  return config.shortBreakMs;
-}
-
 const STORAGE_KEY = "tempo-pomodoro-v1";
 
 // No-op storage for SSR (Next.js prerender has no localStorage)
@@ -238,18 +166,12 @@ export const usePomodoroStore = create<PomodoroStore>()(
        * name so Infinite and Allocated stay distinguishable downstream.
        */
       const preemptIfActive = () => {
-        const { session, activeTaskId, activeTaskTitle, focusMode, sessionName, infiniteBreak, infiniteBreakTotalMs } = get();
+        const { session, activeTaskId, activeTaskTitle, focusMode, sessionName } = get();
         if (session.status !== "RUNNING" && session.status !== "PAUSED") return;
         const at = Date.now();
         try {
           const snap = cancelSession(session, at);
           if (snap.startedAt !== null && snap.endedAt !== null) {
-            // Infinite break time is the actual paused duration (tracked
-            // separately from focused time); the countdown is display only.
-            const brkMs =
-              focusMode === "infinite"
-                ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
-                : 0;
             useSessionHistoryStore.getState().logSession({
               taskId: activeTaskId,
               taskTitle: activeTaskTitle,
@@ -264,10 +186,10 @@ export const usePomodoroStore = create<PomodoroStore>()(
               events: snap.events,
               sessionMode: focusMode,
               sessionName,
-              breakMs: focusMode === "infinite" ? brkMs : 0,
+              breakMs: 0,
             });
           }
-          set({ session: snap, infiniteBreak: null });
+          set({ session: snap });
         } catch {
           // Already terminal — nothing to stop.
         }
@@ -282,8 +204,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
       breakOverride: null,
       focusMode: "allocated" as FocusMode,
       sessionName: null,
-      infiniteBreak: null,
-      infiniteBreakTotalMs: 0,
 
       start: (phase, plannedMs) => {
         preemptIfActive();
@@ -292,8 +212,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
         set({
           focusMode: "allocated",
           sessionName: null,
-          infiniteBreak: null,
-          infiniteBreakTotalMs: 0,
           session: startSession(session, now, {
             phase: phase ?? (session.phase as PomodoroPhase),
             config,
@@ -326,8 +244,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
           breakOverride: null,
           focusMode: mode,
           sessionName: name,
-          infiniteBreak: null,
-          infiniteBreakTotalMs: 0,
           session: startSession(fresh, now, {
             phase: "FOCUS",
             config,
@@ -365,8 +281,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
               : null,
           focusMode: "allocated",
           sessionName: null,
-          infiniteBreak: null,
-          infiniteBreakTotalMs: 0,
           session: startSession(fresh, now, {
             phase: "FOCUS",
             config,
@@ -380,52 +294,24 @@ export const usePomodoroStore = create<PomodoroStore>()(
         set({ activeTaskId: taskId, activeTaskTitle: taskTitle });
       },
 
-      pause: (arg) => {
-        const { session, config, focusMode } = get();
-        const at = Date.now();
-        const next = pauseSession(session, at);
-        if (focusMode === "infinite" && next.status === "PAUSED") {
-          // Infinite pause auto-starts break tracking with the configured
-          // duration. Callers may pass { breakMs } (task override) or a
-          // raw ms number; click events are ignored.
-          let breakMs: number | undefined;
-          if (typeof arg === "number" && Number.isFinite(arg)) breakMs = arg;
-          else if (arg && typeof arg === "object" && "breakMs" in (arg as Record<string, unknown>)) {
-            const v = (arg as Record<string, unknown>).breakMs;
-            if (typeof v === "number" && Number.isFinite(v)) breakMs = v;
-          }
-          const plannedMs = resolveInfiniteBreakMs(config, { breakMs });
-          set({ session: next, infiniteBreak: { startedAt: at, plannedMs } });
-        } else {
-          set({ session: next });
-        }
+      pause: () => {
+        const { session } = get();
+        set({ session: pauseSession(session, Date.now()) });
       },
 
       resume: () => {
-        const { session, infiniteBreak, infiniteBreakTotalMs, focusMode } = get();
-        const at = Date.now();
-        // Resuming before the break finishes stops the break timer and
-        // resumes focus; the elapsed break is folded into the run total
-        // (tracked separately from focused time).
-        const addBreak =
-          focusMode === "infinite" && infiniteBreak
-            ? Math.max(0, at - infiniteBreak.startedAt)
-            : 0;
-        set({
-          session: resumeSession(session, at),
-          infiniteBreak: null,
-          infiniteBreakTotalMs: Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + addBreak)),
-        });
+        const { session } = get();
+        set({ session: resumeSession(session, Date.now()) });
       },
 
       complete: () => {
         const { session } = get();
-        set({ session: completeSession(session, Date.now()), infiniteBreak: null });
+        set({ session: completeSession(session, Date.now()) });
       },
 
       cancel: () => {
         const { session } = get();
-        set({ session: cancelSession(session, Date.now()), infiniteBreak: null });
+        set({ session: cancelSession(session, Date.now()) });
       },
 
       reset: () => {
@@ -435,8 +321,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
           quickLabel: null,
           focusMode: "allocated",
           sessionName: null,
-          infiniteBreak: null,
-          infiniteBreakTotalMs: 0,
           session: createIdleState(
             session.phase as PomodoroPhase,
             config,
@@ -458,7 +342,7 @@ export const usePomodoroStore = create<PomodoroStore>()(
       },
 
       detachTask: (taskId) => {
-        const { session, activeTaskId, activeTaskTitle, focusMode, sessionName, infiniteBreak, infiniteBreakTotalMs } = get();
+        const { session, activeTaskId, activeTaskTitle, focusMode, sessionName } = get();
         if (activeTaskId !== taskId) return;
         if (
           (session.status === "RUNNING" || session.status === "PAUSED") &&
@@ -482,19 +366,16 @@ export const usePomodoroStore = create<PomodoroStore>()(
                 events: snap.events,
                 sessionMode: focusMode,
                 sessionName,
-                breakMs:
-                  focusMode === "infinite"
-                    ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
-                    : 0,
+                breakMs: 0,
               });
             }
-            set({ session: snap, activeTaskId: null, activeTaskTitle: null, focusMode: "allocated", sessionName: null, infiniteBreak: null, infiniteBreakTotalMs: 0 });
+            set({ session: snap, activeTaskId: null, activeTaskTitle: null, focusMode: "allocated", sessionName: null });
             return;
           } catch {
             // Fall through to unlink below.
           }
         }
-        set({ activeTaskId: null, activeTaskTitle: null, focusMode: "allocated", sessionName: null, infiniteBreak: null, infiniteBreakTotalMs: 0 });
+        set({ activeTaskId: null, activeTaskTitle: null, focusMode: "allocated", sessionName: null });
       },
 
       startBreak: () => {
@@ -515,8 +396,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
         set({
           focusMode: "allocated",
           sessionName: null,
-          infiniteBreak: null,
-          infiniteBreakTotalMs: 0,
           session: startSession(fresh, Date.now(), {
             phase: next,
             config,
@@ -554,8 +433,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
         breakOverride: s.breakOverride,
         focusMode: s.focusMode,
         sessionName: s.sessionName,
-        infiniteBreak: s.infiniteBreak,
-        infiniteBreakTotalMs: s.infiniteBreakTotalMs,
       }) as unknown as PomodoroStore,
       migrate: (persisted: unknown, version: number) => {
         const state = (persisted ?? {}) as Partial<PomodoroStore>;
@@ -570,8 +447,6 @@ export const usePomodoroStore = create<PomodoroStore>()(
             breakOverride: state.breakOverride ?? null,
             focusMode: (state as PomodoroStore).focusMode === "infinite" ? "infinite" : "allocated",
             sessionName: (state as PomodoroStore).sessionName ?? null,
-            infiniteBreak: (state as PomodoroStore).infiniteBreak ?? null,
-            infiniteBreakTotalMs: (state as PomodoroStore).infiniteBreakTotalMs ?? 0,
           } as PomodoroStore;
         }
         return state as PomodoroStore;

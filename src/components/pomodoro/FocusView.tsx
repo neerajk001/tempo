@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePomodoroStore, resolveBreaks, getInfiniteBreakRemaining, isInfiniteBreakComplete } from "@/stores/pomodoro-store";
+import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
 import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel, getTaskFocusedMs } from "@/stores/task-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
@@ -57,8 +57,6 @@ export default function FocusView() {
   const startQuick = usePomodoroStore((s) => s.startQuick);
   const focusMode = usePomodoroStore((s) => s.focusMode);
   const sessionName = usePomodoroStore((s) => s.sessionName);
-  const infiniteBreak = usePomodoroStore((s) => s.infiniteBreak);
-  const infiniteBreakTotalMs = usePomodoroStore((s) => s.infiniteBreakTotalMs);
   const setSessionName = usePomodoroStore((s) => s.setSessionName);
   const tasks = useTaskStore((s) => s.tasks);
   const { handleComplete } = useFinishSession();
@@ -221,18 +219,6 @@ export default function FocusView() {
   const doSound = () => setSoundOn(toggleAmbient());
   const exit = () => router.push("/");
 
-  const pauseInfinite = () => {
-    const taskBreak = activeTask?.shortBreakMinutes;
-    pause(
-      taskBreak !== undefined && taskBreak !== null
-        ? { breakMs: Math.max(1, Math.round(taskBreak)) * 60000 }
-        : undefined
-    );
-  };
-  const pauseCurrent = () => {
-    if (isInfinite) pauseInfinite();
-    else pause();
-  };
   const startLinkedTask = () => {
     const st = usePomodoroStore.getState();
     const linked = st.activeTaskId
@@ -272,7 +258,7 @@ export default function FocusView() {
       if (e.code === "Space" && !inField) {
         e.preventDefault();
         if (e.repeat) return;
-        if (session.status === "RUNNING") pauseCurrent();
+        if (session.status === "RUNNING") pause();
         else if (session.status === "PAUSED") resume();
         else if (session.status === "IDLE") {
           startLinkedTask();
@@ -284,7 +270,7 @@ export default function FocusView() {
         else exit();
       } else if ((e.code === "KeyL") && !inField) {
         e.preventDefault();
-        if (ticking) pauseCurrent();
+        if (ticking) pause();
       } else if ((e.code === "KeyM") && !inField) {
         e.preventDefault();
         doSound();
@@ -332,11 +318,6 @@ export default function FocusView() {
   const ss = String(remainingSec % 60).padStart(2, "0");
   const hms = formatElapsedHMS(totalElapsedMs);
   const pct = isInfinite ? 0 : session.plannedMs > 0 ? Math.min(100, (elapsedMs / session.plannedMs) * 100) : 0;
-  const breakTotalMs = isInfinite
-    ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? now - infiniteBreak.startedAt : 0)))
-    : 0;
-  const breakRemainingMs = isInfinite ? getInfiniteBreakRemaining(infiniteBreak, now) : 0;
-  const breakDone = isInfinite && isInfiniteBreakComplete(infiniteBreak, now);
   const effBreaks = resolveBreaks(config, breakOverride);
   const breakMin = session.phase === "FOCUS" ? Math.round(effBreaks.shortBreakMs / 60000) : 0;
   const breakAt = Number.isFinite(remainingMs) ? fmtHM(now + remainingMs + 60000) : "—";
@@ -465,7 +446,7 @@ export default function FocusView() {
             </button>
             <button
               type="button"
-              onClick={pauseCurrent}
+              onClick={pause}
               className={cn(
                 "px-1.5 py-px rounded-md text-label-xs transition-all",
                 paused ? "font-semibold bg-accent-amber-container text-on-accent-amber shadow-sm" : "font-medium text-on-surface-variant hover:text-on-surface"
@@ -543,14 +524,10 @@ export default function FocusView() {
               />
             </div>
           )}
-          {isInfinite && paused && infiniteBreak && (
-            <div className="mt-2 px-4 py-2 rounded-xl bg-accent-amber-container/60 border border-accent-amber/25 flex flex-col items-center gap-0.5">
-              <span className="text-label-xs uppercase tracking-widest text-on-accent-amber font-semibold">Break</span>
-              <span className="font-mono text-body-sm font-semibold text-on-surface tabular-nums">
-                {formatClock(Math.ceil(breakRemainingMs / 1000))} remaining
-              </span>
-              <span className="text-label-xs text-on-surface-variant">
-                {breakDone ? "Break complete — resume when ready" : "Break tracked separately from focused time"}
+          {isInfinite && paused && (
+            <div className="mt-2 px-4 py-1.5 rounded-xl bg-accent-amber-container/60 border border-accent-amber/25">
+              <span className="text-label-xs text-on-accent-amber font-medium">
+                Paused — focus time is frozen. Resume whenever you&apos;re ready.
               </span>
             </div>
           )}
@@ -594,11 +571,11 @@ export default function FocusView() {
             className={`relative w-[min(78vw,300px,62dvh)] h-[min(78vw,300px,62dvh)] sm:w-[min(400px,62dvh)] sm:h-[min(400px,62dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
           >
             {timerStyle === "flip" ? (
-              <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} breakMs={breakTotalMs} />
+              <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} />
             ) : timerStyle === "analog" ? (
-              <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} breakMs={breakTotalMs} />
+              <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} />
             ) : (
-              <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} breakMs={breakTotalMs} />
+              <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} />
             )}
           </div>
         )}
@@ -613,7 +590,7 @@ export default function FocusView() {
               </button>
             )}
             {session.status === "RUNNING" && (
-              <button type="button" onClick={pauseCurrent} className="h-10 px-6 rounded-xl bg-on-surface text-surface text-body-sm font-medium hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-2 shadow-md">
+              <button type="button" onClick={pause} className="h-10 px-6 rounded-xl bg-on-surface text-surface text-body-sm font-medium hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-2 shadow-md">
                 <Icon name="pause" className="text-[18px]" />
                 <span>Pause</span>
                 <kbd className="font-mono text-[10px] px-1.5 py-0.5 bg-black/15 text-surface rounded ml-0.5">Space</kbd>
@@ -647,7 +624,7 @@ export default function FocusView() {
               <span>+5m extension</span>
             </button>
             )}
-            <button type="button" title="Log quick interruption (L)" disabled={!ticking} onClick={pauseCurrent} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
+            <button type="button" title="Log quick interruption (L)" disabled={!ticking} onClick={pause} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
               <Icon name="notifications_paused" className="text-[16px]" />
               <span>Log Interruption</span>
               <Kbd>L</Kbd>
@@ -714,9 +691,9 @@ export default function FocusView() {
           <div className="h-3 w-px bg-surface-variant" />
           <div className="flex items-center gap-1.5">
             <Icon name="pause_circle" className="text-[15px] text-on-surface-variant" />
-            <span className="text-label-xs text-on-surface-variant">{isInfinite ? "Break" : "Paused"}</span>
+            <span className="text-label-xs text-on-surface-variant">Paused</span>
             <span className="font-mono text-[12px] font-medium text-on-surface">
-              {isInfinite ? formatClock(Math.ceil(breakTotalMs / 1000)) : `${Math.round(pausedMs / 60000)}m`}
+              {`${Math.round(pausedMs / 60000)}m`}
             </span>
           </div>
           <div className="h-3 w-px bg-surface-variant" />
@@ -732,10 +709,8 @@ export default function FocusView() {
             <span className="text-[12px] font-medium text-on-surface">
               {isInfinite
                 ? paused
-                  ? breakDone
-                    ? "resume focus"
-                    : `resume (${formatClock(Math.ceil(breakRemainingMs / 1000))} break left)`
-                  : "pause for break"
+                  ? "resume focus"
+                  : "pause anytime"
                 : session.phase === "FOCUS"
                   ? `${breakMin}m break (at ${breakAt})`
                   : "focus block"}

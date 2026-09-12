@@ -71,7 +71,6 @@ export default function CompleteView() {
   const focusedMin = Math.max(1, Math.round(record.focusedMs / 60000));
   const plannedMin = recordInfinite ? 0 : Math.max(1, Math.round(record.plannedMs / 60000));
   const pausedMin = Math.round(record.pausedMs / 60000);
-  const breakMinTotal = Math.round((record.breakMs ?? 0) / 60000);
   const efficiency = recordInfinite
     ? "—"
     : ((record.focusedMs / Math.max(1, record.plannedMs)) * 100).toFixed(1);
@@ -198,8 +197,8 @@ export default function CompleteView() {
                     Elapsed <span className="font-semibold text-on-surface">{formatElapsedHMS(record.focusedMs)}</span>
                   </div>
                   <div className="text-on-primary-fixed font-medium">
-                    Break <span className="font-semibold">{formatDurationMinutes(breakMinTotal)}</span>
-                    <span className="text-on-surface-variant font-normal"> • tracked separately</span>
+                    Paused <span className="font-semibold">{formatDurationMinutes(pausedMin)}</span>
+                    <span className="text-on-surface-variant font-normal"> • {record.interruptions} interruptions</span>
                   </div>
                 </>
               ) : (
@@ -220,8 +219,8 @@ export default function CompleteView() {
                 <Icon name="pause" className="text-[16px]" />
               </div>
               <div>
-                <div className="text-[11px] font-mono text-on-surface-variant uppercase tracking-wider">{recordInfinite ? "Break" : "Paused"}</div>
-                <div className="text-sm font-semibold font-mono text-on-surface">{recordInfinite ? `${breakMinTotal}m` : `${pausedMin}m`}</div>
+                <div className="text-[11px] font-mono text-on-surface-variant uppercase tracking-wider">Paused</div>
+                <div className="text-sm font-semibold font-mono text-on-surface">{pausedMin}m</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -276,7 +275,7 @@ export default function CompleteView() {
             {recordInfinite && (
             <div className="flex items-center justify-between mt-2.5 text-[11px] font-mono text-on-surface-variant">
               <span className="text-on-primary-fixed">Session saved • {formatElapsedHMS(record.focusedMs)} focused</span>
-              <span>Break {formatDurationMinutes(breakMinTotal)} • {record.interruptions} interruptions</span>
+              <span>Paused {formatDurationMinutes(pausedMin)} • {record.interruptions} interruptions</span>
             </div>
             )}
           </div>
@@ -338,7 +337,11 @@ export default function CompleteView() {
             Daily goal: {formatDurationMinutes(stats.focusedMinutes)} of {formatDurationMinutes(Math.max(stats.plannedMinutes, stats.focusedMinutes))}
           </span>
           <span className="hidden sm:inline text-outline">|</span>
-          <span className="hidden sm:inline text-on-surface-variant">Auto-break countdown: paused (deliberate start)</span>
+          <span className="hidden sm:inline text-on-surface-variant">
+            {recordInfinite
+              ? "Open-ended session — pause and resume manually"
+              : "Auto-break countdown: paused (deliberate start)"}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-on-surface-variant">Keyboard shortcuts enabled</span>

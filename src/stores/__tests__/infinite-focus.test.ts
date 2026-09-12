@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useTaskStore, getFocusMode, getSessionLabel } from "@/stores/task-store";
-import {
-  usePomodoroStore,
-  getInfiniteBreakRemaining,
-  isInfiniteBreakComplete,
-} from "@/stores/pomodoro-store";
+import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { createIdleState, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
 import { DEFAULT_POMODORO_CONFIG } from "@/lib/pomodoro-config";
@@ -23,8 +19,6 @@ beforeEach(() => {
     breakOverride: null,
     focusMode: "allocated",
     sessionName: null,
-    infiniteBreak: null,
-    infiniteBreakTotalMs: 0,
   });
   useSessionHistoryStore.setState({ sessions: [] });
 });
@@ -78,48 +72,24 @@ describe("infinite focus mode", () => {
     );
   });
 
-  it("pausing an infinite session starts a break countdown; resuming stops it", () => {
+  it("pauses and resumes manually with no automatic break", () => {
     const t = useTaskStore.getState().createTask({
       title: "Deep Dive",
       focusMode: "infinite",
       shortBreakMinutes: 10,
     });
     useTaskStore.getState().switchToTask(t.id);
-    usePomodoroStore.getState().pause({ breakMs: 10 * MIN });
+    usePomodoroStore.getState().pause();
     let pomo = usePomodoroStore.getState();
     expect(pomo.session.status).toBe("PAUSED");
-    expect(pomo.infiniteBreak).not.toBeNull();
-    expect(pomo.infiniteBreak!.plannedMs).toBe(10 * MIN);
-    const now = Date.now();
-    expect(getInfiniteBreakRemaining(pomo.infiniteBreak, now)).toBeGreaterThan(0);
-    expect(getInfiniteBreakRemaining(pomo.infiniteBreak, now)).toBeLessThanOrEqual(10 * MIN);
-    expect(isInfiniteBreakComplete(pomo.infiniteBreak, now)).toBe(false);
+    expect(pomo.session.pauseCount).toBe(1);
+    // Still open-ended while paused — never expires.
+    expect(isExpired(pomo.session, Date.now() + 60 * MIN)).toBe(false);
 
-    // Simulate 2 minutes of break, then resume before it finishes.
-    usePomodoroStore.setState({
-      infiniteBreak: { startedAt: Date.now() - 2 * MIN, plannedMs: 10 * MIN },
-    });
     usePomodoroStore.getState().resume();
     pomo = usePomodoroStore.getState();
     expect(pomo.session.status).toBe("RUNNING");
-    expect(pomo.infiniteBreak).toBeNull();
-    expect(pomo.infiniteBreakTotalMs).toBeGreaterThan(0);
-  });
-
-  it("marks the break complete once the countdown elapses", () => {
-    const brk = { startedAt: Date.now() - 11 * MIN, plannedMs: 10 * MIN };
-    expect(isInfiniteBreakComplete(brk, Date.now())).toBe(true);
-    expect(getInfiniteBreakRemaining(brk, Date.now())).toBe(0);
-  });
-
-  it("pausing an allocated session does not start break tracking", () => {
-    const t = useTaskStore.getState().createTask({ title: "API", allocatedMinutes: 120 });
-    useTaskStore.getState().switchToTask(t.id);
-    usePomodoroStore.getState().pause();
-    const pomo = usePomodoroStore.getState();
-    expect(pomo.session.status).toBe("PAUSED");
-    expect(pomo.focusMode).toBe("allocated");
-    expect(pomo.infiniteBreak).toBeNull();
+    expect(pomo.focusMode).toBe("infinite");
   });
 
   it("switching tasks preserves progress and keeps a single active timer", () => {

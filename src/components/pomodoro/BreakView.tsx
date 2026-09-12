@@ -149,9 +149,9 @@ export default function BreakView() {
 
   if (!mounted) return null;
 
-  // Infinite Focus tracks breaks inline via the pause countdown in Focus
-  // Mode — it never enters a break phase. Landing here with a live Infinite
-  // session (e.g. direct URL) routes back instead of showing a countdown.
+  // Infinite Focus pauses and resumes manually in Focus Mode — it never
+  // enters a break phase. Landing here with a live Infinite session
+  // (e.g. direct URL) routes back instead of showing a countdown.
   if (
     (session.isInfinite === true || focusMode === "infinite") &&
     (session.status === "RUNNING" || session.status === "PAUSED")
@@ -161,7 +161,7 @@ export default function BreakView() {
         <div className="text-center max-w-sm">
           <h1 className="text-2xl font-semibold tracking-tight">Infinite Focus has no break screen</h1>
           <p className="mt-2 text-sm text-on-surface-variant">
-            Pausing an Infinite session starts its break countdown right in Focus Mode — tracked separately from focused time.
+            Infinite sessions pause and resume manually — just head back to Focus Mode.
           </p>
           <div className="mt-4 flex items-center justify-center gap-2">
             <button
