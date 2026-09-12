@@ -169,6 +169,20 @@ export default function InfiniteFocusCard() {
               </kbd>
             )}
           </button>
+          {selected && totalElapsedMs > 0 && !liveOnSelected && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm(`Reset "${getSessionLabel(selected, selected.title)}" timer to 00:00:00? Past sessions stay in History.`)) return;
+                useTaskStore.getState().resetTaskProgress(selected.id);
+              }}
+              title="Reset infinite timer to 00:00:00"
+              className="h-8 px-3 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 text-body-sm font-medium transition-colors inline-flex items-center justify-center gap-1.5"
+            >
+              <Icon name="restart_alt" className="text-[16px]" />
+              <span>Reset timer to 00:00:00</span>
+            </button>
+          )}
           {ticking && !liveOnSelected && (
             <Link
               href="/focus"

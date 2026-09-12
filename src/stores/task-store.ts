@@ -137,6 +137,14 @@ interface TaskActions {
    */
   accumulateProgress: (id: string, delta: ProgressDelta) => void;
   /**
+   * Reset an Infinite (or any) task's accumulated timer progress back to zero
+   * so its elapsed display returns to 00:00:00. History records are kept —
+   * only the task counters are cleared (focused/break time, interruptions,
+   * cycle counts). An IN_PROGRESS task returns to TODO; COMPLETED/CANCELLED
+   * stay as-is so a finished task isn't silently reopened.
+   */
+  resetTaskProgress: (id: string) => void;
+  /**
    * Fold the currently-running timer's elapsed work into its linked task
    * (no reset). Safe to call before switching tasks or on unload. Returns
    * the preserved totals, or null when no live session needed saving.
@@ -457,6 +465,26 @@ export const useTaskStore = create<TaskStore>()(
       accumulateProgress: (id, delta) => {
         set((s) => ({
           tasks: s.tasks.map((t) => (t.id === id ? withProgressApplied(t, delta) : t)),
+        }));
+      },
+
+      resetTaskProgress: (id) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.id !== id) return t;
+            return {
+              ...t,
+              focusedMs: 0,
+              focusedMinutes: 0,
+              breakMs: 0,
+              interruptions: 0,
+              completedPomodoros: 0,
+              completedFocusCount: 0,
+              lastPhase: null,
+              status: t.status === "IN_PROGRESS" ? "TODO" : t.status,
+              updatedAt: Date.now(),
+            };
+          }),
         }));
       },
 

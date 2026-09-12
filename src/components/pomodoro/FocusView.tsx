@@ -59,9 +59,10 @@ export default function FocusView() {
   const sessionName = usePomodoroStore((s) => s.sessionName);
   const setSessionName = usePomodoroStore((s) => s.setSessionName);
   const tasks = useTaskStore((s) => s.tasks);
-  const { handleComplete } = useFinishSession();
+  const { handleComplete, handleCancel } = useFinishSession();
 
   const [mounted, setMounted] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [capture, setCapture] = useState("");
@@ -218,6 +219,33 @@ export default function FocusView() {
 
   const doSound = () => setSoundOn(toggleAmbient());
   const exit = () => router.push("/");
+
+  const doResetInfinite = () => {
+    setConfirmingReset(false);
+    // Archive a live run to History (CANCELLED), zero the infinite task's
+    // accumulated progress, and return the timer to IDLE 00:00:00.
+    // History is kept — only the visible timer + task totals restart.
+    const st = usePomodoroStore.getState().session.status;
+    if (st === "RUNNING" || st === "PAUSED") {
+      try {
+        handleCancel();
+      } catch {
+        // Never block the reset.
+      }
+    }
+    try {
+      const taskNow = selectTaskById(
+        useTaskStore.getState().tasks,
+        usePomodoroStore.getState().activeTaskId
+      );
+      if (taskNow && getFocusMode(taskNow) === "infinite") {
+        useTaskStore.getState().resetTaskProgress(taskNow.id);
+      }
+    } catch {
+      // Best-effort — live timer reset below still runs.
+    }
+    usePomodoroStore.getState().reset();
+  };
 
   const startLinkedTask = () => {
     const st = usePomodoroStore.getState();
@@ -616,7 +644,42 @@ export default function FocusView() {
                 <Kbd>⌘E</Kbd>
               </button>
             )}
+            {isInfinite && activeTask && (ticking || totalElapsedMs > 0) && (
+              <button
+                type="button"
+                onClick={() => setConfirmingReset(true)}
+                title="Reset infinite timer to 00:00:00"
+                className="h-10 px-4 rounded-xl bg-surface-container-lowest border border-outline-variant text-on-surface-variant hover:text-error hover:border-error/30 text-body-sm font-medium active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <Icon name="restart_alt" className="text-[18px]" />
+                <span>Reset timer</span>
+              </button>
+            )}
           </div>
+          {isInfinite && confirmingReset && (
+            <div className="w-full max-w-md p-4 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-lg flex flex-col gap-2 text-center">
+              <span className="text-body-sm font-semibold text-on-surface">Reset infinite timer?</span>
+              <span className="text-body-sm text-on-surface-variant">
+                This zeroes the visible timer ({hms}) and clears this task&apos;s accumulated focus back to 00:00:00. Past sessions stay in History.
+              </span>
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setConfirmingReset(false)}
+                  className="h-9 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container text-body-sm font-medium transition-colors"
+                >
+                  Keep time
+                </button>
+                <button
+                  type="button"
+                  onClick={doResetInfinite}
+                  className="h-9 px-4 rounded-lg bg-error text-on-error hover:brightness-110 text-body-sm font-semibold transition-all"
+                >
+                  Reset to 00:00:00
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-1.5 flex-wrap justify-center">
             {!isInfinite && (
             <button type="button" title="Extend 5 minutes" disabled={!ticking} onClick={() => extend(5)} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">

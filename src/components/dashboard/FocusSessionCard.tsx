@@ -45,6 +45,7 @@ export default function FocusSessionCard() {
   const [mounted, setMounted] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newMinutes, setNewMinutes] = useState(() => {
@@ -212,6 +213,37 @@ export default function FocusSessionCard() {
       usePomodoroStore.getState().setActiveTask(null);
     }
     reset();
+  };
+
+  const doResetInfinite = () => {
+    setConfirmingReset(false);
+    // Reset the infinite timer back to 00:00:00:
+    // 1) archive the live run (if any) to History as CANCELLED so nothing
+    //    is silently lost, 2) zero the linked infinite task's accumulated
+    //    progress, 3) return the live session to IDLE standby.
+    // History records are kept — only the visible timer + task totals clear.
+    const st = usePomodoroStore.getState().session.status;
+    const live = st === "RUNNING" || st === "PAUSED";
+    if (live) {
+      try {
+        handleCancel();
+      } catch {
+        // Never block the reset on a history write.
+      }
+    }
+    try {
+      const tasksNow = useTaskStore.getState().tasks;
+      const target =
+        selectTaskById(tasksNow, activeTaskId) ??
+        tasks.find((t) => t.date === new Date().toISOString().slice(0, 10) && t.status !== "COMPLETED" && t.status !== "CANCELLED") ??
+        null;
+      if (target && getFocusMode(target) === "infinite") {
+        useTaskStore.getState().resetTaskProgress(target.id);
+      }
+    } catch {
+      // Task reset is best-effort — the live timer reset below still runs.
+    }
+    usePomodoroStore.getState().reset();
   };
 
   const replaceCurrent = () => {
@@ -477,6 +509,17 @@ export default function FocusSessionCard() {
             {(session.status === "COMPLETED" || session.status === "CANCELLED") && (
               <Button onClick={startPrimary}>Start next</Button>
             )}
+            {isInfinite && (activeTask ?? displayTask) && (ticking || totalElapsedMs > 0) && (
+              <button
+                type="button"
+                onClick={() => setConfirmingReset(true)}
+                title="Reset infinite timer to 00:00:00"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/15 text-body-sm font-medium transition-colors"
+              >
+                <Icon name="restart_alt" className="text-[18px]" />
+                <span>Reset timer</span>
+              </button>
+            )}
           </div>
           <ConfirmDialog
             open={confirmingDiscard}
@@ -485,6 +528,14 @@ export default function FocusSessionCard() {
             confirmLabel="Discard session"
             onCancel={() => setConfirmingDiscard(false)}
             onConfirm={discardCurrent}
+          />
+          <ConfirmDialog
+            open={confirmingReset}
+            title={`Reset infinite timer?`}
+            message={`This zeroes the visible timer (${elapsedMin}m ${String(elapsedSec).padStart(2, "0")}s) and clears this task's accumulated focus back to 00:00:00. Past sessions stay in History — only the task totals restart.`}
+            confirmLabel="Reset to 00:00:00"
+            onCancel={() => setConfirmingReset(false)}
+            onConfirm={doResetInfinite}
           />
           <div className="flex items-center gap-0.5 flex-wrap">
             <button
