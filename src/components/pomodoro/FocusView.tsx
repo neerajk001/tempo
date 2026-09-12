@@ -315,11 +315,11 @@ export default function FocusView() {
   useEffect(() => {
     document.title = ticking
       ? isInfinite
-        ? `${formatElapsedHMS(getElapsedFocusMs(session, Date.now()))} — Tempo`
-        : `${formatClock(Math.ceil(getRemainingMs(session, Date.now()) / 1000))} — Tempo`
-      : "Tempo — Focus Console";
+        ? `${formatElapsedHMS(getElapsedFocusMs(session, Date.now()))} — Tempo Pomodoro Timer`
+        : `${formatClock(Math.ceil(getRemainingMs(session, Date.now()) / 1000))} — Tempo Pomodoro Timer`
+      : "Tempo — Free Online Pomodoro Timer";
     return () => {
-      document.title = "Tempo — Focus Console";
+      document.title = "Tempo — Free Online Pomodoro Timer";
     };
   }, [ticking, session, now, isInfinite]);
 

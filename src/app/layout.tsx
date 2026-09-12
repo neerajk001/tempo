@@ -8,15 +8,77 @@ import GlobalShortcuts from "@/components/providers/GlobalShortcuts";
 import SyncManager from "@/components/providers/SyncManager";
 import { AmbientMusic } from "@/components/ambient/AmbientMusic";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://tempo.neerajx.site";
+
 export const metadata: Metadata = {
-  title: "Tempo — Focus Console",
-  description: "Personal Pomodoro productivity console: plan, focus, track, review.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Tempo — Free Online Pomodoro Timer & Focus Planner",
+    template: "%s | Tempo Pomodoro",
+  },
+  description:
+    "Tempo is a free online Pomodoro timer with task planning, open-ended Infinite Focus sessions, ambient focus music and videos, session history analytics, and daily review. No sign-up needed to start focusing.",
+  keywords: [
+    "pomodoro",
+    "pomodoro timer",
+    "free pomodoro timer",
+    "online pomodoro timer",
+    "pomodoro technique",
+    "focus timer",
+    "deep work timer",
+    "study timer",
+    "adhd focus timer",
+    "time blocking planner",
+    "productivity timer",
+  ],
+  authors: [{ name: "Tempo" }],
+  creator: "Tempo",
+  publisher: "Tempo",
+  robots: { index: true, follow: true },
+  alternates: { canonical: "/" },
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "Tempo" },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    siteName: "Tempo",
+    title: "Tempo — Free Online Pomodoro Timer & Focus Planner",
+    description:
+      "Free Pomodoro timer with task planning, Infinite Focus sessions, ambient focus library, and history analytics. Start focusing in one click.",
+    images: [
+      {
+        url: "/icons/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "Tempo Pomodoro Timer",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Tempo — Free Online Pomodoro Timer & Focus Planner",
+    description:
+      "Free Pomodoro timer with task planning, Infinite Focus sessions, and focus analytics.",
+    images: ["/icons/icon-512.png"],
+  },
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+};
+
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Tempo Pomodoro Timer",
+  url: SITE_URL,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "Free online Pomodoro timer with task planning, open-ended focus sessions, ambient focus library, and session history analytics.",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
 };
 
 export const viewport: Viewport = {
@@ -41,6 +103,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
         {/* eslint-enable @next/next/no-page-custom-font */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
       </head>
       <body>
         <AuthSessionProvider>
