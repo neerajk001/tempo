@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
-import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
+import { useSessionHistoryStore, getRecordLabel, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
 import { cn } from "@/lib/utils";
 
 function fmtTime(ms: number): string {
@@ -20,7 +20,8 @@ function fmtMS(ms: number): string {
 }
 
 export function sessionYield(r: SessionRecord): number {
-  if (r.plannedMs <= 0) return 0;
+  // Infinite sessions have no planned target — any focused time is full yield.
+  if (r.plannedMs <= 0) return r.focusedMs > 0 ? 100 : 0;
   return Math.min(100, Math.round((r.focusedMs / r.plannedMs) * 100));
 }
 
@@ -37,8 +38,6 @@ export default function SessionInspector({
 }) {
   const router = useRouter();
   const tasks = useTaskStore((s) => s.tasks);
-  const startForTask = usePomodoroStore((s) => s.startForTask);
-  const setActiveTask = useTaskStore((s) => s.setActiveTask);
   const removeSession = useSessionHistoryStore((s) => s.removeSession);
   const allSessions = useSessionHistoryStore((s) => s.sessions);
 
@@ -60,13 +59,21 @@ export default function SessionInspector({
 
   const rerun = () => {
     if (record.taskId && task) {
-      setActiveTask(task.id);
-      startForTask(task.id, task.title);
+      // Resume the task from its preserved state (exact mode + progress).
+      useTaskStore.getState().switchToTask(task.id);
     } else {
+      // Preserve any live task run before the unlinked session preempts it.
+      try {
+        useTaskStore.getState().preserveActiveProgress();
+      } catch {
+        // Best-effort — the re-run still starts.
+      }
       usePomodoroStore.getState().start(record.phase === "FOCUS" ? "FOCUS" : record.phase);
     }
     router.push("/focus");
   };
+  const mode = getSessionMode(record);
+  const label = getRecordLabel(record, record.taskTitle ?? "Focus Session");
 
   return (
     <div className="bg-surface-container-lowest rounded-xl shadow-sm p-4 flex flex-col gap-4">
@@ -97,7 +104,7 @@ export default function SessionInspector({
             {record.status === "COMPLETED" ? "Completed" : "Cancelled"}
           </span>
         </div>
-        <h2 className="text-headline-md text-on-surface font-semibold leading-snug">{record.taskTitle ?? "Focus Session"}</h2>
+        <h2 className="text-headline-md text-on-surface font-semibold leading-snug">{label}</h2>
         <div className="flex items-center gap-1.5 flex-wrap pt-1">
           {task?.project && (
             <span className="px-2 py-0.5 rounded bg-primary-container text-on-primary font-mono text-[11px] font-medium">{task.project}</span>
@@ -108,6 +115,17 @@ export default function SessionInspector({
             </span>
           )}
           <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-mono text-[11px]">{record.phase.replace("_", " ")}</span>
+          <span className={cn(
+            "px-2 py-0.5 rounded font-mono text-[11px] font-medium",
+            mode === "infinite" ? "bg-primary-fixed text-on-primary-fixed" : "bg-surface-container text-on-surface-variant"
+          )}>
+            {mode === "infinite" ? "∞ Infinite" : "Allocated"}
+          </span>
+          {record.taskTitle && record.sessionName && record.sessionName.trim() && (
+            <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-mono text-[11px]">
+              Task: {record.taskTitle}
+            </span>
+          )}
         </div>
       </div>
 
@@ -115,7 +133,7 @@ export default function SessionInspector({
         <div className="p-1.5 rounded-lg bg-surface-container-low flex flex-col">
           <span className="text-[10px] text-on-surface-variant uppercase font-medium">Block Span</span>
           <span className="font-mono text-metric-mono-md text-on-surface font-semibold mt-1">{fmtMS(wallMs)}</span>
-          <span className="text-[10px] text-on-surface-variant">Allocated</span>
+          <span className="text-[10px] text-on-surface-variant">{mode === "infinite" ? "Elapsed" : "Allocated"}</span>
         </div>
         <div className="p-1.5 rounded-lg bg-primary-fixed/30 flex flex-col">
           <span className="text-[10px] text-primary uppercase font-medium">Focus Time</span>
@@ -123,8 +141,10 @@ export default function SessionInspector({
           <span className="text-[10px] text-on-primary-fixed">{y}% yield</span>
         </div>
         <div className="p-1.5 rounded-lg bg-surface-container-low flex flex-col">
-          <span className="text-[10px] text-accent-amber uppercase font-medium">Lost Time</span>
-          <span className="font-mono text-metric-mono-md text-on-accent-amber font-semibold mt-1">{fmtMS(record.pausedMs)}</span>
+          <span className="text-[10px] text-accent-amber uppercase font-medium">{(record.breakMs ?? 0) > 0 ? "Break Time" : "Lost Time"}</span>
+          <span className="font-mono text-metric-mono-md text-on-accent-amber font-semibold mt-1">
+            {fmtMS((record.breakMs ?? 0) > 0 ? (record.breakMs ?? 0) : record.pausedMs)}
+          </span>
           <span className="text-[10px] text-on-surface-variant">{record.interruptions} Interruption{record.interruptions === 1 ? "" : "s"}</span>
         </div>
       </div>

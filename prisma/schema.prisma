@@ -66,6 +66,14 @@ model Task {
   priority           String            @default("medium")
   focusedMinutes     Int               @default(0)
   completedPomodoros Int               @default(0)
+  // Focus scheduling mode (allocated = classic Pomodoro, infinite = open-ended)
+  focusMode          String            @default("allocated")
+  sessionName        String?
+  focusedMs          Int               @default(0)
+  breakMs            Int               @default(0)
+  interruptions      Int               @default(0)
+  completedFocusCount Int              @default(0)
+  lastPhase          String?
   subtasks           Json              @default("[]")
   startMs            BigInt?
   endMs              BigInt?
@@ -95,6 +103,9 @@ model PomodoroSession {
   focusedMs      Int            @default(0)
   pausedMs       Int            @default(0)
   interruptions  Int            @default(0)
+  sessionMode    String         @default("allocated")
+  sessionName    String?
+  breakMs        Int            @default(0)
   startedAt      DateTime?
   endedAt        DateTime?
   createdAt      DateTime       @default(now())

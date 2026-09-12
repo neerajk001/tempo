@@ -7,7 +7,7 @@ import { TaskRow, sortTasks } from "@/components/tasks/TaskTable";
 import { computeDashboardStats, localDateKey } from "@/lib/dashboard-stats";
 import { todayKey } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
-import { useTaskStore, type Task } from "@/stores/task-store";
+import { useTaskStore, getFocusMode, type Task } from "@/stores/task-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import type { TaskStatus } from "@/types";
@@ -350,7 +350,7 @@ export default function TasksPage() {
                       )}
                     </div>
                     <div className="col-span-3 md:col-span-2 font-mono text-label-xs text-on-surface-variant truncate">
-                      {new Date(`${t.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • {formatDurationMinutes(t.allocatedMinutes)}
+                      {new Date(`${t.date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • {getFocusMode(t) === "infinite" ? "∞ Infinite" : formatDurationMinutes(t.allocatedMinutes)}
                     </div>
                     <div className="col-span-3 md:col-span-2 flex justify-end">
                       <button type="button" onClick={() => { setEditing(t); setModalOpen(true); }} className="p-2 md:p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">

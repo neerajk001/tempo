@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import { getTaskProgress, nextSliceMinutes } from "@/lib/task-planning";
+import { getTaskProgress } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
-import { useTaskStore, type Task } from "@/stores/task-store";
+import { useTaskStore, getFocusMode, type Task } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { usePrefsStore } from "@/stores/prefs-store";
@@ -102,10 +102,8 @@ function PrimaryAction({ task }: { task: Task }) {
   const router = useRouter();
   const session = usePomodoroStore((s) => s.session);
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
-  const startForTask = usePomodoroStore((s) => s.startForTask);
   const resume = usePomodoroStore((s) => s.resume);
-  const setActiveTask = useTaskStore((s) => s.setActiveTask);
-  const setStatus = useTaskStore((s) => s.setStatus);
+  const switchToTask = useTaskStore((s) => s.switchToTask);
 
   const linked = task.id === activeTaskId;
   const live = linked && (session.status === "RUNNING" || session.status === "PAUSED");
@@ -129,7 +127,7 @@ function PrimaryAction({ task }: { task: Task }) {
     return (
       <button
         type="button"
-        onClick={resume}
+        onClick={() => resume()}
         className="inline-flex items-center gap-1.5 h-8 px-2.5 md:h-7 md:px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high text-body-sm font-medium transition-colors"
       >
         <Icon name="replay" className="text-[14px]" />
@@ -138,17 +136,20 @@ function PrimaryAction({ task }: { task: Task }) {
     );
   }
   if (busyElsewhere) {
+    // Switching saves the live task's state, stops its timer, preserves
+    // all progress, and resumes the selected task (single-active).
     return (
       <button
         type="button"
+        title="Switch focus here — current task state is saved"
         onClick={() => {
-          setActiveTask(task.id);
-          if (task.status === "TODO") setStatus(task.id, "IN_PROGRESS");
+          switchToTask(task.id);
+          router.push("/focus");
         }}
         className="inline-flex items-center gap-1.5 h-8 px-2.5 md:h-7 md:px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high text-body-sm font-medium transition-colors"
       >
-        <Icon name="queue_play_next" className="text-[14px]" />
-        <span className="hidden min-[420px]:inline">Queue Next</span>
+        <Icon name="swap_horiz" className="text-[14px]" />
+        <span className="hidden min-[420px]:inline">Switch</span>
       </button>
     );
   }
@@ -156,8 +157,7 @@ function PrimaryAction({ task }: { task: Task }) {
     <button
       type="button"
       onClick={() => {
-        if (task.status === "TODO") setStatus(task.id, "IN_PROGRESS");
-        startForTask(task.id, task.title, nextSliceMinutes(task.allocatedMinutes, task.focusMinutes, task.completedPomodoros) * 60000);
+        switchToTask(task.id);
         router.push("/focus");
       }}
       className="inline-flex items-center gap-1.5 h-8 px-2.5 md:h-7 md:px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high text-body-sm font-medium transition-colors"
@@ -185,7 +185,10 @@ export function TaskRow({
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const loggedCount = useSessionHistoryStore((s) => s.sessions.filter((x) => x.taskId === task.id).length);
-  const p = getTaskProgress(task.allocatedMinutes, task.focusedMinutes, task.focusMinutes);
+  const isInfiniteTask = getFocusMode(task) === "infinite";
+  const p = isInfiniteTask
+    ? { percent: (task.focusedMinutes ?? 0) > 0 ? 100 : 0, remainingMinutes: 0 }
+    : getTaskProgress(task.allocatedMinutes, task.focusedMinutes, task.focusMinutes);
   const done = task.status === "COMPLETED";
   const linked = task.id === activeTaskId;
 
@@ -220,9 +223,16 @@ export function TaskRow({
           <Link href={`/tasks/${task.id}`} className="text-body-md font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
             {task.title}
           </Link>
-          {task.description && (
+          {isInfiniteTask && task.sessionName ? (
+            <span className="text-label-xs text-primary font-medium truncate">∞ {task.sessionName}</span>
+          ) : task.description ? (
             <span className="text-label-xs text-on-surface-variant truncate">{task.description}</span>
-          )}
+          ) : isInfiniteTask ? (
+            <span className="text-label-xs text-on-surface-variant truncate">Infinite Focus • open-ended</span>
+          ) : null}
+          {isInfiniteTask && task.description && task.sessionName ? (
+            <span className="text-label-xs text-on-surface-variant truncate">{task.description}</span>
+          ) : null}
         </div>
       </div>
       <div className="hidden md:flex md:col-span-2 items-center min-w-0">

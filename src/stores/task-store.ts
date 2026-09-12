@@ -2,8 +2,9 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { TaskPriority, TaskStatus } from "@/types";
-import { todayKey } from "@/lib/task-planning";
+import type { FocusMode, PomodoroPhase, TaskPriority, TaskStatus } from "@/types";
+import { nextSliceMinutes, todayKey } from "@/lib/task-planning";
+import { getElapsedFocusMs } from "@/lib/pomodoro-machine";
 import { addTaskTombstone } from "@/lib/tombstones";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 
@@ -45,13 +46,39 @@ export interface Task {
   endMs?: number | null;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Focus scheduling mode. "allocated" = classic Pomodoro with fixed
+   * allocation; "infinite" = open-ended focus with no fixed end time.
+   * Absent on legacy tasks — treat as "allocated".
+   */
+  focusMode?: FocusMode;
+  /**
+   * User-provided label for an Infinite Focus session
+   * (e.g. "JavaScript Deep Dive"). Null = fall back to task title.
+   */
+  sessionName?: string | null;
+  /** Precise accumulated focused time in ms (superset of focusedMinutes). */
+  focusedMs?: number;
+  /** Accumulated break time in ms (infinite pause-breaks + preserved breaks). */
+  breakMs?: number;
+  /** Accumulated interruption count (pause events preserved across switches). */
+  interruptions?: number;
+  /**
+   * Completed FOCUS sessions in this task's cycle — drives the long-break
+   * interval and is preserved across task switches. Falls back to
+   * completedPomodoros when absent.
+   */
+  completedFocusCount?: number;
+  /** Phase the task was in when last switched away (preserves break state). */
+  lastPhase?: PomodoroPhase | null;
 }
 
 export interface NewTaskInput {
   title: string;
   description?: string;
   date?: string;
-  allocatedMinutes: number;
+  /** Required for allocated; optional (0 = none) for infinite. */
+  allocatedMinutes?: number;
   focusMinutes?: number;
   shortBreakMinutes?: number;
   longBreakMinutes?: number;
@@ -61,11 +88,33 @@ export interface NewTaskInput {
   calendarEventId?: string;
   startMs?: number;
   endMs?: number;
+  focusMode?: FocusMode;
+  /** Display label for an Infinite Focus session. */
+  sessionName?: string;
 }
 
 export type TaskPatch = Partial<
-  Pick<Task, "title" | "description" | "date" | "allocatedMinutes" | "focusMinutes" | "project" | "priority" | "startMs" | "endMs" | "shortBreakMinutes" | "longBreakMinutes" | "longBreakInterval">
+  Pick<Task, "title" | "description" | "date" | "allocatedMinutes" | "focusMinutes" | "project" | "priority" | "startMs" | "endMs" | "shortBreakMinutes" | "longBreakMinutes" | "longBreakInterval" | "focusMode" | "sessionName">
 >;
+
+/** Resolve a task's focus mode with legacy fallback. */
+export function getFocusMode(t: Pick<Task, "focusMode"> | null | undefined): FocusMode {
+  return t?.focusMode === "infinite" ? "infinite" : "allocated";
+}
+
+/** Display label for a task's session (infinite session name or title). */
+export function getSessionLabel(t: Pick<Task, "title" | "sessionName"> | null | undefined, fallback = "Deep Work Session"): string {
+  if (!t) return fallback;
+  const named = (t.sessionName ?? "").trim();
+  if (named) return named.slice(0, 200);
+  return t.title || fallback;
+}
+
+/** Precise focused ms for a task (falls back to minutes-derived). */
+export function getTaskFocusedMs(t: Pick<Task, "focusedMs" | "focusedMinutes">): number {
+  if (typeof t.focusedMs === "number" && Number.isFinite(t.focusedMs)) return Math.max(0, Math.round(t.focusedMs));
+  return Math.max(0, Math.round((t.focusedMinutes ?? 0) * 60000));
+}
 
 interface TaskActions {
   createTask: (input: NewTaskInput) => Task;
@@ -76,6 +125,30 @@ interface TaskActions {
   toggleSubtask: (taskId: string, subtaskId: string) => void;
   removeSubtask: (taskId: string, subtaskId: string) => void;
   recordFocus: (id: string, minutes: number) => void;
+  /**
+   * Precise accumulator for completion/switch saves. Updates focusedMs,
+   * breakMs, interruptions and keeps minute counters in sync. Shared by
+   * Allocated + Infinite so Dashboard/History stay consistent.
+   */
+  recordFocusMs: (id: string, focusedMsDelta: number, opts?: { breakMsDelta?: number; interruptionsDelta?: number }) => void;
+  /**
+   * Preserve a task's timer/session state when switching away or stopping.
+   * Never resets — only accumulates and remembers phase/counts for resume.
+   */
+  accumulateProgress: (id: string, delta: ProgressDelta) => void;
+  /**
+   * Fold the currently-running timer's elapsed work into its linked task
+   * (no reset). Safe to call before switching tasks or on unload. Returns
+   * the preserved totals, or null when no live session needed saving.
+   */
+  preserveActiveProgress: (now?: number) => { taskId: string; focusedMs: number; breakMs: number; interruptions: number } | null;
+  /**
+   * Switch the active timer to another task:
+   * 1) save current task's timer/session state, 2) stop its timer,
+   * 3) preserve all progress, 4) start/resume the selected task.
+   * Only one session actively runs at a time; previous time is never reset.
+   */
+  switchToTask: (id: string) => void;
   setActiveTask: (id: string | null) => void;
 }
 
@@ -119,6 +192,68 @@ function normalizePriority(p: unknown): TaskPriority {
   return "medium";
 }
 
+function normalizeFocusMode(v: unknown): FocusMode {
+  return v === "infinite" ? "infinite" : "allocated";
+}
+
+function normalizeSessionName(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim().slice(0, 200);
+  return t || null;
+}
+
+export interface ProgressDelta {
+  /** Additional focused time in ms to accumulate. */
+  focusedMs?: number;
+  /** Additional break time in ms to accumulate. */
+  breakMs?: number;
+  /** Additional interruptions to accumulate. */
+  interruptions?: number;
+  /** Absolute completed-focus count to preserve (max-wins). */
+  completedFocusCount?: number;
+  /** Phase to remember for break-state resume. */
+  lastPhase?: PomodoroPhase | null;
+}
+
+function withProgressApplied(
+  t: Task,
+  delta: ProgressDelta
+): Task {
+  const focusedMs = Math.max(
+    0,
+    Math.round(getTaskFocusedMs(t) + Math.max(0, Math.round(delta.focusedMs ?? 0)))
+  );
+  const breakMs = Math.max(
+    0,
+    Math.round((t.breakMs ?? 0) + Math.max(0, Math.round(delta.breakMs ?? 0)))
+  );
+  const interruptions = Math.max(
+    0,
+    Math.round((t.interruptions ?? 0) + Math.max(0, Math.round(delta.interruptions ?? 0)))
+  );
+  // Keep minute counters in sync with precise ms so legacy views stay correct.
+  const focusedMinutes = Math.round(focusedMs / 60000);
+  const completedPomodoros =
+    t.focusMinutes > 0 ? Math.floor(focusedMinutes / Math.max(1, Math.round(t.focusMinutes))) : 0;
+  const completedFocusCount = Math.max(
+    t.completedFocusCount ?? t.completedPomodoros ?? 0,
+    delta.completedFocusCount ?? 0
+  );
+  const status: TaskStatus = t.status === "TODO" && (focusedMs > 0 || completedFocusCount > 0) ? "IN_PROGRESS" : t.status;
+  return {
+    ...t,
+    focusedMs,
+    breakMs,
+    interruptions,
+    focusedMinutes,
+    completedPomodoros,
+    completedFocusCount,
+    ...(delta.lastPhase !== undefined ? { lastPhase: delta.lastPhase } : {}),
+    status,
+    updatedAt: Date.now(),
+  };
+}
+
 export const useTaskStore = create<TaskStore>()(
   persist(
     (set, get) => ({
@@ -127,12 +262,26 @@ export const useTaskStore = create<TaskStore>()(
 
       createTask: (input) => {
         const now = Date.now();
+        const focusMode = normalizeFocusMode(input.focusMode);
+        const sessionName = normalizeSessionName(input.sessionName);
+        // Infinite = open-ended: no fixed end time required (0 = no allocation).
+        // Allocated keeps the original strict validation (missing/non-numeric throws).
+        const allocatedMinutes =
+          focusMode === "infinite"
+            ? input.allocatedMinutes === undefined || input.allocatedMinutes === null
+              ? 0
+              : (() => {
+                  const r = Math.round(Number(input.allocatedMinutes));
+                  if (!Number.isFinite(r) || r < 0 || r > 1440) throw new Error("Allocated time must be between 0 and 1440");
+                  return r;
+                })()
+            : normalizeMinutes(input.allocatedMinutes as number, "Allocated time", 1, 1440);
         const task: Task = {
           id: uid(),
           title: normalizeTitle(input.title),
           description: (input.description ?? "").trim().slice(0, 2000),
           date: input.date ?? todayKey(),
-          allocatedMinutes: normalizeMinutes(input.allocatedMinutes, "Allocated time", 1, 1440),
+          allocatedMinutes,
           focusMinutes: input.focusMinutes
             ? normalizeMinutes(input.focusMinutes, "Focus duration", 5, 180)
             : 50,
@@ -156,6 +305,13 @@ export const useTaskStore = create<TaskStore>()(
           endMs: input.endMs ?? null,
           createdAt: now,
           updatedAt: now,
+          focusMode,
+          sessionName,
+          focusedMs: 0,
+          breakMs: 0,
+          interruptions: 0,
+          completedFocusCount: 0,
+          lastPhase: null,
         };
         set((s) => ({ tasks: [task, ...s.tasks] }));
         return task;
@@ -170,13 +326,24 @@ export const useTaskStore = create<TaskStore>()(
             if (patch.description !== undefined)
               next.description = patch.description.trim().slice(0, 2000);
             if (patch.date !== undefined) next.date = patch.date;
-            if (patch.allocatedMinutes !== undefined)
-              next.allocatedMinutes = normalizeMinutes(
-                patch.allocatedMinutes,
-                "Allocated time",
-                1,
-                1440
-              );
+            if (patch.focusMode !== undefined) next.focusMode = normalizeFocusMode(patch.focusMode);
+            if (patch.sessionName !== undefined) next.sessionName = normalizeSessionName(patch.sessionName);
+            if (patch.allocatedMinutes !== undefined) {
+              const mode = next.focusMode === "infinite" ? "infinite" : "allocated";
+              next.allocatedMinutes =
+                mode === "infinite"
+                  ? (() => {
+                      const r = Math.round(Number(patch.allocatedMinutes));
+                      if (!Number.isFinite(r) || r < 0 || r > 1440) throw new Error("Allocated time must be between 0 and 1440");
+                      return r;
+                    })()
+                  : normalizeMinutes(
+                      patch.allocatedMinutes,
+                      "Allocated time",
+                      1,
+                      1440
+                    );
+            }
             if (patch.focusMinutes !== undefined)
               next.focusMinutes = normalizeMinutes(patch.focusMinutes, "Focus duration", 5, 180);
             if (patch.shortBreakMinutes !== undefined)
@@ -262,21 +429,163 @@ export const useTaskStore = create<TaskStore>()(
           tasks: s.tasks.map((t) => {
             if (t.id !== id) return t;
             const focusedMinutes = t.focusedMinutes + m;
+            const focusedMs = getTaskFocusedMs(t) + m * 60000;
             const completedPomodoros = Math.floor(focusedMinutes / t.focusMinutes);
+            const completedFocusCount = Math.max(t.completedFocusCount ?? completedPomodoros, completedPomodoros);
             const status: TaskStatus =
               t.status === "TODO" ? "IN_PROGRESS" : t.status;
-            return { ...t, focusedMinutes, completedPomodoros, status, updatedAt: Date.now() };
+            return { ...t, focusedMinutes, focusedMs, completedPomodoros, completedFocusCount, status, updatedAt: Date.now() };
           }),
         }));
         void get;
+      },
+
+      recordFocusMs: (id, focusedMsDelta, opts) => {
+        const f = Math.max(0, Math.round(focusedMsDelta));
+        const b = Math.max(0, Math.round(opts?.breakMsDelta ?? 0));
+        const intr = Math.max(0, Math.round(opts?.interruptionsDelta ?? 0));
+        if (f === 0 && b === 0 && intr === 0) return;
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === id
+              ? withProgressApplied(t, { focusedMs: f, breakMs: b, interruptions: intr })
+              : t
+          ),
+        }));
+      },
+
+      accumulateProgress: (id, delta) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) => (t.id === id ? withProgressApplied(t, delta) : t)),
+        }));
+      },
+
+      preserveActiveProgress: (now) => {
+        const at = now ?? Date.now();
+        // task-store already depends on pomodoro-store (see removeTask),
+        // so reading the live timer here keeps the engine centralized
+        // without introducing a new import cycle.
+        const pomo = usePomodoroStore.getState();
+        const { session, activeTaskId, infiniteBreak, infiniteBreakTotalMs } = pomo;
+        if (!activeTaskId) return null;
+        if (session.status !== "RUNNING" && session.status !== "PAUSED") return null;
+        if (session.startedAt === null) return null;
+        const focusedMs = Math.max(0, Math.round(getElapsedFocusMs(session, at)));
+        const isInfinite = session.isInfinite === true;
+        const breakMs = isInfinite
+          ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
+          : 0;
+        const interruptions = Math.max(0, Math.round(session.pauseCount ?? 0));
+        const completedFocusCount = Math.max(0, Math.round(session.completedFocusCount ?? 0));
+        const lastPhase = session.phase;
+        // Nothing meaningful to save (fresh start, no time yet) — still
+        // remember cycle/phase so resume stays exact.
+        if (focusedMs === 0 && breakMs === 0 && interruptions === 0) {
+          set((s) => ({
+            tasks: s.tasks.map((t) =>
+              t.id === activeTaskId
+                ? {
+                    ...t,
+                    completedFocusCount: Math.max(t.completedFocusCount ?? t.completedPomodoros ?? 0, completedFocusCount),
+                    lastPhase,
+                    updatedAt: Date.now(),
+                  }
+                : t
+            ),
+          }));
+          return { taskId: activeTaskId, focusedMs: 0, breakMs: 0, interruptions: 0 };
+        }
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === activeTaskId
+              ? withProgressApplied(t, { focusedMs, breakMs, interruptions, completedFocusCount, lastPhase })
+              : t
+          ),
+        }));
+        return { taskId: activeTaskId, focusedMs, breakMs, interruptions };
+      },
+
+      switchToTask: (id) => {
+        const target = get().tasks.find((t) => t.id === id);
+        if (!target) return;
+        const pomo = usePomodoroStore.getState();
+        const live = pomo.session.status === "RUNNING" || pomo.session.status === "PAUSED";
+        // Already the live task — continue from current state, never restart.
+        if (live && pomo.activeTaskId === id) return;
+        // 1) Save current task's timer/session state (never resets).
+        if (live && pomo.activeTaskId && pomo.activeTaskId !== id) {
+          try {
+            get().preserveActiveProgress(Date.now());
+          } catch {
+            // Preservation is best-effort — switching must still proceed.
+          }
+        }
+        // 2) Start/resume the selected task from its preserved state.
+        //    startForTask preempts (single-active) and logs the old run.
+        const mode = getFocusMode(target);
+        const completedFocusCount =
+          target.completedFocusCount ?? target.completedPomodoros ?? 0;
+        if (target.status === "TODO") {
+          get().setStatus(target.id, "IN_PROGRESS");
+        }
+        get().setActiveTask(target.id);
+        if (mode === "infinite") {
+          pomo.startForTask(target.id, target.title, undefined, {
+            focusMode: "infinite",
+            sessionName: target.sessionName ?? null,
+            completedFocusCount,
+          });
+        } else {
+          // Allocated: resume the exact slice implied by preserved progress.
+          let sliceMin: number;
+          try {
+            sliceMin = nextSliceMinutes(
+              target.allocatedMinutes,
+              target.focusMinutes,
+              target.completedPomodoros ?? 0
+            );
+          } catch {
+            sliceMin = Math.max(1, Math.round(target.focusMinutes) || 25);
+          }
+          pomo.startForTask(target.id, target.title, sliceMin * 60000, {
+            focusMode: "allocated",
+            completedFocusCount,
+          });
+        }
       },
 
       setActiveTask: (id) => set({ activeTaskId: id }),
     }),
     {
       name: STORAGE_KEY,
+      version: 2,
       storage: createJSONStorage(ssrSafeStorage),
       partialize: (s) => ({ tasks: s.tasks, activeTaskId: s.activeTaskId }) as TaskStore,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as Partial<TaskStore>;
+        const tasks = Array.isArray(state.tasks) ? state.tasks : [];
+        if (version < 2) {
+          return {
+            tasks: tasks.map((t) => ({
+              ...t,
+              // Preserve stored values when present; fill only missing.
+              focusMode: (t as Task).focusMode === "infinite" ? "infinite" : "allocated",
+              sessionName: (t as Task).sessionName ?? null,
+              focusedMs:
+                typeof (t as Task).focusedMs === "number"
+                  ? (t as Task).focusedMs
+                  : Math.max(0, Math.round(((t as Task).focusedMinutes ?? 0) * 60000)),
+              breakMs: (t as Task).breakMs ?? 0,
+              interruptions: (t as Task).interruptions ?? 0,
+              completedFocusCount:
+                (t as Task).completedFocusCount ?? (t as Task).completedPomodoros ?? 0,
+              lastPhase: (t as Task).lastPhase ?? null,
+            })),
+            activeTaskId: state.activeTaskId ?? null,
+          } as TaskStore;
+        }
+        return state as TaskStore;
+      },
     }
   )
 );

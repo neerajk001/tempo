@@ -3,11 +3,12 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
-import { useTaskStore, selectTaskById } from "@/stores/task-store";
-import { useSessionHistoryStore } from "@/stores/session-history-store";
+import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel } from "@/stores/task-store";
+import { useSessionHistoryStore, getRecordLabel, getSessionMode } from "@/stores/session-history-store";
 import { computeDashboardStats } from "@/lib/dashboard-stats";
-import { calculatePomodoroPlan, nextSliceMinutes, todayKey } from "@/lib/task-planning";
+import { calculatePomodoroPlan, todayKey } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
+import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
 import Icon from "@/components/ui/Icon";
 
 export default function CompleteView() {
@@ -17,7 +18,6 @@ export default function CompleteView() {
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
   const startBreak = usePomodoroStore((s) => s.startBreak);
   const start = usePomodoroStore((s) => s.start);
-  const startForTask = usePomodoroStore((s) => s.startForTask);
   const startQuick = usePomodoroStore((s) => s.startQuick);
   const breakOverride = usePomodoroStore((s) => s.breakOverride);
   const tasks = useTaskStore((s) => s.tasks);
@@ -26,6 +26,8 @@ export default function CompleteView() {
   const record = sessions.find((x) => x.phase === "FOCUS" && x.status === "COMPLETED") ?? null;
   const task = selectTaskById(tasks, record?.taskId ?? activeTaskId);
   const stats = computeDashboardStats(tasks, sessions, todayKey());
+  const recordInfinite = record ? getSessionMode(record) === "infinite" : (task ? getFocusMode(task) === "infinite" : false);
+  const recordLabel = record ? getRecordLabel(record, record.taskTitle ?? task?.title ?? "Deep Work") : "Deep Work";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -67,12 +69,15 @@ export default function CompleteView() {
   }
 
   const focusedMin = Math.max(1, Math.round(record.focusedMs / 60000));
-  const plannedMin = Math.max(1, Math.round(record.plannedMs / 60000));
+  const plannedMin = recordInfinite ? 0 : Math.max(1, Math.round(record.plannedMs / 60000));
   const pausedMin = Math.round(record.pausedMs / 60000);
-  const efficiency = ((record.focusedMs / Math.max(1, record.plannedMs)) * 100).toFixed(1);
+  const breakMinTotal = Math.round((record.breakMs ?? 0) / 60000);
+  const efficiency = recordInfinite
+    ? "—"
+    : ((record.focusedMs / Math.max(1, record.plannedMs)) * 100).toFixed(1);
   const blockNum = task ? task.completedPomodoros : session.completedFocusCount;
   const planLen = (() => {
-    if (!task) return Math.max(blockNum, 1);
+    if (recordInfinite || !task || getFocusMode(task) === "infinite") return Math.max(blockNum, 1);
     try {
       return calculatePomodoroPlan(task.allocatedMinutes, task.focusMinutes).length;
     } catch {
@@ -81,10 +86,18 @@ export default function CompleteView() {
   })();
   const taskFocused = task?.focusedMinutes ?? 0;
   const taskAllocated = task?.allocatedMinutes ?? focusedMin;
-  const taskPct = taskAllocated > 0 ? Math.min(100, Math.round((taskFocused / taskAllocated) * 100)) : 0;
+  const taskPct = recordInfinite
+    ? taskFocused > 0 ? 100 : 0
+    : taskAllocated > 0 ? Math.min(100, Math.round((taskFocused / taskAllocated) * 100)) : 0;
   const breakMin = Math.round(resolveBreaks(config, breakOverride).shortBreakMs / 60000);
 
   const goBreak = () => {
+    // Infinite sessions track breaks inline via pause — there is no break
+    // phase to advance to. Return to the dashboard instead.
+    if (recordInfinite) {
+      router.push("/");
+      return;
+    }
     const st = usePomodoroStore.getState().session.status;
     if (st === "COMPLETED" || st === "CANCELLED" || st === "IDLE") startBreak();
     router.push("/break");
@@ -92,7 +105,7 @@ export default function CompleteView() {
   const goFocus = () => {
     const st = usePomodoroStore.getState().session.status;
     if (st === "COMPLETED" || st === "CANCELLED" || st === "IDLE") {
-      if (task) startForTask(task.id, task.title);
+      if (task) useTaskStore.getState().switchToTask(task.id);
       else if (record) startQuick(record.taskTitle, record.plannedMs);
       else start("FOCUS");
     }
@@ -119,9 +132,14 @@ export default function CompleteView() {
           <span className="text-on-surface-variant/40">/</span>
           <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary-fixed border border-primary/20 text-on-primary-fixed text-[11px] font-mono font-medium tracking-wide">
             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            POMODORO COMPLETE
+            {recordInfinite ? "INFINITE SESSION COMPLETE" : "POMODORO COMPLETE"}
           </div>
-          <span className="text-on-surface-variant text-xs font-mono ml-1">Session {blockNum} of {Math.max(planLen, 1)}</span>
+          {!recordInfinite && (
+            <span className="text-on-surface-variant text-xs font-mono ml-1">Session {blockNum} of {Math.max(planLen, 1)}</span>
+          )}
+          {recordInfinite && (
+            <span className="text-on-surface-variant text-xs font-mono ml-1">Open-ended • {formatElapsedHMS(record.focusedMs)} elapsed</span>
+          )}
         </div>
         <div className="flex items-center gap-4 text-xs">
           <div className="hidden sm:flex items-center gap-2 text-on-surface-variant font-mono">
@@ -153,11 +171,11 @@ export default function CompleteView() {
 
         <div className="text-center max-w-xl mx-auto mb-8 animate-rise">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container border border-outline-variant text-on-surface-variant text-xs font-mono uppercase tracking-wider mb-2.5">
-            Interval Concluded
+            {recordInfinite ? "Open-Ended Session Ended" : "Interval Concluded"}
           </div>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-on-surface mb-2">Session complete</h1>
           <p className="text-sm sm:text-base text-on-surface-variant font-normal">
-            Great rhythm on <span className="font-medium text-on-surface tracking-tight">&quot;{task?.title ?? "Deep Work"}&quot;</span>
+            Great rhythm on <span className="font-medium text-on-surface tracking-tight">&quot;{recordLabel}&quot;</span>
           </p>
         </div>
 
@@ -174,12 +192,26 @@ export default function CompleteView() {
               </p>
             </div>
             <div className="text-right space-y-1 font-mono text-xs">
-              <div className="text-on-surface-variant">
-                Target cadence <span className="font-semibold text-on-surface">{focusedMin}m / {plannedMin}m</span>
-              </div>
-              <div className="text-on-primary-fixed font-medium">
-                Focus efficiency <span className="font-semibold">{efficiency}%</span>
-              </div>
+              {recordInfinite ? (
+                <>
+                  <div className="text-on-surface-variant">
+                    Elapsed <span className="font-semibold text-on-surface">{formatElapsedHMS(record.focusedMs)}</span>
+                  </div>
+                  <div className="text-on-primary-fixed font-medium">
+                    Break <span className="font-semibold">{formatDurationMinutes(breakMinTotal)}</span>
+                    <span className="text-on-surface-variant font-normal"> • tracked separately</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-on-surface-variant">
+                    Target cadence <span className="font-semibold text-on-surface">{focusedMin}m / {plannedMin}m</span>
+                  </div>
+                  <div className="text-on-primary-fixed font-medium">
+                    Focus efficiency <span className="font-semibold">{efficiency}%</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 pt-5 pb-1">
@@ -188,8 +220,8 @@ export default function CompleteView() {
                 <Icon name="pause" className="text-[16px]" />
               </div>
               <div>
-                <div className="text-[11px] font-mono text-on-surface-variant uppercase tracking-wider">Paused</div>
-                <div className="text-sm font-semibold font-mono text-on-surface">{pausedMin}m</div>
+                <div className="text-[11px] font-mono text-on-surface-variant uppercase tracking-wider">{recordInfinite ? "Break" : "Paused"}</div>
+                <div className="text-sm font-semibold font-mono text-on-surface">{recordInfinite ? `${breakMinTotal}m` : `${pausedMin}m`}</div>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -211,11 +243,18 @@ export default function CompleteView() {
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-medium text-on-surface">Task Progress</span>
                 <span className="text-on-surface-variant/50">•</span>
-                <span className="text-on-surface-variant truncate">{task.title}</span>
+                <span className="text-on-surface-variant truncate">{recordInfinite ? getSessionLabel(task, task.title) : task.title}</span>
+                {recordInfinite && (
+                  <span className="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-semibold text-[11px]">∞ Infinite</span>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="font-semibold text-on-surface">
-                  {formatDurationMinutes(taskFocused)} <span className="text-on-surface-variant font-normal">/ {formatDurationMinutes(taskAllocated)}</span>
+                  {recordInfinite ? (
+                    <>{formatDurationMinutes(taskFocused)} <span className="text-on-surface-variant font-normal">focused</span></>
+                  ) : (
+                    <>{formatDurationMinutes(taskFocused)} <span className="text-on-surface-variant font-normal">/ {formatDurationMinutes(taskAllocated)}</span></>
+                  )}
                 </span>
                 <span className="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-semibold text-[11px] border border-primary/20">{taskPct}%</span>
               </div>
@@ -223,6 +262,7 @@ export default function CompleteView() {
             <div className="w-full h-2 rounded-full bg-surface-container-highest overflow-hidden relative">
               <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent-lime" style={{ width: `${taskPct}%` }} />
             </div>
+            {!recordInfinite && (
             <div className="flex items-center justify-between mt-2.5 text-[11px] font-mono text-on-surface-variant">
               <span className="flex items-center gap-1.5 text-on-primary-fixed">
                 <svg className="w-3 h-3 text-primary" fill="currentColor" viewBox="0 0 20 20">
@@ -232,12 +272,20 @@ export default function CompleteView() {
               </span>
               <span className="text-on-surface-variant">Pomodoro {Math.min(blockNum + 1, Math.max(planLen, 1))} of {Math.max(planLen, 1)} remaining</span>
             </div>
+            )}
+            {recordInfinite && (
+            <div className="flex items-center justify-between mt-2.5 text-[11px] font-mono text-on-surface-variant">
+              <span className="text-on-primary-fixed">Session saved • {formatElapsedHMS(record.focusedMs)} focused</span>
+              <span>Break {formatDurationMinutes(breakMinTotal)} • {record.interruptions} interruptions</span>
+            </div>
+            )}
           </div>
         )}
 
         {/* Actions */}
         <div className="w-full max-w-lg flex flex-col items-center gap-3 animate-rise" style={{ animationDelay: "0.2s" }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+          <div className={`grid grid-cols-1 ${recordInfinite ? "" : "sm:grid-cols-2"} gap-3 w-full`}>
+            {!recordInfinite && (
             <button
               type="button"
               onClick={() => {
@@ -251,10 +299,11 @@ export default function CompleteView() {
               <span className="text-xs font-mono text-on-tertiary-fixed bg-black/25 px-1.5 py-0.5 rounded border border-tertiary/20">{breakMin}m</span>
               <kbd className="hidden sm:inline-block ml-1 text-[10px] font-mono text-on-tertiary-fixed/70 bg-black/25 px-1.5 py-0.5 rounded">Space</kbd>
             </button>
+            )}
             <button
               type="button"
               onClick={() => {
-      if (task) startForTask(task.id, task.title, nextSliceMinutes(task.allocatedMinutes, task.focusMinutes, task.completedPomodoros) * 60000);
+                if (task) useTaskStore.getState().switchToTask(task.id);
                 else if (record) startQuick(record.taskTitle, record.plannedMs);
                 else start("FOCUS");
                 router.push("/focus");

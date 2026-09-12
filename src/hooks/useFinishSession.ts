@@ -23,6 +23,10 @@ export function useFinishSession() {
   const session = usePomodoroStore((s) => s.session);
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
   const activeTaskTitle = usePomodoroStore((s) => s.activeTaskTitle);
+  const focusMode = usePomodoroStore((s) => s.focusMode);
+  const sessionName = usePomodoroStore((s) => s.sessionName);
+  const infiniteBreak = usePomodoroStore((s) => s.infiniteBreak);
+  const infiniteBreakTotalMs = usePomodoroStore((s) => s.infiniteBreakTotalMs);
   const complete = usePomodoroStore((s) => s.complete);
   const cancel = usePomodoroStore((s) => s.cancel);
   const tasks = useTaskStore((s) => s.tasks);
@@ -30,6 +34,7 @@ export function useFinishSession() {
   const logSession = useSessionHistoryStore((s) => s.logSession);
 
   const activeTask = selectTaskById(tasks, activeTaskId);
+  const isInfinite = focusMode === "infinite";
 
   const handleComplete = () => {
     const at = Date.now();
@@ -39,6 +44,11 @@ export function useFinishSession() {
     } catch {
       return;
     }
+    // Capture the Infinite break total before the store clears the open break.
+    const breakMs = isInfinite
+      ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
+      : 0;
+    const focusedMs = getElapsedFocusMs(snapshot, at);
     const taskTitle = activeTask?.title ?? activeTaskTitle;
     complete();
     // Natural or manual completion only (never pause/cancel): stop ambient
@@ -49,7 +59,26 @@ export function useFinishSession() {
       // Ambient store optional — never block completion.
     }
     if (snapshot.phase === "FOCUS" && activeTaskId) {
-      recordFocus(activeTaskId, Math.max(1, Math.round(getElapsedFocusMs(snapshot, at) / 60000)));
+      if (isInfinite) {
+        // Infinite: open-ended — save the final focused/break duration
+        // precisely (no minute rounding loss) and preserve cycle state.
+        useTaskStore.getState().accumulateProgress(activeTaskId, {
+          focusedMs: Math.max(0, Math.round(focusedMs)),
+          breakMs,
+          interruptions: snapshot.pauseCount,
+          completedFocusCount: snapshot.completedFocusCount,
+          lastPhase: snapshot.phase,
+        });
+      } else {
+        // Allocated: existing minute-based workflow unchanged, plus
+        // interruption/cycle preservation for exact resume.
+        recordFocus(activeTaskId, Math.max(1, Math.round(focusedMs / 60000)));
+        useTaskStore.getState().accumulateProgress(activeTaskId, {
+          interruptions: snapshot.pauseCount,
+          completedFocusCount: snapshot.completedFocusCount,
+          lastPhase: snapshot.phase,
+        });
+      }
     }
     if (snapshot.startedAt !== null && snapshot.endedAt !== null) {
       logSession({
@@ -60,10 +89,13 @@ export function useFinishSession() {
         plannedMs: snapshot.plannedMs,
         startedAt: snapshot.startedAt,
         endedAt: snapshot.endedAt,
-        focusedMs: getElapsedFocusMs(snapshot, at),
+        focusedMs,
         pausedMs: getPausedMs(snapshot, at),
         interruptions: snapshot.pauseCount,
         events: snapshot.events,
+        sessionMode: focusMode,
+        sessionName,
+        breakMs,
       });
     }
     const prefs = usePrefsStore.getState();
@@ -75,8 +107,10 @@ export function useFinishSession() {
       sendCompletionNotification(snapshot.phase, taskTitle);
     }
     // Deliberate-start defaults: only auto-advance where the user enabled it.
+    // Infinite sessions never auto-advance into phase breaks (pause-breaks
+    // are handled inline via the pause countdown instead).
     try {
-      if (snapshot.phase === "FOCUS" && prefs.autoStartBreaks) {
+      if (snapshot.phase === "FOCUS" && prefs.autoStartBreaks && !isInfinite) {
         usePomodoroStore.getState().startBreak();
       } else if (snapshot.phase !== "FOCUS" && prefs.autoStartFocus) {
         usePomodoroStore.getState().start("FOCUS");
@@ -94,7 +128,22 @@ export function useFinishSession() {
     } catch {
       return;
     }
+    const breakMs = isInfinite
+      ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? at - infiniteBreak.startedAt : 0)))
+      : 0;
+    const focusedMs = getElapsedFocusMs(snapshot, at);
     cancel();
+    // Stopping preserves state: fold partial work into the task so returning
+    // resumes from the exact previous totals (never resets to zero).
+    if (snapshot.phase === "FOCUS" && activeTaskId) {
+      useTaskStore.getState().accumulateProgress(activeTaskId, {
+        focusedMs: Math.max(0, Math.round(focusedMs)),
+        breakMs,
+        interruptions: snapshot.pauseCount,
+        completedFocusCount: snapshot.completedFocusCount,
+        lastPhase: snapshot.phase,
+      });
+    }
     if (snapshot.startedAt !== null && snapshot.endedAt !== null) {
       logSession({
         taskId: activeTaskId,
@@ -104,10 +153,13 @@ export function useFinishSession() {
         plannedMs: snapshot.plannedMs,
         startedAt: snapshot.startedAt,
         endedAt: snapshot.endedAt,
-        focusedMs: getElapsedFocusMs(snapshot, at),
+        focusedMs,
         pausedMs: getPausedMs(snapshot, at),
         interruptions: snapshot.pauseCount,
         events: snapshot.events,
+        sessionMode: focusMode,
+        sessionName,
+        breakMs,
       });
     }
   };

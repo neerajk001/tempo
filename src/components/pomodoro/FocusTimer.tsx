@@ -15,6 +15,31 @@ export interface TimerProps {
   ticking: boolean;
   elapsedMs: number;
   plannedMs: number;
+  /**
+   * Infinite Focus mode: show elapsed (HH:MM:SS) instead of time remaining.
+   * When true, `mm`/`ss` are ignored in favor of `hms`.
+   */
+  infinite?: boolean;
+  /** Preformatted elapsed HH:MM:SS for infinite mode. */
+  hms?: string;
+  /** Break ms accumulated in the current infinite run (display only). */
+  breakMs?: number;
+}
+
+/** Format ms as HH:MM:SS elapsed (always with hours for infinite focus). */
+export function formatElapsedHMS(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+}
+
+function formatBreakShort(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}m ${String(r).padStart(2, "0")}s`;
 }
 
 const R = 174;
@@ -40,7 +65,45 @@ function TimerMeta({ elapsedMs, pct, paused }: Pick<TimerProps, "elapsedMs" | "p
 }
 
 /** Variant 1 — the existing circular progress timer (default). */
-export function TimerCircular({ mm, ss, pct, paused, ticking, elapsedMs }: TimerProps) {
+export function TimerCircular({ mm, ss, pct, paused, ticking, elapsedMs, infinite, hms, breakMs }: TimerProps) {
+  if (infinite) {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center">
+        <svg className="w-full h-full -rotate-90" fill="none" viewBox="0 0 400 400">
+          <circle className="stroke-surface-container-high" cx="200" cy="200" r={R} strokeLinecap="round" strokeWidth="5" />
+          <circle className="stroke-surface-variant/70" cx="200" cy="200" r="162" strokeDasharray="1 11" strokeWidth="1.5" />
+          <circle
+            className={cn("transition-all duration-700 ease-out", paused ? "stroke-secondary" : "stroke-primary")}
+            cx="200" cy="200" r={R}
+            strokeDasharray={CIRC} strokeDashoffset={CIRC * 0.22}
+            strokeLinecap="round" strokeWidth="6"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-text px-6">
+          <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-0.5 font-medium">
+            Elapsed Focus
+          </span>
+          <div className="flex items-baseline justify-center tracking-tight font-mono text-[44px] sm:text-[56px] leading-none text-on-surface font-medium tabular-nums my-0.5">
+            <span>{hms ?? formatElapsedHMS(elapsedMs)}</span>
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
+            <span className="text-primary font-medium">Focused</span>
+            {(breakMs ?? 0) > 0 && (
+              <>
+                <span>•</span>
+                <span>Break {formatBreakShort(breakMs ?? 0)}</span>
+              </>
+            )}
+          </div>
+          {paused && (
+            <div className="mt-2 px-3 py-0.5 rounded bg-accent-amber-container border border-accent-amber/20 text-on-accent-amber text-label-xs font-semibold uppercase tracking-wider">
+              Focus Paused — Break Tracking
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="relative w-full h-full flex items-center justify-center">
       <svg className="w-full h-full -rotate-90" fill="none" viewBox="0 0 400 400">
@@ -108,7 +171,39 @@ function FlipUnit({ value, label }: { value: string; label: string }) {
 }
 
 /** Variant 2 — split-flap inspired flip clock. Same countdown state. */
-export function TimerFlip({ mm, ss, pct, paused, elapsedMs }: TimerProps) {
+export function TimerFlip({ mm, ss, pct, paused, elapsedMs, infinite, hms, breakMs }: TimerProps) {
+  if (infinite) {
+    const parts = (hms ?? formatElapsedHMS(elapsedMs)).split(":");
+    const [hh = "00", fmm = "00", fss = "00"] = parts.length === 3 ? parts : ["00", mm, ss];
+    return (
+      <div className="flex flex-col items-center justify-center text-center select-text py-4">
+        <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-3 font-medium">
+          Elapsed Focus
+        </span>
+        <div className="flex items-start justify-center gap-2 sm:gap-3">
+          <FlipUnit value={hh} label="hrs" />
+          <span className="font-mono text-5xl sm:text-6xl text-primary font-medium pt-8 sm:pt-11 animate-[pulse_1.5s_infinite]">:</span>
+          <FlipUnit value={fmm} label="min" />
+          <span className="font-mono text-5xl sm:text-6xl text-primary font-medium pt-8 sm:pt-11 animate-[pulse_1.5s_infinite]">:</span>
+          <FlipUnit value={fss} label="sec" />
+        </div>
+        <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
+          <span className="text-primary font-medium">Focused</span>
+          {(breakMs ?? 0) > 0 && (
+            <>
+              <span>•</span>
+              <span>Break {formatBreakShort(breakMs ?? 0)}</span>
+            </>
+          )}
+        </div>
+        {paused && (
+          <div className="mt-2 px-3 py-0.5 rounded bg-accent-amber-container border border-accent-amber/20 text-on-accent-amber text-label-xs font-semibold uppercase tracking-wider">
+            Focus Paused — Break Tracking
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center justify-center text-center select-text py-4">
       <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-3 font-medium">
@@ -141,7 +236,33 @@ export function clockAngles(elapsedMs: number, plannedMs: number): {
 }
 
 /** Variant 3 — minimalist analog countdown. Same countdown state. */
-export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss }: TimerProps) {
+export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss, infinite, hms, breakMs }: TimerProps) {
+  if (infinite) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center select-text">
+        <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-1 font-medium">
+          Elapsed Focus
+        </span>
+        <div className="font-mono text-4xl sm:text-5xl font-medium text-on-surface tabular-nums mt-1 leading-none">
+          {hms ?? formatElapsedHMS(elapsedMs)}
+        </div>
+        <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
+          <span className="text-primary font-medium">Focused</span>
+          {(breakMs ?? 0) > 0 && (
+            <>
+              <span>•</span>
+              <span>Break {formatBreakShort(breakMs ?? 0)}</span>
+            </>
+          )}
+        </div>
+        {paused && (
+          <div className="mt-2 px-3 py-0.5 rounded bg-accent-amber-container border border-accent-amber/20 text-on-accent-amber text-label-xs font-semibold uppercase tracking-wider">
+            Focus Paused — Break Tracking
+          </div>
+        )}
+      </div>
+    );
+  }
   const { pct, minute, second } = clockAngles(elapsedMs, plannedMs);
   const ticks = Array.from({ length: 60 }, (_, i) => i);
   const sweep = {

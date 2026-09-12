@@ -29,12 +29,21 @@ export interface PomodoroState {
   /** completed FOCUS sessions in this cycle, drives long-break interval */
   completedFocusCount: number;
   events: PomodoroEvent[];
+  /**
+   * Open-ended Infinite Focus flag. When true the session has no fixed end:
+   * - `isExpired` is always false (never auto-completes),
+   * - `getRemainingMs` returns +Infinity (no misleading "time remaining"),
+   * - elapsed focus time is the source of truth.
+   * Absent on legacy persisted states — treat as false.
+   */
+  isInfinite?: boolean;
 }
 
 export function createIdleState(
   phase: PomodoroPhase = "FOCUS",
   config: PomodoroConfig = DEFAULT_POMODORO_CONFIG,
-  completedFocusCount = 0
+  completedFocusCount = 0,
+  isInfinite = false
 ): PomodoroState {
   return {
     status: "IDLE",
@@ -47,6 +56,7 @@ export function createIdleState(
     plannedMs: getPlannedMsForPhase(phase, config),
     completedFocusCount,
     events: [],
+    isInfinite,
   };
 }
 
@@ -58,14 +68,18 @@ function pushEvent(state: PomodoroState, type: SessionEventType, at: number): Po
 export function startSession(
   state: PomodoroState,
   now: number,
-  opts?: { phase?: PomodoroPhase; config?: PomodoroConfig; plannedMs?: number }
+  opts?: { phase?: PomodoroPhase; config?: PomodoroConfig; plannedMs?: number; isInfinite?: boolean }
 ): PomodoroState {
   if (state.status !== "IDLE" && state.status !== "COMPLETED" && state.status !== "CANCELLED") {
     throw new InvalidPomodoroTransition(state.status, "START");
   }
   const config = opts?.config ?? DEFAULT_POMODORO_CONFIG;
   const phase = opts?.phase ?? state.phase ?? "FOCUS";
-  const plannedMs = opts?.plannedMs ?? getPlannedMsForPhase(phase, config);
+  const isInfinite = opts?.isInfinite ?? state.isInfinite ?? false;
+  // Infinite sessions are open-ended: plannedMs is bookkeeping only (0 = no plan).
+  const plannedMs = isInfinite
+    ? (opts?.plannedMs ?? 0)
+    : (opts?.plannedMs ?? getPlannedMsForPhase(phase, config));
   return {
     status: "RUNNING",
     phase,
@@ -77,6 +91,7 @@ export function startSession(
     plannedMs,
     completedFocusCount: state.completedFocusCount,
     events: [...state.events, { type: "START", at: now }],
+    isInfinite,
   };
 }
 
@@ -191,10 +206,12 @@ export function getElapsedFocusMs(state: PomodoroState, now: number): number {
 }
 
 export function getRemainingMs(state: PomodoroState, now: number): number {
+  if (state.isInfinite) return Number.POSITIVE_INFINITY;
   return Math.max(0, state.plannedMs - getElapsedFocusMs(state, now));
 }
 
 export function isExpired(state: PomodoroState, now: number): boolean {
+  if (state.isInfinite) return false;
   if (state.status !== "RUNNING" && state.status !== "PAUSED") return false;
   if (state.startedAt === null) return false;
   return getRemainingMs(state, now) <= 0;

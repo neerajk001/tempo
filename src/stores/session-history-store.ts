@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { PomodoroPhase, PomodoroStatus, SessionEventType } from "@/types";
+import type { FocusMode, PomodoroPhase, PomodoroStatus, SessionEventType } from "@/types";
 import { addSessionTombstone, addSessionTombstones } from "@/lib/tombstones";
 
 export interface HistoryEvent {
@@ -23,6 +23,29 @@ export interface SessionRecord {
   pausedMs: number;
   interruptions: number;
   events: HistoryEvent[];
+  /**
+   * Which scheduling mode produced this record. Absent on legacy records —
+   * treat as "allocated". Infinite + Allocated share the same table so the
+   * Dashboard can sum total focus consistently.
+   */
+  sessionMode?: FocusMode;
+  /** User-provided Infinite session label (falls back to taskTitle). */
+  sessionName?: string | null;
+  /** Break time tracked separately from focused time (infinite pause-breaks). */
+  breakMs?: number;
+}
+
+/** Resolve a record's mode with legacy fallback. */
+export function getSessionMode(r: Pick<SessionRecord, "sessionMode"> | null | undefined): FocusMode {
+  return r?.sessionMode === "infinite" ? "infinite" : "allocated";
+}
+
+/** Display label for a record (infinite session name wins). */
+export function getRecordLabel(r: Pick<SessionRecord, "sessionName" | "taskTitle"> | null | undefined, fallback = "Focus Session"): string {
+  if (!r) return fallback;
+  const named = (r.sessionName ?? "").trim();
+  if (named) return named;
+  return r.taskTitle ?? fallback;
 }
 
 interface HistoryActions {
@@ -57,7 +80,13 @@ export const useSessionHistoryStore = create<HistoryStore>()(
       sessions: [],
 
       logSession: (r) => {
-        const record: SessionRecord = { ...r, id: r.id ?? uid() };
+        const record: SessionRecord = {
+          sessionMode: "allocated",
+          sessionName: null,
+          breakMs: 0,
+          ...r,
+          id: r.id ?? uid(),
+        };
         set((s) => ({ sessions: [record, ...s.sessions].slice(0, 500) }));
         return record;
       },

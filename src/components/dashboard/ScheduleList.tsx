@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Icon from "@/components/ui/Icon";
-import { getRemainingMs } from "@/lib/pomodoro-machine";
+import { getElapsedFocusMs, getRemainingMs } from "@/lib/pomodoro-machine";
 import { getTaskProgress } from "@/lib/task-planning";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
-import type { Task } from "@/stores/task-store";import { usePomodoroStore } from "@/stores/pomodoro-store";
+import { getFocusMode, getSessionLabel, type Task } from "@/stores/task-store";import { usePomodoroStore } from "@/stores/pomodoro-store";
+import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,15 @@ function startsIn(t: Task, now: number): string | null {
 
 function LiveLeft() {
   const session = usePomodoroStore((s) => s.session);
+  const focusMode = usePomodoroStore((s) => s.focusMode);
   const now = useNow(true);
+  if (session.isInfinite === true || focusMode === "infinite") {
+    return (
+      <span className="font-mono text-code-badge text-primary font-semibold">
+        Live • {formatElapsedHMS(getElapsedFocusMs(session, now))} elapsed
+      </span>
+    );
+  }
   return (
     <span className="font-mono text-code-badge text-primary font-semibold">
       Live • {formatClock(Math.ceil(getRemainingMs(session, now) / 1000))} left
@@ -103,7 +112,10 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
           </div>
         )}
         {visible.map((t, i) => {
-          const p = getTaskProgress(t.allocatedMinutes, t.focusedMinutes, t.focusMinutes);
+          const infinite = getFocusMode(t) === "infinite";
+          const p = infinite
+            ? { percent: (t.focusedMinutes ?? 0) > 0 ? 100 : 0, remainingMinutes: 0 }
+            : getTaskProgress(t.allocatedMinutes, t.focusedMinutes, t.focusMinutes);
           const active = isActive(t);
           const upcoming = startsIn(t, now);
           return (
@@ -114,7 +126,7 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
                     "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
                     active ? "bg-primary-fixed text-primary" : "bg-surface-container text-secondary"
                   )}>
-                    <Icon name={active ? "bolt" : i % 2 ? "dns" : "menu_book"} className="text-[18px]" />
+                    <Icon name={active ? "bolt" : infinite ? "all_inclusive" : i % 2 ? "dns" : "menu_book"} className="text-[18px]" />
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -123,13 +135,15 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
                         "px-1.5 py-0.5 rounded font-mono text-code-badge font-medium",
                         active ? "bg-primary-fixed text-primary" : "bg-surface-container text-on-surface-variant"
                       )}>
-                        {t.focusMinutes}m blocks
+                        {infinite ? "∞ Infinite" : `${t.focusMinutes}m blocks`}
                       </span>
                     </div>
-                    <Link href={`/tasks/${t.id}`} className="text-headline-md text-on-surface font-semibold tracking-tight mt-0.5 truncate hover:text-primary transition-colors">{t.title}</Link>
-                    {t.description && (
+                    <Link href={`/tasks/${t.id}`} className="text-headline-md text-on-surface font-semibold tracking-tight mt-0.5 truncate hover:text-primary transition-colors">{infinite ? getSessionLabel(t, t.title) : t.title}</Link>
+                    {infinite && t.sessionName ? (
+                      <div className="text-body-sm text-on-surface-variant line-clamp-1 mt-0.5">Task: {t.title}</div>
+                    ) : t.description ? (
                       <div className="text-body-sm text-on-surface-variant line-clamp-1 mt-0.5">{t.description}</div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -151,7 +165,9 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
                     </span>
                   )}
                   <span className="font-mono text-code-badge text-on-surface-variant font-medium">
-                    {formatDurationMinutes(t.focusedMinutes)} / {formatDurationMinutes(t.allocatedMinutes)}
+                    {infinite
+                      ? `${formatDurationMinutes(t.focusedMinutes)} focused`
+                      : `${formatDurationMinutes(t.focusedMinutes)} / ${formatDurationMinutes(t.allocatedMinutes)}`}
                   </span>
                   {isLive(t) && (
                     <Link href="/focus" className="font-mono text-code-badge text-primary font-semibold underline">
@@ -162,9 +178,13 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
               </div>
               <div className="mt-3 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-label-xs text-secondary">
-                  <span>{p.percent > 0 ? "Execution pace" : "Planned block"}</span>
+                  <span>{infinite ? "Open-ended focus" : p.percent > 0 ? "Execution pace" : "Planned block"}</span>
                   {isLive(t) ? (
                     <LiveLeft />
+                  ) : infinite ? (
+                    <span className={cn("font-mono text-code-badge font-medium", p.percent > 0 ? "font-semibold text-primary" : "text-secondary")}>
+                      {p.percent > 0 ? `${formatDurationMinutes(t.focusedMinutes)} focused` : "Not started"}
+                    </span>
                   ) : (
                     <span className={cn("font-mono text-code-badge font-medium", p.percent > 0 ? "font-semibold text-primary" : "text-secondary")}>
                       {p.percent > 0 ? `${p.percent}% allocated` : `${formatDurationMinutes(t.allocatedMinutes)} allocated`}

@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
-import { useTaskStore, selectTaskById } from "@/stores/task-store";
+import { usePomodoroStore, resolveBreaks, getInfiniteBreakRemaining, isInfiniteBreakComplete } from "@/stores/pomodoro-store";
+import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel, getTaskFocusedMs } from "@/stores/task-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
 import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
 import { calculatePomodoroPlan, todayKey } from "@/lib/task-planning";
 import { formatClock } from "@/lib/utils";
+import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import DurationPicker from "@/components/dashboard/DurationPicker";
@@ -31,12 +32,16 @@ export default function FocusSessionCard() {
   const pause = usePomodoroStore((s) => s.pause);
   const resume = usePomodoroStore((s) => s.resume);
   const extend = usePomodoroStore((s) => s.extend);
-  const startForTask = usePomodoroStore((s) => s.startForTask);
   const startQuick = usePomodoroStore((s) => s.startQuick);
+  const focusMode = usePomodoroStore((s) => s.focusMode);
+  const sessionName = usePomodoroStore((s) => s.sessionName);
+  const infiniteBreak = usePomodoroStore((s) => s.infiniteBreak);
+  const infiniteBreakTotalMs = usePomodoroStore((s) => s.infiniteBreakTotalMs);
   const reset = usePomodoroStore((s) => s.reset);
   const clearQuickTitle = usePomodoroStore((s) => s.setActiveTask);
   const unlinkActiveTask = usePomodoroStore((s) => s.setActiveTask);
   const tasks = useTaskStore((s) => s.tasks);
+  const switchToTask = useTaskStore((s) => s.switchToTask);
   const moveTaskToToday = useTaskStore((s) => s.updateTask);
   const { handleComplete, handleCancel } = useFinishSession();
   const [mounted, setMounted] = useState(false);
@@ -82,6 +87,8 @@ export default function FocusSessionCard() {
   }, [session, router]);
 
   const activeTask = selectTaskById(tasks, activeTaskId);
+  const activeMode = activeTask ? getFocusMode(activeTask) : focusMode;
+  const isInfinite = activeMode === "infinite" || session.isInfinite === true || focusMode === "infinite";
   // Quick-block candidates: today's open tasks, falling back to any open task.
   const creditCandidates = useMemo(() => {
     const open = tasks.filter(
@@ -103,7 +110,13 @@ export default function FocusSessionCard() {
   const breakOverride = usePomodoroStore((s) => s.breakOverride);
   const effBreaks = resolveBreaks(config, breakOverride);
   const displayTask = activeTask ?? tasks.find((t) => t.date === new Date().toISOString().slice(0, 10) && t.status !== "COMPLETED" && t.status !== "CANCELLED") ?? null;
-  const title = activeTask?.title ?? activeTaskTitle ?? displayTask?.title ?? "Ready to focus";
+  const title = activeTask
+    ? getFocusMode(activeTask) === "infinite"
+      ? getSessionLabel(activeTask, activeTask.title)
+      : activeTask.title
+    : displayTask && getFocusMode(displayTask) === "infinite"
+      ? getSessionLabel(displayTask, displayTask.title)
+      : (sessionName?.trim() || activeTaskTitle || displayTask?.title || "Ready to focus");
   const description =
     activeTask?.description ||
     displayTask?.description ||
@@ -130,7 +143,7 @@ export default function FocusSessionCard() {
 
   const plan = useMemo(() => {
     const t = activeTask ?? displayTask;
-    if (!t) return [];
+    if (!t || getFocusMode(t) === "infinite") return [];
     try {
       return calculatePomodoroPlan(t.allocatedMinutes, t.focusMinutes).slice(0, 9);
     } catch {
@@ -147,25 +160,51 @@ export default function FocusSessionCard() {
     return <div className="bg-surface-container-lowest rounded-xl shadow-md p-6 text-body-sm text-secondary">Loading session…</div>;
   }
 
-  const remainingMs = session.status === "IDLE" && (activeTask ?? displayTask)
-    ? currentSliceMin * 60000
-    : getRemainingMs(session, now);
+  const remainingMs = isInfinite
+    ? Number.POSITIVE_INFINITY
+    : session.status === "IDLE" && (activeTask ?? displayTask)
+      ? currentSliceMin * 60000
+      : getRemainingMs(session, now);
   const elapsedMs = getElapsedFocusMs(session, now);
-  const remainingSec = Math.ceil(remainingMs / 1000);
-  const elapsedMin = Math.floor(elapsedMs / 60000);
-  const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
-  const plannedMin = session.status === "IDLE" && (activeTask ?? displayTask)
-    ? currentSliceMin
-    : Math.max(1, Math.round(session.plannedMs / 60000));
-  const ringPct = session.plannedMs > 0 ? Math.min(100, Math.round((elapsedMs / session.plannedMs) * 100)) : 0;
+  const totalElapsedMs = isInfinite && (activeTask ?? displayTask)
+    ? getTaskFocusedMs(activeTask ?? displayTask!) + elapsedMs
+    : elapsedMs;
+  const breakTotalMs = isInfinite
+    ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? now - infiniteBreak.startedAt : 0)))
+    : 0;
+  const breakRemainingMs = isInfinite ? getInfiniteBreakRemaining(infiniteBreak, now) : 0;
+  const breakDone = isInfinite && isInfiniteBreakComplete(infiniteBreak, now);
+  const remainingSec = Number.isFinite(remainingMs) ? Math.ceil(remainingMs / 1000) : 0;
+  const elapsedMin = Math.floor(totalElapsedMs / 60000);
+  const elapsedSec = Math.floor((totalElapsedMs % 60000) / 1000);
+  const plannedMin = isInfinite
+    ? 0
+    : session.status === "IDLE" && (activeTask ?? displayTask)
+      ? currentSliceMin
+      : Math.max(1, Math.round(session.plannedMs / 60000));
+  const ringPct = isInfinite || session.plannedMs <= 0 ? 0 : Math.min(100, Math.round((elapsedMs / session.plannedMs) * 100));
   const R = 20;
   const CIRC = 2 * Math.PI * R;
 
+  const pauseCurrent = () => {
+    if (!isInfinite) {
+      pause();
+      return;
+    }
+    const t = activeTask ?? displayTask;
+    pause(
+      t?.shortBreakMinutes !== undefined && t?.shortBreakMinutes !== null
+        ? { breakMs: Math.max(1, Math.round(t.shortBreakMinutes)) * 60000 }
+        : undefined
+    );
+  };
+
   const startPrimary = () => {
     if (session.status !== "IDLE") return;
-    // The timer counts the task's current slice — never the workspace default.
-    if (activeTask) startForTask(activeTask.id, activeTask.title, currentSliceMin * 60000);
-    else if (displayTask) startForTask(displayTask.id, displayTask.title, currentSliceMin * 60000);
+    // switchToTask preserves the previous task's state and resumes the
+    // selected task from its exact prior state (single-active).
+    if (activeTask) switchToTask(activeTask.id);
+    else if (displayTask) switchToTask(displayTask.id);
     else startQuick();
   };
 
@@ -220,12 +259,19 @@ export default function FocusSessionCard() {
               {ticking ? "CURRENTLY FOCUSING" : session.status === "COMPLETED" ? "SESSION COMPLETE" : "STANDBY"}
             </span>
             <span className="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant text-label-xs font-medium">
-              Today • {focusMin}m blocks
+              {isInfinite ? "Infinite • open-ended" : `Today • ${focusMin}m blocks`}
             </span>
+            {!isInfinite && (
             <span className="px-1.5 py-0.5 rounded bg-surface-container text-secondary text-label-xs font-medium flex items-center gap-1">
               <Icon name="schedule" className="text-[12px]" />
               Block {currentIdx + 1} of {totalCount}
             </span>
+            )}
+            {isInfinite && (
+            <span className="px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed text-label-xs font-semibold">
+              ∞ Infinite Focus
+            </span>
+            )}
           </div>
           <div className="flex items-center gap-2 text-secondary font-mono text-code-badge">
             {session.phase === "FOCUS" ? (
@@ -259,7 +305,7 @@ export default function FocusSessionCard() {
         <div className="flex flex-col gap-0.5">
           <h2 className="text-headline-lg text-on-surface tracking-tight font-semibold">{title}</h2>
           <p className="text-body-md text-on-surface-variant line-clamp-2">{description}</p>
-          {isCreditedQuick && ticking && (
+          {isCreditedQuick && ticking && !isInfinite && (
             <span className="self-start inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-code-badge font-semibold">
               <Icon name="bolt" className="text-[12px]" />
               <span>
@@ -303,13 +349,17 @@ export default function FocusSessionCard() {
           >
             <div className="flex flex-col">
               <div className={`font-mono text-[44px] leading-none font-semibold text-on-surface tracking-tight tabular-nums group-hover:text-primary transition-colors ${session.status === "PAUSED" ? "opacity-60" : ""}`}>
-                {formatClock(remainingSec)}
+                {isInfinite ? formatElapsedHMS(totalElapsedMs) : formatClock(remainingSec)}
               </div>
               <div className="flex items-center gap-2 mt-1 text-secondary text-label-xs">
                 <span className="font-mono text-code-badge font-medium text-on-surface">
                   {elapsedMin}m {String(elapsedSec).padStart(2, "0")}s
                 </span>
-                elapsed of {plannedMin}m session
+                {isInfinite ? (
+                  <>elapsed{breakTotalMs > 0 ? ` • break ${formatClock(Math.ceil(breakTotalMs / 1000))}` : ""} • no fixed end</>
+                ) : (
+                  <>elapsed of {plannedMin}m session</>
+                )}
                 <span className="inline-flex items-center gap-0.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                   <Icon name="open_in_full" className="text-[12px]" />
                   Full screen
@@ -331,6 +381,22 @@ export default function FocusSessionCard() {
           </Link>
 
           <div className="flex flex-col gap-1.5 min-w-[200px]">
+            {isInfinite ? (
+            <>
+              <div className="flex items-center justify-between text-secondary text-label-xs">
+                <span className="font-medium text-on-surface">Infinite Focus</span>
+                <span className="font-mono text-code-badge text-primary font-semibold">Elapsed</span>
+              </div>
+              <span className="text-label-xs text-on-surface-variant">
+                {session.status === "PAUSED" && infiniteBreak
+                  ? breakDone
+                    ? "Break complete — resume when ready"
+                    : `Break ${formatClock(Math.ceil(breakRemainingMs / 1000))} left • tracked separately`
+                  : "Pause starts a break countdown • tracked separately"}
+              </span>
+            </>
+            ) : (
+            <>
             <div className="flex items-center justify-between text-secondary text-label-xs">
               <span className="font-medium text-on-surface">Pomodoro {currentIdx + 1} of {totalCount}</span>
               <span className="font-mono text-code-badge text-primary font-semibold">{currentSliceMin}m Block</span>
@@ -353,13 +419,15 @@ export default function FocusSessionCard() {
             <span className="text-label-xs text-on-surface-variant">
               Long break ({Math.round(effBreaks.longBreakMs / 60000)} min) after Pomodoro {effBreaks.longBreakInterval}
             </span>
+            </>
+            )}
           </div>
         </div>
 
         <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             {session.status === "IDLE" && <Button onClick={startPrimary}>Start</Button>}
-            {session.status === "IDLE" && (activeTask ?? displayTask) && (
+            {session.status === "IDLE" && !isInfinite && (activeTask ?? displayTask) && (
               <button
                 type="button"
                 onClick={() => setQuickOpen((v) => !v)}
@@ -373,7 +441,7 @@ export default function FocusSessionCard() {
             {session.status === "RUNNING" && (
               <button
                 type="button"
-                onClick={pause}
+                onClick={pauseCurrent}
                 className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-on-surface text-surface text-body-sm font-medium hover:brightness-110 shadow-sm transition-all active:scale-95"
               >
                 <Icon name="pause" className="text-[18px]" />
@@ -444,7 +512,7 @@ export default function FocusSessionCard() {
             <button
               type="button"
               title="Extend 5 minutes"
-              disabled={!ticking}
+              disabled={!ticking || isInfinite}
               onClick={() => extend(5)}
               className="h-8 px-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-mono text-code-badge font-medium inline-flex items-center gap-1 disabled:opacity-40"
             >
@@ -455,7 +523,7 @@ export default function FocusSessionCard() {
               type="button"
               title="Log quick interruption"
               disabled={!ticking}
-              onClick={pause}
+              onClick={pauseCurrent}
               className="h-8 px-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-mono text-code-badge font-medium inline-flex items-center gap-1 disabled:opacity-40"
             >
               <Icon name="flag" className="text-[15px]" />

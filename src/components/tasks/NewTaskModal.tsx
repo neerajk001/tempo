@@ -53,6 +53,8 @@ export default function NewTaskModal({
   const [shortBreak, setShortBreak] = useState(10);
   const [longBreak, setLongBreak] = useState(30);
   const [longInterval, setLongInterval] = useState(4);
+  const [focusMode, setFocusMode] = useState<"allocated" | "infinite">("allocated");
+  const [sessionName, setSessionName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -74,6 +76,8 @@ export default function NewTaskModal({
       setShortBreak(initial.shortBreakMinutes ?? 10);
       setLongBreak(initial.longBreakMinutes ?? 30);
       setLongInterval(initial.longBreakInterval ?? 4);
+      setFocusMode(initial.focusMode === "infinite" ? "infinite" : "allocated");
+      setSessionName(initial.sessionName ?? "");
     } else {
       setTitle("");
       setDescription("");
@@ -90,6 +94,8 @@ export default function NewTaskModal({
       setShortBreak(10);
       setLongBreak(30);
       setLongInterval(4);
+      setFocusMode("allocated");
+      setSessionName("");
     }
   }, [open, initial]);
 
@@ -112,24 +118,43 @@ export default function NewTaskModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, title, description, date, effectiveAllocated, effectiveFocus, customFocus, useCustomFocus, shortBreak, longBreak, longInterval, project, priority, initial]);
+  }, [open, title, description, date, effectiveAllocated, effectiveFocus, customFocus, useCustomFocus, shortBreak, longBreak, longInterval, project, priority, initial, focusMode, sessionName]);
 
   if (!open) return null;
 
+  const isInfinite = focusMode === "infinite";
+
   const submit = () => {
     try {
-      const payload = {
-        title,
-        description,
-        date,
-        allocatedMinutes: effectiveAllocated,
-        focusMinutes: effectiveFocus,
-        shortBreakMinutes: shortBreak,
-        longBreakMinutes: longBreak,
-        longBreakInterval: longInterval,
-        project,
-        priority,
-      };
+      const payload = isInfinite
+        ? {
+            title,
+            description,
+            date,
+            allocatedMinutes: 0,
+            focusMinutes: 25,
+            shortBreakMinutes: shortBreak,
+            longBreakMinutes: longBreak,
+            longBreakInterval: longInterval,
+            project,
+            priority,
+            focusMode: "infinite" as const,
+            sessionName: sessionName.trim().slice(0, 200),
+          }
+        : {
+            title,
+            description,
+            date,
+            allocatedMinutes: effectiveAllocated,
+            focusMinutes: effectiveFocus,
+            shortBreakMinutes: shortBreak,
+            longBreakMinutes: longBreak,
+            longBreakInterval: longInterval,
+            project,
+            priority,
+            focusMode: "allocated" as const,
+            sessionName: "",
+          };
       if (initial) updateTask(initial.id, payload);
       else createTask(payload);
       setError(null);
@@ -167,6 +192,38 @@ export default function NewTaskModal({
 
         <div className="p-6 flex flex-col gap-4 overflow-y-auto">
           <div className="flex flex-col gap-1">
+            <label className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold">Focus Mode</label>
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-surface-container-low border border-outline-variant/30" role="tablist" aria-label="Focus mode">
+              {(
+                [
+                  { id: "allocated", label: "Allocated", hint: "Fixed Pomodoro blocks" },
+                  { id: "infinite", label: "Infinite", hint: "Open-ended focus" },
+                ] as Array<{ id: "allocated" | "infinite"; label: string; hint: string }>
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={focusMode === m.id}
+                  onClick={() => setFocusMode(m.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-colors",
+                    focusMode === m.id
+                      ? "bg-primary-container text-on-primary shadow-sm"
+                      : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                  )}
+                >
+                  <span className="text-body-sm font-semibold">{m.label}</span>
+                  <span className={cn("text-label-xs", focusMode === m.id ? "text-on-primary/80" : "text-on-surface-variant/70")}>{m.hint}</span>
+                </button>
+              ))}
+            </div>
+            {isInfinite && (
+              <span className="text-label-xs text-on-surface-variant">Open-ended — no fixed end time. Elapsed focus is tracked until you end the session.</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1">
             <label className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold flex items-center justify-between">
               <span>Task Name</span>
               <span className="font-normal text-on-surface-variant/70">Required</span>
@@ -179,6 +236,19 @@ export default function NewTaskModal({
               className="w-full h-9 px-3 rounded-lg bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/60 text-body-md border border-outline-variant/30 focus:border-primary-container focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary-container transition-all"
             />
           </div>
+
+          {isInfinite && (
+            <div className="flex flex-col gap-1">
+              <label className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold">Session Name</label>
+              <input
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                placeholder='e.g. "JavaScript Deep Dive", "Backend Architecture"'
+                className="w-full h-9 px-3 rounded-lg bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/60 text-body-md border border-outline-variant/30 focus:border-primary-container focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary-container transition-all"
+              />
+              <span className="text-label-xs text-on-surface-variant">Shown in Focus Mode, History and the Dashboard.</span>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             <label className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold">Description</label>
@@ -206,6 +276,7 @@ export default function NewTaskModal({
               </div>
               <span className="text-label-xs text-secondary">{prettyDate(date)}</span>
             </div>
+            {!isInfinite ? (
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <label className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold">Allocated Time</label>
@@ -252,6 +323,14 @@ export default function NewTaskModal({
                 </div>
               )}
             </div>
+            ) : null}
+            {isInfinite && (
+              <div className="flex flex-col gap-1 justify-center p-3 rounded-xl bg-surface-container-low/60 border border-outline-variant/30">
+                <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold">Open-ended session</span>
+                <span className="text-body-sm text-on-surface">No fixed end time — elapsed focus is tracked until you pause or end the session.</span>
+                <span className="text-label-xs text-on-surface-variant">Pausing starts a {shortBreak}m break countdown (configurable below).</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -295,6 +374,7 @@ export default function NewTaskModal({
             </div>
           </div>
 
+          {!isInfinite ? (
           <div className="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-on-surface text-body-sm">
@@ -372,7 +452,30 @@ export default function NewTaskModal({
               </label>
             </div>
           </div>
+          ) : (
+          <div className="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 text-on-surface text-body-sm">
+              <Icon name="timer" className="text-[16px] text-primary" />
+              <span className="font-medium text-[13px]">Infinite Break Cadence</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <label className="flex flex-col p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
+                <span className="text-label-xs text-on-surface-variant">Break on Pause</span>
+                <select value={shortBreak} onChange={(e) => setShortBreak(Number(e.target.value))} className="mt-0.5 font-mono text-body-sm font-semibold text-on-surface bg-transparent focus:outline-none cursor-pointer">
+                  {SHORT_BREAK_OPTIONS.map((m) => (
+                    <option key={m} value={m}>{m}m</option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex flex-col p-2 rounded-lg bg-surface-container-lowest border border-outline-variant/20 justify-center">
+                <span className="text-label-xs text-on-surface-variant">Tracking</span>
+                <span className="mt-0.5 text-body-sm font-medium text-on-surface">Elapsed focus + separate break time</span>
+              </div>
+            </div>
+          </div>
+          )}
 
+          {!isInfinite ? (
           <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary-container/40 border border-outline-variant/20">
             <div className="flex items-center gap-1.5">
               <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-semibold">Allocated:</span>
@@ -387,6 +490,16 @@ export default function NewTaskModal({
               ))}
             </div>
           </div>
+          ) : (
+          <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary-container/40 border border-outline-variant/20">
+            <div className="flex items-center gap-1.5">
+              <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-semibold">Mode:</span>
+              <span className="font-mono text-body-sm font-semibold text-primary">Infinite Focus</span>
+              <span className="text-outline-variant">•</span>
+              <span className="text-label-xs text-on-surface-variant">Elapsed time, no fixed end</span>
+            </div>
+          </div>
+          )}
 
           {error && <p className="text-sm text-error">{error}</p>}
         </div>

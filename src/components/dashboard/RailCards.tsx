@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { formatDurationMinutes } from "@/lib/utils";
-import type { Task } from "@/stores/task-store";
+import { getFocusMode, getSessionLabel, type Task } from "@/stores/task-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { getRemainingMs } from "@/lib/pomodoro-machine";
 import { useNow } from "@/hooks/useNow";
@@ -19,7 +19,11 @@ export function UpNextCard({ tasks }: { tasks: Task[] }) {
   const session = usePomodoroStore((s) => s.session);
   const now = useNow(session.status === "RUNNING" || session.status === "PAUSED");
   const next = tasks.filter((t) => t.status === "TODO").sort((a, b) => (a.startMs ?? Infinity) - (b.startMs ?? Infinity))[0] ?? null;
-  const breakInMin = session.status === "RUNNING" ? Math.max(0, Math.ceil(getRemainingMs(session, now) / 60000)) : null;
+  const nextInfinite = next ? getFocusMode(next) === "infinite" : false;
+  // Infinite sessions have no countdown — remaining time is unbounded.
+  const breakInMin = session.status === "RUNNING" && session.isInfinite !== true
+    ? Math.max(0, Math.ceil(getRemainingMs(session, now) / 60000))
+    : null;
 
   return (
     <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant p-4 flex flex-col gap-3">
@@ -34,7 +38,7 @@ export function UpNextCard({ tasks }: { tasks: Task[] }) {
       </div>
       {next ? (
         <div className="bg-surface-container-low rounded-lg p-3 flex flex-col gap-0.5">
-          <div className="text-body-sm font-semibold text-on-surface">{next.title}</div>
+          <div className="text-body-sm font-semibold text-on-surface">{nextInfinite ? getSessionLabel(next, next.title) : next.title}</div>
           <div className="text-label-xs text-on-surface-variant flex items-center justify-between">
             <span>
               {next.startMs && next.startMs > Date.now()
@@ -42,7 +46,7 @@ export function UpNextCard({ tasks }: { tasks: Task[] }) {
                 : "Ready when you are"}
             </span>
             <span className="font-mono text-code-badge font-medium text-primary">
-              {formatDurationMinutes(next.allocatedMinutes)} deep block
+              {nextInfinite ? "∞ Infinite Focus" : `${formatDurationMinutes(next.allocatedMinutes)} deep block`}
             </span>
           </div>
         </div>
@@ -57,7 +61,11 @@ export function UpNextCard({ tasks }: { tasks: Task[] }) {
         </div>
         <div className="flex flex-col min-w-0">
           <span className="text-label-xs font-semibold text-on-surface">
-            {breakInMin !== null ? `Next break in ${breakInMin} min` : "No active session"}
+            {breakInMin !== null
+              ? `Next break in ${breakInMin} min`
+              : session.status === "RUNNING" && session.isInfinite === true
+                ? "Open-ended — pause for a break anytime"
+                : "No active session"}
           </span>
           <span className="text-label-xs text-secondary truncate">5m hydration & eye stretch recommended</span>
         </div>

@@ -72,18 +72,22 @@ export function normalizeRemoteTask(r: any): Task | null {
   const num = (v: unknown, fb: number): number =>
     typeof v === "number" && Number.isFinite(v) ? v : fb;
   const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayKey();
+  const focusMode = r.focusMode === "infinite" ? ("infinite" as const) : ("allocated" as const);
+  const focusedMinutes = Math.max(0, Math.round(num(r.focusedMinutes, 0)));
   return {
     id: r.id,
     title: typeof r.title === "string" && r.title ? r.title.slice(0, 200) : "Untitled",
     description: typeof r.description === "string" ? r.description.slice(0, 2000) : "",
     date,
-    allocatedMinutes: Math.max(1, Math.round(num(r.allocatedMinutes, 60))),
+    allocatedMinutes: focusMode === "infinite"
+      ? Math.max(0, Math.round(num(r.allocatedMinutes, 0)))
+      : Math.max(1, Math.round(num(r.allocatedMinutes, 60))),
     focusMinutes: Math.min(180, Math.max(5, Math.round(num(r.focusMinutes, 50)))),
     shortBreakMinutes: r.shortBreakMinutes === null || r.shortBreakMinutes === undefined ? null : Math.round(num(r.shortBreakMinutes, 10)),
     longBreakMinutes: r.longBreakMinutes === null || r.longBreakMinutes === undefined ? null : Math.round(num(r.longBreakMinutes, 30)),
     longBreakInterval: r.longBreakInterval === null || r.longBreakInterval === undefined ? null : Math.round(num(r.longBreakInterval, 4)),
     status: asTaskStatus(r.status),
-    focusedMinutes: Math.max(0, Math.round(num(r.focusedMinutes, 0))),
+    focusedMinutes,
     completedPomodoros: Math.max(0, Math.round(num(r.completedPomodoros, 0))),
     project: typeof r.project === "string" && r.project ? r.project.slice(0, 60) : null,
     priority: asTaskPriority(r.priority),
@@ -103,6 +107,13 @@ export function normalizeRemoteTask(r: any): Task | null {
     endMs: typeof r.endMs === "number" ? r.endMs : null,
     createdAt: num(r.createdAt, Date.now()),
     updatedAt: num(r.updatedAt, Date.now()),
+    focusMode,
+    sessionName: typeof r.sessionName === "string" && r.sessionName.trim() ? r.sessionName.trim().slice(0, 200) : null,
+    focusedMs: Math.max(0, Math.round(num(r.focusedMs, focusedMinutes * 60000))),
+    breakMs: Math.max(0, Math.round(num(r.breakMs, 0))),
+    interruptions: Math.max(0, Math.round(num(r.interruptions, 0))),
+    completedFocusCount: Math.max(0, Math.round(num(r.completedFocusCount, num(r.completedPomodoros, 0)))),
+    lastPhase: r.lastPhase === "SHORT_BREAK" || r.lastPhase === "LONG_BREAK" || r.lastPhase === "FOCUS" ? r.lastPhase : null,
   };
 }
 
@@ -116,12 +127,16 @@ export function normalizeRemoteSession(r: any): SessionRecord | null {
     taskTitle: typeof r.taskTitle === "string" ? r.taskTitle : null,
     phase: asPhase(r.phase),
     status: r.status === "CANCELLED" ? "CANCELLED" : "COMPLETED",
-    plannedMs: Math.max(1, Math.round(num(r.plannedMs, 50 * 60000))),
+    // Infinite sessions are open-ended (plannedMs 0 = no plan).
+    plannedMs: r.sessionMode === "infinite" ? Math.max(0, Math.round(num(r.plannedMs, 0))) : Math.max(1, Math.round(num(r.plannedMs, 50 * 60000))),
     startedAt: Math.round(num(r.startedAt, Date.now())),
     endedAt: Math.round(num(r.endedAt, Date.now())),
     focusedMs: Math.max(0, Math.round(num(r.focusedMs, 0))),
     pausedMs: Math.max(0, Math.round(num(r.pausedMs, 0))),
     interruptions: Math.max(0, Math.round(num(r.interruptions, 0))),
+    sessionMode: r.sessionMode === "infinite" ? ("infinite" as const) : ("allocated" as const),
+    sessionName: typeof r.sessionName === "string" && r.sessionName.trim() ? r.sessionName.trim().slice(0, 200) : null,
+    breakMs: Math.max(0, Math.round(num(r.breakMs, 0))),
     events: Array.isArray(r.events)
       ? (r.events as LooseEvent[])
           .filter((e) => e && typeof e.at === "number")

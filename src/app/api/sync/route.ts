@@ -36,6 +36,13 @@ interface TaskPayload {
   endMs?: number | null;
   createdAt?: number;
   updatedAt?: number;
+  focusMode?: string;
+  sessionName?: string | null;
+  focusedMs?: number;
+  breakMs?: number;
+  interruptions?: number;
+  completedFocusCount?: number;
+  lastPhase?: string | null;
 }
 
 interface SessionPayload {
@@ -51,6 +58,9 @@ interface SessionPayload {
   pausedMs?: number;
   interruptions?: number;
   events?: Array<{ type: string; at: number }>;
+  sessionMode?: string;
+  sessionName?: string | null;
+  breakMs?: number;
 }
 
 const num = (v: unknown, fallback = 0): number =>
@@ -63,13 +73,17 @@ const msToInt = (v: unknown, fallback = 0): number =>
   Math.max(0, Math.round(num(v, fallback)));
 
 function taskData(t: TaskPayload, userId: string) {
+  const focusMode = t.focusMode === "infinite" ? "infinite" : "allocated";
+  const focusedMinutes = Math.max(0, Math.round(num(t.focusedMinutes)));
   return {
     id: String(t.id),
     userId,
     title: String(t.title ?? "").slice(0, 200) || "Untitled",
     description: str(t.description),
     date: /^\d{4}-\d{2}-\d{2}$/.test(t.date ?? "") ? new Date(`${t.date}T00:00:00Z`) : new Date(),
-    allocatedMinutes: Math.max(1, Math.round(num(t.allocatedMinutes, 60))),
+    allocatedMinutes: focusMode === "infinite"
+      ? Math.max(0, Math.round(num(t.allocatedMinutes, 0)))
+      : Math.max(1, Math.round(num(t.allocatedMinutes, 60))),
     status: ["TODO", "IN_PROGRESS", "COMPLETED", "CANCELLED"].includes(t.status ?? "")
       ? (t.status as "TODO" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED")
       : ("TODO" as const),
@@ -79,16 +93,24 @@ function taskData(t: TaskPayload, userId: string) {
     longBreakInterval: t.longBreakInterval === undefined || t.longBreakInterval === null ? null : Math.round(num(t.longBreakInterval, 4)),
     project: str(t.project)?.slice(0, 60) ?? null,
     priority: ["urgent", "high", "medium", "low"].includes(t.priority ?? "") ? String(t.priority) : "medium",
-    focusedMinutes: Math.max(0, Math.round(num(t.focusedMinutes))),
+    focusedMinutes,
     completedPomodoros: Math.max(0, Math.round(num(t.completedPomodoros))),
     subtasks: Array.isArray(t.subtasks) ? t.subtasks.slice(0, 200) : [],
     calendarEventId: str(t.calendarEventId),
     startMs: t.startMs === undefined || t.startMs === null ? null : BigInt(Math.round(num(t.startMs))),
     endMs: t.endMs === undefined || t.endMs === null ? null : BigInt(Math.round(num(t.endMs))),
+    focusMode,
+    sessionName: str(t.sessionName)?.slice(0, 200) ?? null,
+    focusedMs: Math.max(0, Math.round(num(t.focusedMs, focusedMinutes * 60000))),
+    breakMs: Math.max(0, Math.round(num(t.breakMs))),
+    interruptions: Math.max(0, Math.round(num(t.interruptions))),
+    completedFocusCount: Math.max(0, Math.round(num(t.completedFocusCount, num(t.completedPomodoros)))),
+    lastPhase: ["FOCUS", "SHORT_BREAK", "LONG_BREAK"].includes(t.lastPhase ?? "") ? String(t.lastPhase) : null,
   };
 }
 
 function sessionData(s: SessionPayload, userId: string) {
+  const sessionMode = s.sessionMode === "infinite" ? "infinite" : "allocated";
   return {
     id: String(s.id),
     userId,
@@ -98,12 +120,15 @@ function sessionData(s: SessionPayload, userId: string) {
       ? (s.phase as "FOCUS" | "SHORT_BREAK" | "LONG_BREAK")
       : ("FOCUS" as const),
     status: s.status === "CANCELLED" ? ("CANCELLED" as const) : ("COMPLETED" as const),
-    plannedMinutes: Math.max(1, Math.round(num(s.plannedMs, 50 * 60000) / 60000)),
+    plannedMinutes: sessionMode === "infinite" ? 0 : Math.max(1, Math.round(num(s.plannedMs, 50 * 60000) / 60000)),
     startedAt: new Date(msToInt(s.startedAt, Date.now())),
     endedAt: new Date(msToInt(s.endedAt, Date.now())),
     focusedMs: msToInt(s.focusedMs),
     pausedMs: msToInt(s.pausedMs),
     interruptions: Math.max(0, Math.round(num(s.interruptions))),
+    sessionMode,
+    sessionName: str(s.sessionName)?.slice(0, 200) ?? null,
+    breakMs: msToInt(s.breakMs),
     events: Array.isArray(s.events)
       ? s.events
           .filter((e) => ["START", "PAUSE", "RESUME", "COMPLETE", "CANCEL"].includes(e?.type))
@@ -138,6 +163,13 @@ function toClientTask(t: any) {
     endMs: t.endMs === null || t.endMs === undefined ? null : Number(t.endMs),
     createdAt: (t.createdAt as Date).getTime(),
     updatedAt: (t.updatedAt as Date).getTime(),
+    focusMode: (t.focusMode as string | undefined) ?? "allocated",
+    sessionName: (t.sessionName as string | null) ?? null,
+    focusedMs: (t.focusedMs as number | undefined) ?? (t.focusedMinutes as number) * 60000,
+    breakMs: (t.breakMs as number | undefined) ?? 0,
+    interruptions: (t.interruptions as number | undefined) ?? 0,
+    completedFocusCount: (t.completedFocusCount as number | undefined) ?? (t.completedPomodoros as number),
+    lastPhase: (t.lastPhase as string | null) ?? null,
   };
 }
 
@@ -154,6 +186,9 @@ function toClientSession(s: any) {
     focusedMs: s.focusedMs as number,
     pausedMs: s.pausedMs as number,
     interruptions: s.interruptions as number,
+    sessionMode: (s.sessionMode as string | undefined) ?? "allocated",
+    sessionName: (s.sessionName as string | null) ?? null,
+    breakMs: (s.breakMs as number | undefined) ?? 0,
     events: Array.isArray(s.events)
       ? (s.events as any[]).map((e) => ({
           type: e.type as string,
@@ -275,6 +310,9 @@ export async function POST(req: Request) {
             focusedMs: data.focusedMs,
             pausedMs: data.pausedMs,
             interruptions: data.interruptions,
+            sessionMode: data.sessionMode,
+            sessionName: data.sessionName,
+            breakMs: data.breakMs,
             events: { create: data.events },
           } as never,
         });
@@ -293,6 +331,9 @@ export async function POST(req: Request) {
             focusedMs: data.focusedMs,
             pausedMs: data.pausedMs,
             interruptions: data.interruptions,
+            sessionMode: data.sessionMode,
+            sessionName: data.sessionName,
+            breakMs: data.breakMs,
             events: { create: data.events },
           } as never,
         });

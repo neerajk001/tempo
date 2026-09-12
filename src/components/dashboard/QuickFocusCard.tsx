@@ -51,8 +51,14 @@ export default function QuickFocusCard() {
     session.status === "RUNNING" || session.status === "PAUSED";
 
   const begin = () => {
-    // startQuick safely preempts: a live run is archived to History as
-    // CANCELLED before the new session starts, so replacing never loses data.
+    // Preserve any live task run first (totals stay exact), then startQuick
+    // safely preempts: the archived run is logged to History as CANCELLED
+    // before the new session starts, so replacing never loses data.
+    try {
+      useTaskStore.getState().preserveActiveProgress();
+    } catch {
+      // Preservation is best-effort — the quick session still starts.
+    }
     startQuick(
       title || undefined,
       minutes * 60000,

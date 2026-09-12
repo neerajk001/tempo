@@ -6,13 +6,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
 import NewTaskModal from "@/components/tasks/NewTaskModal";
-import { useTaskStore, selectTaskById } from "@/stores/task-store";
+import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel } from "@/stores/task-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
-import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
+import { useSessionHistoryStore, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
-import { getRemainingMs } from "@/lib/pomodoro-machine";
-import { calculatePomodoroPlan, nextSliceMinutes } from "@/lib/task-planning";
+import { getElapsedFocusMs, getRemainingMs } from "@/lib/pomodoro-machine";
+import { calculatePomodoroPlan } from "@/lib/task-planning";
+import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
 import { AVATAR_SRC } from "@/lib/assets";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,8 @@ function fmtHM(ms: number): string {
 }
 
 function scoreOf(r: SessionRecord): number {
-  if (r.plannedMs <= 0) return 0;
+  // Infinite sessions have no planned target — any focused time is full yield.
+  if (r.plannedMs <= 0) return r.focusedMs > 0 ? 100 : 0;
   return Math.min(100, Math.round((r.focusedMs / r.plannedMs) * 100));
 }
 
@@ -39,7 +41,7 @@ export default function TaskDetails() {
   const pomodoro = usePomodoroStore((s) => s.session);
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
   const pause = usePomodoroStore((s) => s.pause);
-  const startForTask = usePomodoroStore((s) => s.startForTask);
+  const switchToTask = useTaskStore((s) => s.switchToTask);
   const { handleComplete } = useFinishSession();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -126,9 +128,12 @@ export default function TaskDetails() {
 
   const sublist = task.subtasks ?? [];
   const doneSubs = sublist.filter((s) => s.done).length;
+  const isInfiniteTask = getFocusMode(task) === "infinite";
   const avgScore = records.length > 0 ? Math.round(records.reduce((s, r) => s + scoreOf(r), 0) / records.length) : 0;
-  const remainingMin = Math.max(0, task.allocatedMinutes - task.focusedMinutes);
-  const pct = task.allocatedMinutes > 0 ? Math.min(100, Math.round((task.focusedMinutes / task.allocatedMinutes) * 100)) : 0;
+  const remainingMin = isInfiniteTask ? 0 : Math.max(0, task.allocatedMinutes - task.focusedMinutes);
+  const pct = isInfiniteTask
+    ? (task.focusedMinutes ?? 0) > 0 ? 100 : 0
+    : task.allocatedMinutes > 0 ? Math.min(100, Math.round((task.focusedMinutes / task.allocatedMinutes) * 100)) : 0;
   const targetAt = new Date(Date.now() + remainingMin * 60000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
   const kickoff = records[0]?.startedAt ?? task.startMs ?? task.createdAt;
   const shortId = `TSK-${task.id.replace(/[^a-zA-Z0-9]/g, "").slice(-4).toUpperCase().padStart(4, "0")}`;
@@ -141,14 +146,19 @@ export default function TaskDetails() {
       router.push("/focus");
       return;
     }
-    if (task.status === "TODO") setStatus(task.id, "IN_PROGRESS");
-    startForTask(task.id, task.title, nextSliceMinutes(task.allocatedMinutes, task.focusMinutes, task.completedPomodoros) * 60000);
+    // switchToTask saves the previous task's state and resumes this task
+    // from its exact prior state (allocated slice or infinite elapsed).
+    switchToTask(task.id);
     router.push("/focus");
   };
 
   const copyMarkdown = async () => {
     try {
-      await navigator.clipboard.writeText(`- [ ] ${task.title} (${formatDurationMinutes(task.focusedMinutes)}/${formatDurationMinutes(task.allocatedMinutes)})`);
+      await navigator.clipboard.writeText(
+        isInfiniteTask
+          ? `- [ ] ${task.title} (${formatDurationMinutes(task.focusedMinutes)} focused, Infinite)`
+          : `- [ ] ${task.title} (${formatDurationMinutes(task.focusedMinutes)}/${formatDurationMinutes(task.allocatedMinutes)})`
+      );
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -280,17 +290,25 @@ export default function TaskDetails() {
                 {task.status === "IN_PROGRESS" && <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-primary" /></span>}
                 {task.status.replace("_", " ")}
               </span>
+              {isInfiniteTask && (
+                <span className="text-label-xs font-semibold px-3 py-0.5 rounded bg-primary-fixed text-on-primary-fixed">
+                  ∞ Infinite Focus
+                </span>
+              )}
               <span className="font-mono text-code-badge text-on-surface-variant flex items-center gap-1 ml-1">
                 <Icon name="schedule" className="text-[13px]" />
                 {dueLabel}
               </span>
             </div>
             <h1 className="text-headline-lg text-on-surface tracking-tight font-semibold flex items-center gap-2">
-              <span className="truncate">{task.title}</span>
+              <span className="truncate">{isInfiniteTask ? getSessionLabel(task, task.title) : task.title}</span>
               <button type="button" title={copied ? "Copied!" : "Copy task markdown reference"} onClick={copyMarkdown} className="text-on-surface-variant hover:text-on-surface transition-colors p-0.5 rounded hover:bg-surface-container flex-shrink-0">
                 <Icon name={copied ? "check" : "content_copy"} className="text-[18px]" />
               </button>
             </h1>
+            {isInfiniteTask && task.sessionName && (
+              <span className="text-body-sm text-on-surface-variant">Task: {task.title}</span>
+            )}
           </div>
           <div className="flex items-center flex-wrap gap-1.5">
             <button
@@ -359,10 +377,14 @@ export default function TaskDetails() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
           <div className="bg-surface-container-low p-3 rounded-lg flex flex-col justify-between">
-            <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">Allocated Horizon</span>
-            <span className="font-mono text-metric-mono-lg text-on-surface font-medium mt-1 tabular-nums">
-              {String(Math.floor(task.allocatedMinutes / 60)).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">h</span> {String(task.allocatedMinutes % 60).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">m</span>
-            </span>
+            <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">{isInfiniteTask ? "Focus Mode" : "Allocated Horizon"}</span>
+            {isInfiniteTask ? (
+              <span className="font-mono text-metric-mono-lg text-primary font-medium mt-1 tabular-nums">∞ Infinite</span>
+            ) : (
+              <span className="font-mono text-metric-mono-lg text-on-surface font-medium mt-1 tabular-nums">
+                {String(Math.floor(task.allocatedMinutes / 60)).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">h</span> {String(task.allocatedMinutes % 60).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">m</span>
+              </span>
+            )}
           </div>
           <div className="bg-primary-fixed/30 p-3 rounded-lg flex flex-col justify-between relative overflow-hidden">
             <div className="flex items-center justify-between">
@@ -374,12 +396,30 @@ export default function TaskDetails() {
             </span>
           </div>
           <div className="bg-surface-container-low p-3 rounded-lg flex flex-col justify-between">
-            <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">Remaining Estimate</span>
-            <span className="font-mono text-metric-mono-lg text-on-surface font-medium mt-1 tabular-nums">
-              {String(Math.floor(remainingMin / 60)).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">h</span> {String(remainingMin % 60).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">m</span>
-            </span>
+            <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">{isInfiniteTask ? "Break Time" : "Remaining Estimate"}</span>
+            {isInfiniteTask ? (
+              <span className="font-mono text-metric-mono-lg text-on-surface font-medium mt-1 tabular-nums">
+                {formatDurationMinutes(Math.round((task.breakMs ?? 0) / 60000))}
+              </span>
+            ) : (
+              <span className="font-mono text-metric-mono-lg text-on-surface font-medium mt-1 tabular-nums">
+                {String(Math.floor(remainingMin / 60)).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">h</span> {String(remainingMin % 60).padStart(2, "0")}<span className="text-body-sm text-on-surface-variant">m</span>
+              </span>
+            )}
           </div>
           <div className="bg-surface-container-low p-3 rounded-lg flex flex-col justify-between">
+            {isInfiniteTask ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">Interruptions</span>
+                  <Icon name="notifications_paused" className="text-[15px] text-on-surface-variant" />
+                </div>
+                <span className="font-mono text-metric-mono-lg text-on-surface font-medium mt-1 tabular-nums">
+                  {task.interruptions ?? 0}
+                </span>
+              </>
+            ) : (
+              <>
             <div className="flex items-center justify-between">
               <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-medium">Pomodoro Cycles</span>
               <span className="font-mono text-code-badge text-on-surface font-medium">{Math.min(task.completedPomodoros, Math.max(planLen, 1))} / {Math.max(planLen, 1)}</span>
@@ -394,6 +434,8 @@ export default function TaskDetails() {
                 </span>
               ))}
             </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -403,14 +445,24 @@ export default function TaskDetails() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-baseline gap-2">
             <span className="font-mono text-metric-mono-lg text-on-surface font-semibold tabular-nums">{formatDurationMinutes(task.focusedMinutes)}</span>
-            <span className="text-body-md text-on-surface-variant font-normal">of {formatDurationMinutes(task.allocatedMinutes)} target allocated</span>
+            {isInfiniteTask ? (
+              <span className="text-body-md text-on-surface-variant font-normal">focused • Infinite, no fixed target</span>
+            ) : (
+              <span className="text-body-md text-on-surface-variant font-normal">of {formatDurationMinutes(task.allocatedMinutes)} target allocated</span>
+            )}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-label-xs font-semibold px-1.5 py-0.5 rounded bg-surface-container text-primary">{pct}% Completed</span>
+            {isInfiniteTask && task.sessionName ? (
+              <span className="text-label-xs font-semibold px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed">∞ {task.sessionName}</span>
+            ) : (
+              <span className="text-label-xs font-semibold px-1.5 py-0.5 rounded bg-surface-container text-primary">{pct}% Completed</span>
+            )}
+            {!isInfiniteTask && (
             <span className="text-body-sm text-on-surface-variant flex items-center gap-0.5">
               <Icon name="trending_up" className="text-[16px] text-tertiary" />
               Target completion ~{new Date(Date.now() + remainingMin * 60000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
             </span>
+            )}
           </div>
         </div>
         <div className="w-full relative h-3 rounded-full bg-surface-container overflow-hidden">
@@ -423,12 +475,22 @@ export default function TaskDetails() {
         </div>
         <div className="flex items-center justify-between text-label-xs text-on-surface-variant px-0.5">
           <span>{new Date(kickoff).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} (Kickoff)</span>
-          {liveOnTask && (
+          {liveOnTask && !isInfiniteTask && (
             <span className="font-mono text-metric-mono-md text-primary font-semibold">
               P{Math.min(task.completedPomodoros + 1, Math.max(planLen, 1))} Active (~{Math.ceil(getRemainingMs(pomodoro, Date.now()) / 60000)}m remaining in current focus)
             </span>
           )}
-          <span>Target: {new Date(Date.now() + remainingMin * 60000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          {liveOnTask && isInfiniteTask && (
+            <span className="font-mono text-metric-mono-md text-primary font-semibold">
+              ∞ Active ({formatElapsedHMS(getElapsedFocusMs(pomodoro, Date.now()))} elapsed)
+            </span>
+          )}
+          {!isInfiniteTask && (
+            <span>Target: {new Date(Date.now() + remainingMin * 60000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+          )}
+          {isInfiniteTask && (
+            <span>Break: {formatDurationMinutes(Math.round((task.breakMs ?? 0) / 60000))} • Interruptions: {task.interruptions ?? 0}</span>
+          )}
         </div>
       </div>
 
@@ -445,7 +507,11 @@ export default function TaskDetails() {
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-headline-md text-on-surface">Pomodoro {Math.min(task.completedPomodoros + 1, Math.max(planLen, 1))} (In Progress)</span>
+                      <span className="text-headline-md text-on-surface">
+                        {isInfiniteTask
+                          ? `∞ ${getSessionLabel(task, task.title)} (In Progress)`
+                          : `Pomodoro ${Math.min(task.completedPomodoros + 1, Math.max(planLen, 1))} (In Progress)`}
+                      </span>
                       <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
                     </div>
                     {task.description && (
@@ -455,8 +521,13 @@ export default function TaskDetails() {
                 </div>
                 <div className="flex items-center gap-3 self-end sm:self-auto">
                   <div className="flex flex-col items-end">
-                    <LiveRemaining />
-                    <span className="text-label-xs text-on-surface-variant">of {Math.round(pomodoro.plannedMs / 60000)}m block</span>
+                    <LiveRemaining infinite={isInfiniteTask} />
+                    {!isInfiniteTask && (
+                      <span className="text-label-xs text-on-surface-variant">of {Math.round(pomodoro.plannedMs / 60000)}m block</span>
+                    )}
+                    {isInfiniteTask && (
+                      <span className="text-label-xs text-on-surface-variant">elapsed • no fixed end</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-0.5">
                     <button type="button" title="Pause session" onClick={pause} className="h-8 w-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center transition-colors">
@@ -494,9 +565,14 @@ export default function TaskDetails() {
                     <span className="w-6 h-6 rounded-md bg-secondary-container text-on-secondary-fixed font-mono text-[12px] flex items-center justify-center font-semibold flex-shrink-0">
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    <div className="flex flex-col min-w-0">
+                      <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-body-sm font-semibold text-on-surface truncate">Pomodoro {i + 1}</span>
+                        <span className="text-body-sm font-semibold text-on-surface truncate">
+                          {getSessionMode(r) === "infinite" ? `Session ${i + 1}` : `Pomodoro ${i + 1}`}
+                        </span>
+                        {getSessionMode(r) === "infinite" && (
+                          <span className="font-mono text-code-badge bg-primary-fixed text-on-primary-fixed px-1 py-0.5 rounded flex-shrink-0">∞</span>
+                        )}
                         <span className="font-mono text-code-badge bg-surface-container-high text-on-surface-variant px-1 py-0.5 rounded flex-shrink-0">{Math.round(r.focusedMs / 60000)}m</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-label-xs text-on-surface-variant flex-wrap">
@@ -505,6 +581,12 @@ export default function TaskDetails() {
                         <span className={r.interruptions > 1 ? "text-error font-medium" : ""}>
                           {r.interruptions === 0 ? "0 interruptions" : `${r.interruptions} interruption${r.interruptions === 1 ? "" : "s"}`}
                         </span>
+                        {(r.breakMs ?? 0) > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>Break {formatDurationMinutes(Math.round((r.breakMs ?? 0) / 60000))}</span>
+                          </>
+                        )}
                         <span>•</span>
                         <span className="text-tertiary font-medium">Focus Score {scoreOf(r)}%</span>
                       </div>
@@ -670,9 +752,16 @@ export default function TaskDetails() {
   );
 }
 
-function LiveRemaining() {
+function LiveRemaining({ infinite }: { infinite?: boolean }) {
   const pomodoro = usePomodoroStore((s) => s.session);
   const now = useNow(true);
+  if (infinite || pomodoro.isInfinite === true) {
+    return (
+      <span className="font-mono text-metric-mono-lg font-semibold text-primary tracking-tight tabular-nums">
+        {formatElapsedHMS(getElapsedFocusMs(pomodoro, now))}
+      </span>
+    );
+  }
   return (
     <span className="font-mono text-metric-mono-lg font-semibold text-primary tracking-tight tabular-nums">
       {formatClock(Math.ceil(getRemainingMs(pomodoro, now) / 1000))}

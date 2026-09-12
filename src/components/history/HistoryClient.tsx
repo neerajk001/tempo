@@ -5,7 +5,7 @@ import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import SessionInspector from "@/components/history/SessionInspector";
 import { useTaskStore, selectTaskById } from "@/stores/task-store";
-import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
+import { useSessionHistoryStore, getRecordLabel, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
 import { formatDurationMinutes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -65,13 +65,14 @@ function rangeBounds(range: Range, nav: number, customA: string, customB: string
 }
 
 function toCSV(rows: SessionRecord[], taskTitleOf: (id: string | null) => string): string {
-  const head = "date,task,window,focus_min,paused_min,interruptions,status";
+  const head = "date,task,session_name,session_type,window,focus_min,break_min,paused_min,interruptions,status";
   const lines = rows.map((r) => {
     const d = new Date(r.startedAt);
     const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const win = `${fmtHM(r.startedAt)}-${fmtHM(r.endedAt)}`;
     const title = `"${(taskTitleOf(r.taskId) ?? r.taskTitle ?? "Focus Session").replace(/"/g, '""')}"`;
-    return [date, title, win, Math.round(r.focusedMs / 60000), Math.round(r.pausedMs / 60000), r.interruptions, r.status].join(",");
+    const sname = `"${((r.sessionName ?? "").replace(/"/g, '""'))}"`;
+    return [date, title, sname, getSessionMode(r), win, Math.round(r.focusedMs / 60000), Math.round((r.breakMs ?? 0) / 60000), Math.round(r.pausedMs / 60000), r.interruptions, r.status].join(",");
   });
   return [head, ...lines].join("\n");
 }
@@ -101,6 +102,7 @@ export default function HistoryClient() {
 
   const taskOf = (id: string | null) => (id ? selectTaskById(tasks, id) : null);
   const titleOf = (id: string | null, fallback: string | null) => taskOf(id)?.title ?? fallback ?? "Focus Session";
+  const labelOf = (r: SessionRecord) => getRecordLabel(r, titleOf(r.taskId, r.taskTitle));
 
   const projects = useMemo(() => {
     const arr: string[] = [];
@@ -121,7 +123,7 @@ export default function HistoryClient() {
         const t = taskOf(x.taskId);
         if ((t?.project ?? "__none") !== project) return false;
       }
-      if (q && !`${titleOf(x.taskId, x.taskTitle)}`.toLowerCase().includes(q)) return false;
+      if (q && !`${getRecordLabel(x, titleOf(x.taskId, x.taskTitle))}`.toLowerCase().includes(q)) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -477,15 +479,26 @@ export default function HistoryClient() {
                             <div className="font-mono text-code-badge text-on-surface-variant md:col-span-2">{fmtShort(x.startedAt)}<span className="md:hidden"> · {fmtHM(x.startedAt)} – {fmtHM(x.endedAt)}</span></div>
                             <div className="flex flex-col min-w-0 pr-1 md:col-span-4">
                               <span className={cn("text-body-sm truncate", active ? "font-semibold text-on-surface" : "font-medium text-on-surface")}>
-                                {t?.title ?? x.taskTitle ?? "Focus Session"}
+                                {labelOf(x)}
                               </span>
-                              <div className="flex items-center gap-1 mt-0.5">
+                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                                 {t?.project && (
                                   <span className={cn("px-1.5 py-px rounded font-mono text-[10px] leading-none", active ? "bg-primary-container text-on-primary" : "bg-primary-container/10 text-primary")}>
                                     {t.project}
                                   </span>
                                 )}
                                 <span className="font-mono text-[10px] text-on-surface-variant">{x.phase.replace("_", " ")}</span>
+                                <span className={cn(
+                                  "font-mono text-[10px] px-1 py-px rounded font-medium",
+                                  getSessionMode(x) === "infinite" ? "bg-primary-fixed text-on-primary-fixed" : "bg-surface-container text-on-surface-variant"
+                                )}>
+                                  {getSessionMode(x) === "infinite" ? "∞ Infinite" : "Allocated"}
+                                </span>
+                                {(x.breakMs ?? 0) > 0 && (
+                                  <span className="font-mono text-[10px] text-on-surface-variant">
+                                    Break {formatDurationMinutes(Math.round((x.breakMs ?? 0) / 60000))}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <div className="hidden md:block md:col-span-2 md:text-right font-mono text-metric-mono-md text-on-surface-variant">

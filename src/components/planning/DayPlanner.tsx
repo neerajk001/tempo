@@ -36,8 +36,7 @@ export default function DayPlanner() {
   const tasks = useTaskStore((s) => s.tasks);
   const sessions = useSessionHistoryStore((s) => s.sessions);
   const pomodoroConfig = usePomodoroStore((s) => s.config);
-  const startForTask = usePomodoroStore((s) => s.startForTask);
-  const setActiveTask = useTaskStore((s) => s.setActiveTask);
+  const switchToTask = useTaskStore((s) => s.switchToTask);
 
   const todayTasks = useMemo(() => tasks.filter((t) => t.date === todayKey()), [tasks]);
   const [taskId, setTaskId] = useState<string>("");
@@ -102,8 +101,9 @@ export default function DayPlanner() {
   const startFirstFocus = () => {
     const first = included.find((b) => b.type === "focus");
     if (!first || !task) return;
-    setActiveTask(task.id);
-    startForTask(task.id, task.title, first.endMs - first.startMs);
+    // switchToTask saves any live run, preserves all progress, and resumes
+    // this task in its own focus mode (allocated slice vs infinite elapsed).
+    switchToTask(task.id);
     router.push("/");
   };
 

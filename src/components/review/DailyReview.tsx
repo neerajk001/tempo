@@ -5,13 +5,23 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import { computeDashboardStats, localDateKey } from "@/lib/dashboard-stats";
 import { countPlannedPomodoros } from "@/lib/task-planning";
-import { useTaskStore } from "@/stores/task-store";
+import { useTaskStore, getFocusMode, type Task } from "@/stores/task-store";
 import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
 import { formatDurationMinutes } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 function fmtHM(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+/** Planned pomodoro count; infinite tasks are open-ended (0 cycles). */
+function safeCycles(t: Task): number {
+  if (getFocusMode(t) === "infinite") return 0;
+  try {
+    return countPlannedPomodoros(t.allocatedMinutes, t.focusMinutes);
+  } catch {
+    return 0;
+  }
 }
 
 function download(name: string, text: string, type: string) {
@@ -403,10 +413,14 @@ export default function DailyReview() {
               </div>
               <span className="text-body-sm font-semibold text-on-surface mt-1 truncate">{t.title}</span>
               <div className="flex items-center justify-between mt-2 text-label-xs text-secondary">
-                <span>{formatDurationMinutes(t.allocatedMinutes)} allocated</span>
+                {getFocusMode(t) === "infinite" ? (
+                  <span>∞ Infinite Focus</span>
+                ) : (
+                  <span>{formatDurationMinutes(t.allocatedMinutes)} allocated</span>
+                )}
                 <span className="flex items-center gap-1 font-medium text-on-surface">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  {countPlannedPomodoros(t.allocatedMinutes, t.focusMinutes)} cycles
+                  {getFocusMode(t) === "infinite" ? "open-ended" : `${safeCycles(t)} cycles`}
                 </span>
               </div>
             </Link>

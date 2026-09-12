@@ -1,5 +1,6 @@
-import type { Task } from "@/stores/task-store";
-import type { SessionRecord } from "@/stores/session-history-store";
+import type { FocusMode } from "@/types";
+import { getFocusMode, type Task } from "@/stores/task-store";
+import { getRecordLabel, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
 
 export interface PerTaskStat {
   taskId: string;
@@ -8,6 +9,8 @@ export interface PerTaskStat {
   actualMinutes: number;
   remainingMinutes: number;
   percent: number;
+  focusMode: FocusMode;
+  sessionName: string | null;
 }
 
 export interface TimelineEntry {
@@ -18,6 +21,10 @@ export interface TimelineEntry {
   phase: SessionRecord["phase"];
   status: SessionRecord["status"];
   focusedMs: number;
+  breakMs: number;
+  interruptions: number;
+  sessionMode: FocusMode;
+  sessionName: string | null;
 }
 
 export interface DashboardStats {
@@ -49,9 +56,11 @@ function isFocus(s: SessionRecord): boolean {
 
 /**
  * Aggregate today's planned vs actual work.
- * - Planned: sum of allocated minutes for tasks dated `dateKey`.
+ * - Planned: sum of allocated minutes for ALLOCATED tasks dated `dateKey`
+ *   (Infinite tasks are open-ended and contribute no plan).
  * - Actual focus: sum of focusedMs from today's FOCUS sessions (all statuses;
- *   cancelled sessions still contributed real focus). Breaks excluded.
+ *   cancelled sessions still contributed real focus) — Allocated + Infinite.
+ *   Breaks excluded.
  * - Pomodoros completed: COMPLETED FOCUS sessions only.
  */
 export function computeDashboardStats(
@@ -66,7 +75,10 @@ export function computeDashboardStats(
 
   const focusSessions = todaySessions.filter(isFocus);
 
-  const plannedMinutes = todayTasks.reduce((sum, t) => sum + t.allocatedMinutes, 0);
+  const plannedMinutes = todayTasks.reduce(
+    (sum, t) => sum + (getFocusMode(t) === "infinite" ? 0 : t.allocatedMinutes),
+    0
+  );
   const focusedMs = focusSessions.reduce((sum, s) => sum + Math.max(0, s.focusedMs), 0);
   const focusedMinutes = Math.round(focusedMs / 60000);
   const remainingMinutes = Math.max(0, plannedMinutes - focusedMinutes);
@@ -91,6 +103,18 @@ export function computeDashboardStats(
         ? linked.reduce((sum, s) => sum + Math.max(0, s.focusedMs), 0)
         : Math.max(0, t.focusedMinutes) * 60000;
     const actualMinutes = Math.round(actualMs / 60000);
+    if (getFocusMode(t) === "infinite") {
+      return {
+        taskId: t.id,
+        title: t.title,
+        plannedMinutes: 0,
+        actualMinutes,
+        remainingMinutes: 0,
+        percent: actualMinutes > 0 ? 100 : 0,
+        focusMode: "infinite" as const,
+        sessionName: t.sessionName ?? null,
+      };
+    }
     const remaining = Math.max(0, t.allocatedMinutes - actualMinutes);
     const percent =
       t.allocatedMinutes === 0
@@ -103,6 +127,8 @@ export function computeDashboardStats(
       actualMinutes,
       remainingMinutes: remaining,
       percent,
+      focusMode: "allocated" as const,
+      sessionName: null,
     };
   });
 
@@ -110,10 +136,14 @@ export function computeDashboardStats(
     id: s.id,
     startedAt: s.startedAt,
     endedAt: s.endedAt,
-    title: s.taskTitle ?? (isFocus(s) ? "Focus Session" : "Break"),
+    title: getRecordLabel(s, s.taskTitle ?? (isFocus(s) ? "Focus Session" : "Break")),
     phase: s.phase,
     status: s.status,
     focusedMs: s.focusedMs,
+    breakMs: s.breakMs ?? 0,
+    interruptions: s.interruptions,
+    sessionMode: getSessionMode(s),
+    sessionName: s.sessionName ?? null,
   }));
 
   return {

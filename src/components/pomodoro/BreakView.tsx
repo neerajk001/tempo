@@ -9,7 +9,7 @@ import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
 import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
-import { calculatePomodoroPlan, countPlannedPomodoros, nextSliceMinutes, todayKey } from "@/lib/task-planning";
+import { calculatePomodoroPlan, countPlannedPomodoros, todayKey } from "@/lib/task-planning";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
 import Icon from "@/components/ui/Icon";
@@ -33,9 +33,9 @@ export default function BreakView() {
   const breakOverride = usePomodoroStore((s) => s.breakOverride);
   const breaks = resolveBreaks(config, breakOverride);
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
+  const focusMode = usePomodoroStore((s) => s.focusMode);
   const start = usePomodoroStore((s) => s.start);
   const reset = usePomodoroStore((s) => s.reset);
-  const startForTask = usePomodoroStore((s) => s.startForTask);
   const tasks = useTaskStore((s) => s.tasks);
   const autoStartFocus = usePrefsStore((s) => s.autoStartFocus);
   const sessions = useSessionHistoryStore((s) => s.sessions);
@@ -106,7 +106,9 @@ export default function BreakView() {
     // Auto-start preferences may have already advanced the timer — never double-start.
     const st = usePomodoroStore.getState().session.status;
     if (st === "COMPLETED" || st === "CANCELLED" || st === "IDLE") {
-      if (nextTask) startForTask(nextTask.id, nextTask.title, nextSliceMinutes(nextTask.allocatedMinutes, nextTask.focusMinutes, nextTask.completedPomodoros) * 60000);
+      // switchToTask resumes the task from its exact preserved state and
+      // honors its focus mode (allocated slice vs infinite elapsed).
+      if (nextTask) useTaskStore.getState().switchToTask(nextTask.id);
       else start("FOCUS");
     }
     router.push("/focus");
@@ -146,6 +148,41 @@ export default function BreakView() {
   }, [session, activeTaskId, tasks]);
 
   if (!mounted) return null;
+
+  // Infinite Focus tracks breaks inline via the pause countdown in Focus
+  // Mode — it never enters a break phase. Landing here with a live Infinite
+  // session (e.g. direct URL) routes back instead of showing a countdown.
+  if (
+    (session.isInfinite === true || focusMode === "infinite") &&
+    (session.status === "RUNNING" || session.status === "PAUSED")
+  ) {
+    return (
+      <div className="fixed inset-0 z-50 bg-surface text-on-surface flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <h1 className="text-2xl font-semibold tracking-tight">Infinite Focus has no break screen</h1>
+          <p className="mt-2 text-sm text-on-surface-variant">
+            Pausing an Infinite session starts its break countdown right in Focus Mode — tracked separately from focused time.
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => router.push("/focus")}
+              className="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-semibold"
+            >
+              Back to Focus
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="px-5 py-2.5 rounded-xl bg-surface-container text-on-surface text-sm font-medium"
+            >
+              Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-surface text-on-surface flex flex-col justify-between overflow-hidden overflow-y-auto">

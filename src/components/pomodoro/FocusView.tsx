@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
-import { useTaskStore, selectTaskById } from "@/stores/task-store";
+import { usePomodoroStore, resolveBreaks, getInfiniteBreakRemaining, isInfiniteBreakComplete } from "@/stores/pomodoro-store";
+import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel, getTaskFocusedMs } from "@/stores/task-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
 import {
@@ -15,6 +15,7 @@ import {
 import { calculatePomodoroPlan, nextSliceMinutes, todayKey } from "@/lib/task-planning";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
 import { formatClock } from "@/lib/utils";
+import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
 import Icon from "@/components/ui/Icon";
 import DurationPicker, { QUICK_DURATIONS } from "@/components/dashboard/DurationPicker";
 import QuickCadenceFields from "@/components/dashboard/QuickCadenceFields";
@@ -54,6 +55,11 @@ export default function FocusView() {
   const extend = usePomodoroStore((s) => s.extend);
   const startForTask = usePomodoroStore((s) => s.startForTask);
   const startQuick = usePomodoroStore((s) => s.startQuick);
+  const focusMode = usePomodoroStore((s) => s.focusMode);
+  const sessionName = usePomodoroStore((s) => s.sessionName);
+  const infiniteBreak = usePomodoroStore((s) => s.infiniteBreak);
+  const infiniteBreakTotalMs = usePomodoroStore((s) => s.infiniteBreakTotalMs);
+  const setSessionName = usePomodoroStore((s) => s.setSessionName);
   const tasks = useTaskStore((s) => s.tasks);
   const { handleComplete } = useFinishSession();
 
@@ -160,21 +166,31 @@ export default function FocusView() {
 
   const activeTask = selectTaskById(tasks, activeTaskId);
   const breakOverride = usePomodoroStore((s) => s.breakOverride);
-  const title = activeTask?.title ?? activeTaskTitle ?? "Deep Work Session";
+  const activeMode = activeTask ? getFocusMode(activeTask) : focusMode;
+  const isInfinite = activeMode === "infinite" || session.isInfinite === true || focusMode === "infinite";
+  const displayName = activeTask
+    ? (isInfinite ? getSessionLabel(activeTask, activeTask.title) : activeTask.title)
+    : (sessionName?.trim() || activeTaskTitle || "Deep Work Session");
+  const title = displayName;
 
   const planLen = useMemo(() => {
     const t = activeTask;
-    if (!t) return Math.max(session.completedFocusCount + 1, 1);
+    if (!t || getFocusMode(t) === "infinite") return Math.max(session.completedFocusCount + 1, 1);
     try {
       return calculatePomodoroPlan(t.allocatedMinutes, t.focusMinutes).length;
     } catch {
       return Math.max(session.completedFocusCount + 1, 1);
     }
   }, [activeTask, session.completedFocusCount]);
-  const pomoIdx = Math.min((activeTask?.completedPomodoros ?? session.completedFocusCount) + 1, Math.max(planLen, 1));
+  const pomoIdx = isInfinite
+    ? session.completedFocusCount + 1
+    : Math.min((activeTask?.completedPomodoros ?? session.completedFocusCount) + 1, Math.max(planLen, 1));
   // A task run counts its own current slice — never the workspace default.
+  // Infinite tasks are open-ended (no slice).
   const sliceMin = activeTask
-    ? nextSliceMinutes(activeTask.allocatedMinutes, activeTask.focusMinutes, activeTask.completedPomodoros)
+    ? getFocusMode(activeTask) === "infinite"
+      ? 0
+      : nextSliceMinutes(activeTask.allocatedMinutes, activeTask.focusMinutes, activeTask.completedPomodoros)
     : Math.max(1, Math.round(session.plannedMs / 60000));
 
   const noteKey = `tempo-scratch-${activeTaskId ?? "general"}`;
@@ -205,6 +221,47 @@ export default function FocusView() {
   const doSound = () => setSoundOn(toggleAmbient());
   const exit = () => router.push("/");
 
+  const pauseInfinite = () => {
+    const taskBreak = activeTask?.shortBreakMinutes;
+    pause(
+      taskBreak !== undefined && taskBreak !== null
+        ? { breakMs: Math.max(1, Math.round(taskBreak)) * 60000 }
+        : undefined
+    );
+  };
+  const pauseCurrent = () => {
+    if (isInfinite) pauseInfinite();
+    else pause();
+  };
+  const startLinkedTask = () => {
+    const st = usePomodoroStore.getState();
+    const linked = st.activeTaskId
+      ? selectTaskById(useTaskStore.getState().tasks, st.activeTaskId)
+      : null;
+    if (linked) {
+      if (getFocusMode(linked) === "infinite") {
+        st.startForTask(linked.id, linked.title, undefined, {
+          focusMode: "infinite",
+          sessionName: linked.sessionName ?? null,
+          completedFocusCount: linked.completedFocusCount ?? linked.completedPomodoros ?? 0,
+        });
+      } else {
+        st.startForTask(linked.id, linked.title, nextSliceMinutes(linked.allocatedMinutes, linked.focusMinutes, linked.completedPomodoros) * 60000);
+      }
+    } else {
+      st.startQuick(
+        quickTitle || undefined,
+        quickMinutes * 60000,
+        {
+          shortBreakMs: quickShortMin * 60000,
+          longBreakMs: quickLongMin * 60000,
+          longBreakInterval: quickInterval,
+        },
+        quickCredit
+      );
+    }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -215,25 +272,10 @@ export default function FocusView() {
       if (e.code === "Space" && !inField) {
         e.preventDefault();
         if (e.repeat) return;
-        if (session.status === "RUNNING") pause();
+        if (session.status === "RUNNING") pauseCurrent();
         else if (session.status === "PAUSED") resume();
         else if (session.status === "IDLE") {
-          const st = usePomodoroStore.getState();
-          const linked = st.activeTaskId
-            ? selectTaskById(useTaskStore.getState().tasks, st.activeTaskId)
-            : null;
-          if (linked) st.startForTask(linked.id, linked.title, nextSliceMinutes(linked.allocatedMinutes, linked.focusMinutes, linked.completedPomodoros) * 60000);
-          else
-            st.startQuick(
-              quickTitle || undefined,
-              quickMinutes * 60000,
-              {
-                shortBreakMs: quickShortMin * 60000,
-                longBreakMs: quickLongMin * 60000,
-                longBreakInterval: quickInterval,
-              },
-              quickCredit
-            );
+          startLinkedTask();
         }
       } else if (e.code === "Escape") {
         // Fullscreen video captures Esc first so Focus Mode stays put.
@@ -242,7 +284,7 @@ export default function FocusView() {
         else exit();
       } else if ((e.code === "KeyL") && !inField) {
         e.preventDefault();
-        if (ticking) pause();
+        if (ticking) pauseCurrent();
       } else if ((e.code === "KeyM") && !inField) {
         e.preventDefault();
         doSound();
@@ -254,17 +296,18 @@ export default function FocusView() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.status, ticking, drawerOpen, pause, resume, startQuick, quickTitle, quickMinutes, quickShortMin, quickLongMin, quickInterval, quickCredit, videoMode]);
+  }, [session.status, ticking, drawerOpen, pause, resume, startQuick, quickTitle, quickMinutes, quickShortMin, quickLongMin, quickInterval, quickCredit, videoMode, isInfinite, activeTaskId]);
 
   useEffect(() => {
-    document.title =
-      ticking
-        ? `${formatClock(Math.ceil(getRemainingMs(session, Date.now()) / 1000))} — Tempo`
-        : "Tempo — Focus Console";
+    document.title = ticking
+      ? isInfinite
+        ? `${formatElapsedHMS(getElapsedFocusMs(session, Date.now()))} — Tempo`
+        : `${formatClock(Math.ceil(getRemainingMs(session, Date.now()) / 1000))} — Tempo`
+      : "Tempo — Focus Console";
     return () => {
       document.title = "Tempo — Focus Console";
     };
-  }, [ticking, session, now]);
+  }, [ticking, session, now, isInfinite]);
 
   useEffect(() => () => {
     // Leave ambient sound running only while the view lives.
@@ -273,24 +316,44 @@ export default function FocusView() {
 
   if (!mounted) return null;
 
-  const remainingMs = session.status === "IDLE" && activeTask
-    ? sliceMin * 60000
-    : getRemainingMs(session, now);
+  const remainingMs = isInfinite
+    ? Number.POSITIVE_INFINITY
+    : session.status === "IDLE" && activeTask
+      ? sliceMin * 60000
+      : getRemainingMs(session, now);
   const elapsedMs = getElapsedFocusMs(session, now);
+  // Total elapsed for infinite includes previously preserved runs.
+  const totalElapsedMs = isInfinite && activeTask
+    ? getTaskFocusedMs(activeTask) + elapsedMs
+    : elapsedMs;
   const pausedMs = getPausedMs(session, now);
-  const remainingSec = Math.ceil(remainingMs / 1000);
+  const remainingSec = Number.isFinite(remainingMs) ? Math.ceil(remainingMs / 1000) : 0;
   const mm = String(Math.floor(remainingSec / 60)).padStart(2, "0");
   const ss = String(remainingSec % 60).padStart(2, "0");
-  const pct = session.plannedMs > 0 ? Math.min(100, (elapsedMs / session.plannedMs) * 100) : 0;
-  const elapsedMin = Math.floor(elapsedMs / 60000);
-  const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
+  const hms = formatElapsedHMS(totalElapsedMs);
+  const pct = isInfinite ? 0 : session.plannedMs > 0 ? Math.min(100, (elapsedMs / session.plannedMs) * 100) : 0;
+  const breakTotalMs = isInfinite
+    ? Math.max(0, Math.round((infiniteBreakTotalMs ?? 0) + (infiniteBreak ? now - infiniteBreak.startedAt : 0)))
+    : 0;
+  const breakRemainingMs = isInfinite ? getInfiniteBreakRemaining(infiniteBreak, now) : 0;
+  const breakDone = isInfinite && isInfiniteBreakComplete(infiniteBreak, now);
   const effBreaks = resolveBreaks(config, breakOverride);
   const breakMin = session.phase === "FOCUS" ? Math.round(effBreaks.shortBreakMs / 60000) : 0;
-  const breakAt = fmtHM(now + remainingMs + 60000);
+  const breakAt = Number.isFinite(remainingMs) ? fmtHM(now + remainingMs + 60000) : "—";
   const startedLabel = session.startedAt ? fmtClock(session.startedAt) : "—";
 
   const startPrimary = () => {
-    if (activeTask) startForTask(activeTask.id, activeTask.title, sliceMin * 60000);
+    if (activeTask) {
+      if (getFocusMode(activeTask) === "infinite") {
+        startForTask(activeTask.id, activeTask.title, undefined, {
+          focusMode: "infinite",
+          sessionName: activeTask.sessionName ?? null,
+          completedFocusCount: activeTask.completedFocusCount ?? activeTask.completedPomodoros ?? 0,
+        });
+      } else {
+        startForTask(activeTask.id, activeTask.title, sliceMin * 60000);
+      }
+    }
     else startQuick(quickTitle || undefined, quickMinutes * 60000, quickBreaks, quickCredit);
   };
   const showQuickForm = session.status === "IDLE" && !activeTask;
@@ -346,7 +409,9 @@ export default function FocusView() {
             <span className="w-2 h-2 rounded-full bg-primary" />
             <span className="text-label-xs text-on-surface font-medium">Deep Work</span>
             <span className="text-label-xs text-on-surface-variant">•</span>
-            <span className="font-mono text-code-badge text-on-surface-variant font-medium">Session #{pomoIdx} of {planLen}</span>
+            <span className="font-mono text-code-badge text-on-surface-variant font-medium">
+              {isInfinite ? "Infinite Focus" : `Session #${pomoIdx} of ${planLen}`}
+            </span>
           </div>
           <VideoToggleButton onModeChange={setVideoMode} />
           <MusicToggleButton />
@@ -400,7 +465,7 @@ export default function FocusView() {
             </button>
             <button
               type="button"
-              onClick={pause}
+              onClick={pauseCurrent}
               className={cn(
                 "px-1.5 py-px rounded-md text-label-xs transition-all",
                 paused ? "font-semibold bg-accent-amber-container text-on-accent-amber shadow-sm" : "font-medium text-on-surface-variant hover:text-on-surface"
@@ -428,22 +493,67 @@ export default function FocusView() {
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant shadow-sm">
             <span className={cn("w-1.5 h-1.5 rounded-full", paused ? "bg-accent-amber" : "bg-primary")} />
             <span className={cn("text-label-xs tracking-widest uppercase font-semibold", paused ? "text-on-accent-amber" : "text-on-primary-fixed")}>
-              {paused ? "Session Paused" : session.phase === "FOCUS" ? "Focus Session" : session.phase.replace("_", " ")}
+              {isInfinite
+                ? paused
+                  ? "Focus Paused"
+                  : ticking
+                    ? "Infinite Focus"
+                    : "Infinite Focus"
+                : paused
+                  ? "Session Paused"
+                  : session.phase === "FOCUS"
+                    ? "Focus Session"
+                    : session.phase.replace("_", " ")}
             </span>
           </div>
           <h1 className="text-headline-lg sm:text-[32px] sm:leading-[38px] text-on-surface tracking-tight font-semibold mt-0.5">
             {title}
           </h1>
-          {quickLabel !== null && activeTaskId && ticking && (
+          {isInfinite && activeTask?.sessionName && (
+            <span className="text-body-sm text-on-surface-variant">Task: {activeTask.title}</span>
+          )}
+          {quickLabel !== null && activeTaskId && ticking && !isInfinite && (
             <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-code-badge font-semibold">
               <span>Quick {Math.max(1, Math.round(session.plannedMs / 60000))}m → counts in {title}</span>
             </span>
           )}
           <p className="text-body-sm text-on-surface-variant flex items-center gap-1.5">
-            <span>Pomodoro {pomoIdx} of {planLen}</span>
-            <span>•</span>
-            <span>Deep Work Block ({sliceMin}m block)</span>
+            {isInfinite ? (
+              <>
+                <span>Open-ended</span>
+                <span>•</span>
+                <span>Elapsed {hms} Focused</span>
+              </>
+            ) : (
+              <>
+                <span>Pomodoro {pomoIdx} of {planLen}</span>
+                <span>•</span>
+                <span>Deep Work Block ({sliceMin}m block)</span>
+              </>
+            )}
           </p>
+          {isInfinite && ticking && (
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                value={sessionName ?? activeTask?.sessionName ?? ""}
+                onChange={(e) => setSessionName(e.target.value || null)}
+                placeholder="Name this session…"
+                aria-label="Infinite session name"
+                className="h-8 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 text-body-sm text-center focus:outline-none focus:border-primary w-64"
+              />
+            </div>
+          )}
+          {isInfinite && paused && infiniteBreak && (
+            <div className="mt-2 px-4 py-2 rounded-xl bg-accent-amber-container/60 border border-accent-amber/25 flex flex-col items-center gap-0.5">
+              <span className="text-label-xs uppercase tracking-widest text-on-accent-amber font-semibold">Break</span>
+              <span className="font-mono text-body-sm font-semibold text-on-surface tabular-nums">
+                {formatClock(Math.ceil(breakRemainingMs / 1000))} remaining
+              </span>
+              <span className="text-label-xs text-on-surface-variant">
+                {breakDone ? "Break complete — resume when ready" : "Break tracked separately from focused time"}
+              </span>
+            </div>
+          )}
           {showQuickForm && (
             <div className="flex flex-col items-center gap-2 mt-2 w-full max-w-sm">
               <input
@@ -484,11 +594,11 @@ export default function FocusView() {
             className={`relative w-[min(78vw,300px,62dvh)] h-[min(78vw,300px,62dvh)] sm:w-[min(400px,62dvh)] sm:h-[min(400px,62dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
           >
             {timerStyle === "flip" ? (
-              <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+              <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} breakMs={breakTotalMs} />
             ) : timerStyle === "analog" ? (
-              <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+              <TimerAnalog mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} breakMs={breakTotalMs} />
             ) : (
-              <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={elapsedMs} plannedMs={session.plannedMs} />
+              <TimerCircular mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} breakMs={breakTotalMs} />
             )}
           </div>
         )}
@@ -503,7 +613,7 @@ export default function FocusView() {
               </button>
             )}
             {session.status === "RUNNING" && (
-              <button type="button" onClick={pause} className="h-10 px-6 rounded-xl bg-on-surface text-surface text-body-sm font-medium hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-2 shadow-md">
+              <button type="button" onClick={pauseCurrent} className="h-10 px-6 rounded-xl bg-on-surface text-surface text-body-sm font-medium hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-2 shadow-md">
                 <Icon name="pause" className="text-[18px]" />
                 <span>Pause</span>
                 <kbd className="font-mono text-[10px] px-1.5 py-0.5 bg-black/15 text-surface rounded ml-0.5">Space</kbd>
@@ -525,17 +635,19 @@ export default function FocusView() {
             {ticking && (
               <button type="button" onClick={handleComplete} className="h-10 px-4 rounded-xl bg-surface-container-lowest border border-outline-variant text-on-surface text-body-sm font-medium hover:bg-surface-container-high active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-sm">
                 <Icon name="stop" className="text-[18px] text-error" />
-                <span>End Block</span>
+                <span>{isInfinite ? "End Session" : "End Block"}</span>
                 <Kbd>⌘E</Kbd>
               </button>
             )}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap justify-center">
+            {!isInfinite && (
             <button type="button" title="Extend 5 minutes" disabled={!ticking} onClick={() => extend(5)} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
               <Icon name="more_time" className="text-[16px]" />
               <span>+5m extension</span>
             </button>
-            <button type="button" title="Log quick interruption (L)" disabled={!ticking} onClick={pause} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
+            )}
+            <button type="button" title="Log quick interruption (L)" disabled={!ticking} onClick={pauseCurrent} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
               <Icon name="notifications_paused" className="text-[16px]" />
               <span>Log Interruption</span>
               <Kbd>L</Kbd>
@@ -595,13 +707,17 @@ export default function FocusView() {
           <div className="flex items-center gap-1.5">
             <Icon name="timelapse" className="text-[15px] text-primary" />
             <span className="text-label-xs text-on-surface-variant">Focused</span>
-            <span className="font-mono text-[12px] font-medium text-on-surface">{Math.round(elapsedMs / 60000)}m</span>
+            <span className="font-mono text-[12px] font-medium text-on-surface">
+              {isInfinite ? hms : `${Math.round(elapsedMs / 60000)}m`}
+            </span>
           </div>
           <div className="h-3 w-px bg-surface-variant" />
           <div className="flex items-center gap-1.5">
             <Icon name="pause_circle" className="text-[15px] text-on-surface-variant" />
-            <span className="text-label-xs text-on-surface-variant">Paused</span>
-            <span className="font-mono text-[12px] font-medium text-on-surface">{Math.round(pausedMs / 60000)}m</span>
+            <span className="text-label-xs text-on-surface-variant">{isInfinite ? "Break" : "Paused"}</span>
+            <span className="font-mono text-[12px] font-medium text-on-surface">
+              {isInfinite ? formatClock(Math.ceil(breakTotalMs / 1000)) : `${Math.round(pausedMs / 60000)}m`}
+            </span>
           </div>
           <div className="h-3 w-px bg-surface-variant" />
           <div className="flex items-center gap-1.5">
@@ -614,7 +730,15 @@ export default function FocusView() {
             <Icon name="free_breakfast" className="text-[15px] text-tertiary" />
             <span className="text-label-xs text-on-surface-variant">Next:</span>
             <span className="text-[12px] font-medium text-on-surface">
-              {session.phase === "FOCUS" ? `${breakMin}m break (at ${breakAt})` : "focus block"}
+              {isInfinite
+                ? paused
+                  ? breakDone
+                    ? "resume focus"
+                    : `resume (${formatClock(Math.ceil(breakRemainingMs / 1000))} break left)`
+                  : "pause for break"
+                : session.phase === "FOCUS"
+                  ? `${breakMin}m break (at ${breakAt})`
+                  : "focus block"}
             </span>
           </div>
         </div>
