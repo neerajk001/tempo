@@ -604,6 +604,7 @@ export default function FocusView() {
 
         {!timerHidden && (
           <div
+            style={{ containerType: "inline-size" }}
             className={`relative shrink-0 min-h-0 w-[min(74vw,270px,42dvh)] h-[min(74vw,270px,42dvh)] sm:w-[min(360px,46dvh)] sm:h-[min(360px,46dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
           >
             {timerStyle === "flip" ? (

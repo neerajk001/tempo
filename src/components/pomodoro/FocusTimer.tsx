@@ -74,7 +74,7 @@ export function TimerCircular({ mm, ss, pct, paused, ticking, elapsedMs, infinit
           <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-0.5 font-medium">
             Elapsed Focus
           </span>
-          <div className="flex items-baseline justify-center tracking-tight font-mono text-[44px] sm:text-[56px] leading-none text-on-surface font-medium tabular-nums my-0.5">
+          <div className="flex items-baseline justify-center tracking-tight font-mono text-[15cqw] leading-none text-on-surface font-medium tabular-nums my-0.5">
             <span>{hms ?? formatElapsedHMS(elapsedMs)}</span>
           </div>
           <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
@@ -222,7 +222,7 @@ export function TimerAnalog({ paused, elapsedMs, plannedMs, mm, ss, infinite, hm
         <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-1 font-medium">
           Elapsed Focus
         </span>
-        <div className="font-mono text-4xl sm:text-5xl font-medium text-on-surface tabular-nums mt-1 leading-none">
+        <div className="font-mono text-[15cqw] font-medium text-on-surface tabular-nums mt-1 leading-none">
           {hms ?? formatElapsedHMS(elapsedMs)}
         </div>
         <div className="mt-1 flex items-center gap-1.5 text-on-surface-variant font-mono text-code-badge">
