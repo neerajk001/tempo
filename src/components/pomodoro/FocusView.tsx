@@ -388,8 +388,8 @@ export default function FocusView() {
         />
       )}
 
-      {/* Immersion header */}
-      <header className={`relative z-10 w-full px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between gap-3 flex-wrap ${chromeClass}`}>
+      {/* Immersion header — kept slim so the dial never gets pushed off-screen */}
+      <header className={`relative z-10 w-full px-4 sm:px-8 py-2 sm:py-3 flex items-center justify-between gap-2 flex-wrap ${chromeClass}`}>
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-surface-container-lowest border border-outline-variant shadow-sm flex items-center justify-center overflow-hidden">
@@ -496,9 +496,9 @@ export default function FocusView() {
         </div>
       </header>
 
-      {/* Center immersion display */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 max-w-4xl mx-auto w-full">
-        <div className={`flex flex-col items-center text-center gap-1 mb-4 ${chromeClass}`}>
+      {/* Center immersion display — compact title block so the dial fits in 100dvh */}
+      <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4 py-1 max-w-4xl mx-auto w-full">
+        <div className={`flex flex-col items-center text-center gap-0.5 mb-2 w-full min-w-0 ${chromeClass}`}>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant shadow-sm">
             <span className={cn("w-1.5 h-1.5 rounded-full", paused ? "bg-accent-amber" : "bg-primary")} />
             <span className={cn("text-label-xs tracking-widest uppercase font-semibold", paused ? "text-on-accent-amber" : "text-on-primary-fixed")}>
@@ -515,11 +515,11 @@ export default function FocusView() {
                     : session.phase.replace("_", " ")}
             </span>
           </div>
-          <h1 className="text-headline-lg sm:text-[32px] sm:leading-[38px] text-on-surface tracking-tight font-semibold mt-0.5">
+          <h1 className="text-headline-md sm:text-[28px] sm:leading-[32px] text-on-surface tracking-tight font-semibold mt-0.5 truncate max-w-full px-2">
             {title}
           </h1>
           {isInfinite && activeTask?.sessionName && (
-            <span className="text-body-sm text-on-surface-variant">Task: {activeTask.title}</span>
+            <span className="text-body-sm text-on-surface-variant truncate max-w-full px-2">Task: {activeTask.title}</span>
           )}
           {quickLabel !== null && activeTaskId && ticking && !isInfinite && (
             <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-code-badge font-semibold">
@@ -530,8 +530,13 @@ export default function FocusView() {
             {isInfinite ? (
               <>
                 <span>Open-ended</span>
-                <span>•</span>
-                <span>Elapsed {hms} Focused</span>
+                {/* Live elapsed already fills the dial while ticking — don't duplicate it here. */}
+                {!ticking && (
+                  <>
+                    <span>•</span>
+                    <span>Elapsed {hms} Focused</span>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -542,18 +547,18 @@ export default function FocusView() {
             )}
           </p>
           {isInfinite && ticking && (
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-0.5">
               <input
                 value={sessionName ?? activeTask?.sessionName ?? ""}
                 onChange={(e) => setSessionName(e.target.value || null)}
                 placeholder="Name this session…"
                 aria-label="Infinite session name"
-                className="h-8 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 text-body-sm text-center focus:outline-none focus:border-primary w-64"
+                className="h-7 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 text-[13px] text-center focus:outline-none focus:border-primary w-56"
               />
             </div>
           )}
           {isInfinite && paused && (
-            <div className="mt-2 px-4 py-1.5 rounded-xl bg-accent-amber-container/60 border border-accent-amber/25">
+            <div className="mt-1 px-4 py-1 rounded-xl bg-accent-amber-container/60 border border-accent-amber/25">
               <span className="text-label-xs text-on-accent-amber font-medium">
                 Paused — focus time is frozen. Resume whenever you&apos;re ready.
               </span>
@@ -596,7 +601,7 @@ export default function FocusView() {
 
         {!timerHidden && (
           <div
-            className={`relative w-[min(78vw,300px,62dvh)] h-[min(78vw,300px,62dvh)] sm:w-[min(400px,62dvh)] sm:h-[min(400px,62dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
+            className={`relative shrink-0 min-h-0 w-[min(74vw,270px,42dvh)] h-[min(74vw,270px,42dvh)] sm:w-[min(360px,46dvh)] sm:h-[min(360px,46dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
           >
             {timerStyle === "flip" ? (
               <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} />
@@ -608,7 +613,7 @@ export default function FocusView() {
           </div>
         )}
 
-        <div className={`flex flex-col items-center gap-3 mt-5 w-full ${chromeClass}`}>
+        <div className={`flex flex-col items-center gap-2 mt-3 w-full ${chromeClass}`}>
           <div className="flex items-center gap-2 flex-wrap justify-center">
             {session.status === "IDLE" && (
               <button type="button" onClick={startPrimary} className="h-10 px-6 rounded-xl bg-primary text-on-primary text-body-sm font-semibold hover:bg-primary-container active:scale-[0.98] transition-all flex items-center gap-2 shadow-md">
@@ -736,7 +741,7 @@ export default function FocusView() {
       </main>
 
       {/* Telemetry strip + hotkey legend */}
-      <footer className={`relative z-10 w-full px-4 sm:px-8 py-3 sm:py-4 flex flex-col items-center gap-2 ${chromeClass}`}>
+      <footer className={`relative z-10 w-full px-4 sm:px-8 py-2 flex flex-col items-center gap-2 ${chromeClass}`}>
         <div className="w-full max-w-3xl hidden sm:flex flex-wrap items-center justify-between py-1.5 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm gap-2">
           <div className="flex items-center gap-1.5">
             <Icon name="schedule" className="text-[15px] text-on-surface-variant" />
