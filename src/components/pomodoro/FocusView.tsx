@@ -501,43 +501,46 @@ export default function FocusView() {
           under the header or pile onto the footer. */}
       <main className="relative z-10 flex-1 min-h-0 overflow-y-auto w-full flex flex-col">
         <div className="m-auto w-full max-w-4xl min-w-0 flex flex-col items-center px-4 py-2">
-        <div className={`flex flex-col items-center text-center gap-0.5 mb-2 w-full min-w-0 ${chromeClass}`}>
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant shadow-sm">
-            <span className={cn("w-1.5 h-1.5 rounded-full", paused ? "bg-accent-amber" : "bg-primary")} />
-            <span className={cn("text-label-xs tracking-widest uppercase font-semibold", paused ? "text-on-accent-amber" : "text-on-primary-fixed")}>
-              {isInfinite
-                ? paused
-                  ? "Focus Paused"
-                  : ticking
-                    ? "Infinite Focus"
+        <div className={`flex flex-col items-center text-center gap-1 mb-2 w-full min-w-0 ${chromeClass}`}>
+          <div className="flex items-center justify-center gap-2 min-w-0 max-w-full">
+            <div className="inline-flex shrink-0 items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant shadow-sm">
+              <span className={cn("w-1.5 h-1.5 rounded-full", paused ? "bg-accent-amber" : "bg-primary")} />
+              <span className={cn("text-label-xs tracking-widest uppercase font-semibold whitespace-nowrap", paused ? "text-on-accent-amber" : "text-on-primary-fixed")}>
+                {isInfinite
+                  ? paused
+                    ? "Focus Paused"
                     : "Infinite Focus"
-                : paused
-                  ? "Session Paused"
-                  : session.phase === "FOCUS"
-                    ? "Focus Session"
-                    : session.phase.replace("_", " ")}
-            </span>
+                  : paused
+                    ? "Session Paused"
+                    : session.phase === "FOCUS"
+                      ? "Focus Session"
+                      : session.phase.replace("_", " ")}
+              </span>
+            </div>
+            <h1 className="text-headline-md sm:text-[28px] sm:leading-[32px] text-on-surface tracking-tight font-semibold truncate min-w-0 text-left">
+              {title}
+            </h1>
           </div>
-          <h1 className="text-headline-md sm:text-[28px] sm:leading-[32px] text-on-surface tracking-tight font-semibold mt-0.5 truncate max-w-full px-2">
-            {title}
-          </h1>
-          {isInfinite && activeTask?.sessionName && (
-            <span className="text-body-sm text-on-surface-variant truncate max-w-full px-2">Task: {activeTask.title}</span>
-          )}
           {quickLabel !== null && activeTaskId && ticking && !isInfinite && (
             <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-mono text-code-badge font-semibold">
               <span>Quick {Math.max(1, Math.round(session.plannedMs / 60000))}m → counts in {title}</span>
             </span>
           )}
-          <p className="text-body-sm text-on-surface-variant flex items-center gap-1.5">
+          <p className="text-body-sm text-on-surface-variant flex items-center justify-center gap-1.5 truncate max-w-full px-2">
             {isInfinite ? (
               <>
-                <span>Open-ended</span>
+                {activeTask?.sessionName && (
+                  <>
+                    <span className="truncate">Task: {activeTask.title}</span>
+                    <span className="shrink-0">•</span>
+                  </>
+                )}
+                <span className="shrink-0">Open-ended</span>
                 {/* Live elapsed already fills the dial while ticking — don't duplicate it here. */}
                 {!ticking && (
                   <>
                     <span>•</span>
-                    <span>Elapsed {hms} Focused</span>
+                    <span className="shrink-0">Elapsed {hms} Focused</span>
                   </>
                 )}
               </>
@@ -558,13 +561,6 @@ export default function FocusView() {
                 aria-label="Infinite session name"
                 className="h-7 px-3 rounded-lg bg-surface-container-lowest border border-outline-variant text-on-surface placeholder:text-on-surface-variant/60 text-[13px] text-center focus:outline-none focus:border-primary w-56"
               />
-            </div>
-          )}
-          {isInfinite && paused && (
-            <div className="mt-1 px-4 py-1 rounded-xl bg-accent-amber-container/60 border border-accent-amber/25">
-              <span className="text-label-xs text-on-accent-amber font-medium">
-                Paused — focus time is frozen. Resume whenever you&apos;re ready.
-              </span>
             </div>
           )}
           {showQuickForm && (
@@ -605,7 +601,7 @@ export default function FocusView() {
         {!timerHidden && (
           <div
             style={{ containerType: "inline-size" }}
-            className={`relative shrink-0 min-h-0 w-[min(74vw,270px,42dvh)] h-[min(74vw,270px,42dvh)] sm:w-[min(360px,46dvh)] sm:h-[min(360px,46dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
+            className={`relative shrink-0 min-h-0 w-[min(80vw,320px,50dvh)] h-[min(80vw,320px,50dvh)] sm:w-[min(430px,54dvh)] sm:h-[min(430px,54dvh)] flex items-center justify-center transition-opacity duration-500 ${timerFaded ? "opacity-30" : "opacity-100"}`}
           >
             {timerStyle === "flip" ? (
               <TimerFlip mm={mm} ss={ss} pct={pct} paused={paused} ticking={ticking} elapsedMs={totalElapsedMs} plannedMs={session.plannedMs} infinite={isInfinite} hms={hms} />
@@ -664,6 +660,22 @@ export default function FocusView() {
                 <span>Reset timer</span>
               </button>
             )}
+            {!isInfinite && (
+            <button type="button" title="Extend 5 minutes" disabled={!ticking} onClick={() => extend(5)} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
+              <Icon name="more_time" className="text-[16px]" />
+              <span>+5m extension</span>
+            </button>
+            )}
+            <button type="button" title="Log quick interruption (L)" disabled={!ticking} onClick={pause} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
+              <Icon name="notifications_paused" className="text-[16px]" />
+              <span>Log Interruption</span>
+              <Kbd>L</Kbd>
+            </button>
+            <button type="button" title="Scratchpad (N)" onClick={() => setDrawerOpen((v) => !v)} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm">
+              <Icon name="edit_note" className="text-[16px]" />
+              <span>Scratchpad</span>
+              <Kbd>N</Kbd>
+            </button>
           </div>
           {isInfinite && confirmingReset && (
             <div className="w-full max-w-md p-4 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-lg flex flex-col gap-2 text-center">
@@ -689,24 +701,6 @@ export default function FocusView() {
               </div>
             </div>
           )}
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            {!isInfinite && (
-            <button type="button" title="Extend 5 minutes" disabled={!ticking} onClick={() => extend(5)} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
-              <Icon name="more_time" className="text-[16px]" />
-              <span>+5m extension</span>
-            </button>
-            )}
-            <button type="button" title="Log quick interruption (L)" disabled={!ticking} onClick={pause} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-40">
-              <Icon name="notifications_paused" className="text-[16px]" />
-              <span>Log Interruption</span>
-              <Kbd>L</Kbd>
-            </button>
-            <button type="button" title="Scratchpad (N)" onClick={() => setDrawerOpen((v) => !v)} className="px-3 h-8 rounded-lg bg-surface-container-lowest border border-outline-variant hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface text-body-sm font-medium flex items-center gap-1.5 transition-colors shadow-sm">
-              <Icon name="edit_note" className="text-[16px]" />
-              <span>Scratchpad</span>
-              <Kbd>N</Kbd>
-            </button>
-          </div>
           {/* Ambient controls — video and music stay fully independent */}
           <div className="flex items-center gap-1.5 flex-wrap justify-center">
             <VideoPill mode={videoMode} setMode={setVideoMode} />
