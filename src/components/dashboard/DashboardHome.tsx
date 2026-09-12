@@ -7,11 +7,12 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import MetricRibbon from "@/components/dashboard/MetricRibbon";
 import FocusSessionCard from "@/components/dashboard/FocusSessionCard";
 import QuickFocusCard from "@/components/dashboard/QuickFocusCard";
+import InfiniteFocusCard from "@/components/dashboard/InfiniteFocusCard";
 import ScheduleList from "@/components/dashboard/ScheduleList";
 import { UpNextCard, PlannedActualCard, InterruptionLogCard, StandbyCard } from "@/components/dashboard/RailCards";
 import { computeDashboardStats, localDateKey } from "@/lib/dashboard-stats";
 import { countPlannedPomodoros, todayKey } from "@/lib/task-planning";
-import { useTaskStore } from "@/stores/task-store";
+import { useTaskStore, getFocusMode } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { usePrefsStore } from "@/stores/prefs-store";
@@ -91,6 +92,35 @@ export default function DashboardHome() {
         } else if (!e.repeat) {
           router.push("/focus");
         }
+      } else if (e.code === "KeyI") {
+        // Open-ended Infinite focus on an Infinite task (switches with
+        // full state preservation; falls back to the task list).
+        if (e.repeat) return;
+        const pomo = usePomodoroStore.getState();
+        if (pomo.session.status === "RUNNING" || pomo.session.status === "PAUSED") {
+          router.push("/focus");
+          return;
+        }
+        const all = useTaskStore.getState().tasks;
+        const open = all.filter(
+          (t) =>
+            getFocusMode(t) === "infinite" &&
+            t.status !== "COMPLETED" &&
+            t.status !== "CANCELLED"
+        );
+        const todayOpen = open.filter((t) => t.date === todayKey());
+        const pool = todayOpen.length > 0 ? todayOpen : open;
+        const pick =
+          pool.find((t) => t.id === pomo.activeTaskId) ??
+          pool.find((t) => t.status === "IN_PROGRESS") ??
+          pool[0] ??
+          null;
+        if (pick) {
+          useTaskStore.getState().switchToTask(pick.id);
+          router.push("/focus");
+        } else {
+          router.push("/tasks");
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -146,7 +176,10 @@ export default function DashboardHome() {
             </div>
           </div>
           <div className="lg:col-span-4">
-            <QuickFocusCard />
+            <div className="flex flex-col gap-4">
+              <QuickFocusCard />
+              <InfiniteFocusCard />
+            </div>
           </div>
         </div>
       ) : (
@@ -157,6 +190,7 @@ export default function DashboardHome() {
           </div>
           <div className="lg:col-span-4 flex flex-col gap-4 min-w-0 lg:sticky lg:top-6">
             <QuickFocusCard />
+            <InfiniteFocusCard />
             <UpNextCard tasks={todayTasks} />
             <PlannedActualCard
               plannedMinutes={stats.plannedMinutes}
