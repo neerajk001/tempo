@@ -499,8 +499,8 @@ export default function FocusView() {
       {/* Center immersion display — scrolls inside its own box (m-auto centers
           when content fits, top-aligns when it doesn't) so it can never slide
           under the header or pile onto the footer. */}
-      <main className="relative z-10 flex-1 min-h-0 overflow-y-auto w-full">
-        <div className="m-auto w-full max-w-4xl min-w-0 flex flex-col items-center justify-center px-4 py-2">
+      <main className="relative z-10 flex-1 min-h-0 overflow-y-auto w-full flex flex-col">
+        <div className="m-auto w-full max-w-4xl min-w-0 flex flex-col items-center px-4 py-2">
         <div className={`flex flex-col items-center text-center gap-0.5 mb-2 w-full min-w-0 ${chromeClass}`}>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant shadow-sm">
             <span className={cn("w-1.5 h-1.5 rounded-full", paused ? "bg-accent-amber" : "bg-primary")} />
