@@ -369,7 +369,7 @@ export default function FocusView() {
 
   return (
     <div
-      className={`fixed inset-x-0 top-0 h-screen z-50 flex flex-col justify-between bg-surface text-on-surface select-none overflow-hidden overflow-y-auto ${chromeHidden ? "cursor-none" : ""}`}
+      className={`fixed inset-x-0 top-0 h-screen z-50 flex flex-col bg-surface text-on-surface select-none overflow-hidden ${chromeHidden ? "cursor-none" : ""}`}
       style={{ height: "100dvh" }}
     >
       {/* Ambient backdrop glow — barely-there warm green/amber depth */}
@@ -388,9 +388,9 @@ export default function FocusView() {
         />
       )}
 
-      {/* Immersion header — kept slim so the dial never gets pushed off-screen */}
-      <header className={`relative z-10 w-full px-4 sm:px-8 py-2 sm:py-3 flex items-center justify-between gap-2 flex-wrap ${chromeClass}`}>
-        <div className="flex items-center gap-3 sm:gap-4">
+      {/* Immersion header — single row, never wraps onto the title */}
+      <header className={`relative z-10 w-full shrink-0 px-4 sm:px-8 py-2 sm:py-3 flex items-center justify-between gap-2 ${chromeClass}`}>
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-surface-container-lowest border border-outline-variant shadow-sm flex items-center justify-center overflow-hidden">
               <svg className="w-4 h-4 text-on-surface" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -413,8 +413,8 @@ export default function FocusView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="hidden md:flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm px-3 py-1 rounded-lg">
+        <div className="flex items-center gap-2 flex-nowrap overflow-x-auto min-w-0 py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+          <div className="hidden xl:flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm px-3 py-1 rounded-lg">
             <span className="w-2 h-2 rounded-full bg-primary" />
             <span className="text-label-xs text-on-surface font-medium">Deep Work</span>
             <span className="text-label-xs text-on-surface-variant">•</span>
@@ -496,8 +496,11 @@ export default function FocusView() {
         </div>
       </header>
 
-      {/* Center immersion display — compact title block so the dial fits in 100dvh */}
-      <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-4 py-1 max-w-4xl mx-auto w-full">
+      {/* Center immersion display — scrolls inside its own box (m-auto centers
+          when content fits, top-aligns when it doesn't) so it can never slide
+          under the header or pile onto the footer. */}
+      <main className="relative z-10 flex-1 min-h-0 overflow-y-auto w-full">
+        <div className="m-auto w-full max-w-4xl min-w-0 flex flex-col items-center justify-center px-4 py-2">
         <div className={`flex flex-col items-center text-center gap-0.5 mb-2 w-full min-w-0 ${chromeClass}`}>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant shadow-sm">
             <span className={cn("w-1.5 h-1.5 rounded-full", paused ? "bg-accent-amber" : "bg-primary")} />
@@ -738,11 +741,12 @@ export default function FocusView() {
             </div>
           </div>
         )}
+        </div>
       </main>
 
       {/* Telemetry strip + hotkey legend */}
-      <footer className={`relative z-10 w-full px-4 sm:px-8 py-2 flex flex-col items-center gap-2 ${chromeClass}`}>
-        <div className="w-full max-w-3xl hidden sm:flex flex-wrap items-center justify-between py-1.5 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm gap-2">
+      <footer className={`relative z-10 w-full shrink-0 px-4 sm:px-8 py-2 flex flex-col items-center gap-2 ${chromeClass}`}>
+        <div className="w-full max-w-3xl hidden md:flex flex-wrap items-center justify-between py-1.5 px-4 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm gap-2">
           <div className="flex items-center gap-1.5">
             <Icon name="schedule" className="text-[15px] text-on-surface-variant" />
             <span className="text-label-xs text-on-surface-variant">Started</span>
@@ -785,7 +789,7 @@ export default function FocusView() {
             </span>
           </div>
         </div>
-        <div className="hidden sm:flex items-center justify-center gap-4 text-on-surface-variant text-[11px] tracking-wide pt-0.5">
+        <div className="hidden lg:flex items-center justify-center gap-4 text-on-surface-variant text-[11px] tracking-wide pt-0.5">
           <span className="flex items-center gap-1"><Kbd>Space</Kbd> Pause/Resume</span>
           <span>•</span>
           <span className="flex items-center gap-1"><Kbd>Esc</Kbd> Exit Focus</span>
