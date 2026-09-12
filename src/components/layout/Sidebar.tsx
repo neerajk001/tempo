@@ -8,8 +8,7 @@ import { AVATAR_SRC } from "@/lib/assets";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: "grid_view" },
-  { href: "/", label: "Today", icon: "schedule", exact: true },
+  { href: "/", label: "Dashboard", icon: "grid_view", exact: true },
   { href: "/tasks", label: "Tasks", icon: "task_alt" },
   { href: "/history", label: "History", icon: "bar_chart" },
   { href: "/library", label: "Focus Library", icon: "video_library" },
