@@ -37,15 +37,16 @@ enum SessionEventType {
 }
 
 model User {
-  id        String        @id @default(cuid())
-  email     String        @unique
-  name      String?
-  image     String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  tasks     Task[]
-  sessions  PomodoroSession[]
-  settings  UserSettings?
+  id          String           @id @default(cuid())
+  email       String           @unique
+  name        String?
+  image       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  tasks       Task[]
+  sessions    PomodoroSession[]
+  settings    UserSettings?
+  liveSession UserLiveSession?
 }
 
 // Cross-device settings for signed-in users. One row per user; the client
@@ -57,6 +58,18 @@ model UserSettings {
   pomodoro        Json     @default("{}")
   ambient         Json     @default("{}")
   diversions      Json     @default("[]")
+  clientUpdatedAt BigInt   @default(0)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+}
+
+// Live timer state for signed-in users, so an in-progress (or paused) session
+// continues seamlessly on another device. Timer math is timestamp-based, so the
+// absolute timestamps round-trip exactly. Last-write-wins on the client clock.
+model UserLiveSession {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state           Json     @default("{}")
   clientUpdatedAt BigInt   @default(0)
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())

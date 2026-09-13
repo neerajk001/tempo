@@ -54,6 +54,12 @@ interface SettingsPayload {
   clientUpdatedAt?: number;
 }
 
+interface LivePayload {
+  state?: unknown;
+  /** Client clock (ms). Drives last-write-wins across devices. */
+  clientUpdatedAt?: number;
+}
+
 interface SessionPayload {
   id: string;
   taskId?: string | null;
@@ -218,7 +224,7 @@ function toClientSettings(s: any) {
 }
 
 async function serverState(userId: string) {
-  const [tasks, sessions, settings] = await Promise.all([
+  const [tasks, sessions, settings, live] = await Promise.all([
     db.task.findMany({ where: { userId }, orderBy: { updatedAt: "desc" }, take: 2000 }),
     db.pomodoroSession.findMany({
       where: { userId },
@@ -227,11 +233,18 @@ async function serverState(userId: string) {
       include: { events: { orderBy: { timestamp: "asc" } } },
     }),
     db.userSettings.findUnique({ where: { userId } }),
+    db.userLiveSession.findUnique({ where: { userId } }),
   ]);
   return {
     tasks: tasks.map(toClientTask),
     sessions: sessions.map(toClientSession),
     settings: settings ? toClientSettings(settings) : null,
+    live: live
+      ? {
+          state: (live.state as unknown) ?? {},
+          updatedAt: Number(live.clientUpdatedAt ?? 0),
+        }
+      : null,
   };
 }
 
@@ -253,6 +266,7 @@ export async function POST(req: Request) {
     tasks?: TaskPayload[];
     sessions?: SessionPayload[];
     settings?: SettingsPayload;
+    live?: LivePayload;
     deletedTaskIds?: string[];
     deletedSessionIds?: string[];
   };
@@ -390,6 +404,32 @@ export async function POST(req: Request) {
         await db.userSettings.create({ data: { userId: user.id, ...data } as never });
       } else if (clientUpdatedAt > existing.clientUpdatedAt) {
         await db.userSettings.update({ where: { userId: user.id }, data: data as never });
+      }
+    }
+
+    // Live timer state: one row per user, last-write-wins on client timestamp.
+    const rawLive = body.live;
+    if (rawLive && typeof rawLive === "object") {
+      const clientUpdatedAt = BigInt(
+        Math.max(0, Math.round(num(rawLive.clientUpdatedAt, 0)))
+      );
+      const state =
+        rawLive.state && typeof rawLive.state === "object" && !Array.isArray(rawLive.state)
+          ? rawLive.state
+          : {};
+      const existing = await db.userLiveSession.findUnique({
+        where: { userId: user.id },
+        select: { clientUpdatedAt: true },
+      });
+      if (!existing) {
+        await db.userLiveSession.create({
+          data: { userId: user.id, state, clientUpdatedAt } as never,
+        });
+      } else if (clientUpdatedAt > existing.clientUpdatedAt) {
+        await db.userLiveSession.update({
+          where: { userId: user.id },
+          data: { state, clientUpdatedAt } as never,
+        });
       }
     }
 

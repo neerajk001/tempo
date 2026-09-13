@@ -11,9 +11,11 @@
  * - Sessions: append-only union by id (immutable once logged).
  * - Settings: prefs, Pomodoro cadence, ambient selection and diversions,
  *   last-write-wins on a client timestamp (see settings-sync.ts).
+ * - Live timer: the in-progress/paused session + active task pointer, so a run
+ *   continues on another device at the same elapsed time (see live-sync.ts).
  * - Deletes ride along as tombstones (see tombstones.ts) so a pull can
  *   never resurrect a deleted record.
- * Live timer state and scratchpads stay per-device.
+ * Scratchpads stay per-device.
  */
 
 import { useTaskStore, type Task } from "@/stores/task-store";
@@ -32,6 +34,13 @@ import {
   shouldApplySettings,
   initSettingsSync,
 } from "@/lib/settings-sync";
+import {
+  collectLiveState,
+  applyRemoteLive,
+  normalizeRemoteLive,
+  shouldApplyLive,
+  initLiveSync,
+} from "@/lib/live-sync";
 import { loadGuestMeta, clearGuestMeta } from "@/lib/guest";
 import { todayKey } from "@/lib/task-planning";
 import type { PomodoroPhase, SessionEventType, TaskPriority, TaskStatus } from "@/types";
@@ -273,6 +282,7 @@ interface RemoteState {
   tasks?: unknown[];
   sessions?: unknown[];
   settings?: unknown;
+  live?: unknown;
 }
 
 function reconcile(
@@ -307,6 +317,12 @@ function reconcile(
     applyRemoteSettings(remoteSettings);
   }
 
+  // Live timer state is likewise last-write-wins, tracked separately.
+  const remoteLive = normalizeRemoteLive(remote.live);
+  if (remoteLive && shouldApplyLive(collectLiveState(), remoteLive)) {
+    applyRemoteLive(remoteLive);
+  }
+
   // Server confirmed our tombstones on POST — prune them. Anything we
   // dropped from the remote side gets tombstoned for the next push.
   if (pushed) pruneTombstones(pushed.taskIds, pushed.sessionIds);
@@ -331,6 +347,7 @@ export async function syncNow(authedOverride?: boolean): Promise<boolean> {
     const tombs = loadTombstones();
     const taskIds = Object.keys(tombs.tasks);
     const sessionIds = Object.keys(tombs.sessions);
+    const live = collectLiveState();
     const res = await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -338,6 +355,7 @@ export async function syncNow(authedOverride?: boolean): Promise<boolean> {
         tasks: useTaskStore.getState().tasks,
         sessions: useSessionHistoryStore.getState().sessions,
         settings: collectLocalSettings(),
+        live: { state: live, clientUpdatedAt: live.updatedAt },
         deletedTaskIds: taskIds,
         deletedSessionIds: sessionIds,
       }),
@@ -413,4 +431,5 @@ export function initSync(): void {
   useTaskStore.subscribe(() => schedulePush());
   useSessionHistoryStore.subscribe(() => schedulePush());
   initSettingsSync(() => schedulePush());
+  initLiveSync(() => schedulePush());
 }
