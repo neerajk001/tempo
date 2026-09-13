@@ -9,9 +9,11 @@
  * - Tasks: union by id, last-write-wins on updatedAt, deduped by
  *   calendarEventId (one event links to exactly one task).
  * - Sessions: append-only union by id (immutable once logged).
+ * - Settings: prefs, Pomodoro cadence, ambient selection and diversions,
+ *   last-write-wins on a client timestamp (see settings-sync.ts).
  * - Deletes ride along as tombstones (see tombstones.ts) so a pull can
  *   never resurrect a deleted record.
- * Live timer state, prefs, scratchpads and diversions stay per-device.
+ * Live timer state and scratchpads stay per-device.
  */
 
 import { useTaskStore, type Task } from "@/stores/task-store";
@@ -23,6 +25,14 @@ import {
   addTaskTombstones,
   addSessionTombstones,
 } from "@/lib/tombstones";
+import {
+  collectLocalSettings,
+  applyRemoteSettings,
+  normalizeRemoteSettings,
+  shouldApplySettings,
+  initSettingsSync,
+} from "@/lib/settings-sync";
+import { loadGuestMeta, clearGuestMeta } from "@/lib/guest";
 import { todayKey } from "@/lib/task-planning";
 import type { PomodoroPhase, SessionEventType, TaskPriority, TaskStatus } from "@/types";
 
@@ -262,6 +272,7 @@ export function schedulePush(): void {
 interface RemoteState {
   tasks?: unknown[];
   sessions?: unknown[];
+  settings?: unknown;
 }
 
 function reconcile(
@@ -287,6 +298,13 @@ function reconcile(
     useSessionHistoryStore.setState({ sessions: mergedSessions.sessions });
   } finally {
     applyingRemote = false;
+  }
+
+  // Settings are a single last-write-wins blob: only adopt the server copy
+  // when it is newer than what this device last pushed.
+  const remoteSettings = normalizeRemoteSettings(remote.settings);
+  if (remoteSettings && shouldApplySettings(collectLocalSettings(), remoteSettings)) {
+    applyRemoteSettings(remoteSettings);
   }
 
   // Server confirmed our tombstones on POST — prune them. Anything we
@@ -319,6 +337,7 @@ export async function syncNow(authedOverride?: boolean): Promise<boolean> {
       body: JSON.stringify({
         tasks: useTaskStore.getState().tasks,
         sessions: useSessionHistoryStore.getState().sessions,
+        settings: collectLocalSettings(),
         deletedTaskIds: taskIds,
         deletedSessionIds: sessionIds,
       }),
@@ -330,6 +349,9 @@ export async function syncNow(authedOverride?: boolean): Promise<boolean> {
     if (!res.ok) throw new Error(`Sync failed (${res.status}).`);
     const remote = (await res.json()) as RemoteState;
     const needsFlush = reconcile(remote, { taskIds, sessionIds });
+    // Local data is now account-owned: the guest inactivity TTL no longer
+    // applies on this device.
+    if (ok) clearGuestMeta();
     useSyncStore.getState().setResult(true);
     if (needsFlush) schedulePush();
     return true;
@@ -371,10 +393,24 @@ export function maybeAutoSync(): void {
   void syncNow();
 }
 
+/**
+ * Guest -> account migration. Pushes all local data (tasks, sessions and
+ * settings) and merges the server state back, then drops the guest TTL marker
+ * on success inside syncNow. Idempotent: re-running repeats the same
+ * last-write-wins merge and converges. Returns true when a migration ran.
+ */
+export async function migrateGuestToAccount(): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  const hasGuestData = loadGuestMeta() !== null;
+  const ok = await syncNow(true);
+  return ok && hasGuestData;
+}
+
 /** Subscribe stores for push-on-mutation. Idempotent; call once from SyncManager. */
 export function initSync(): void {
   if (subscribed || typeof window === "undefined") return;
   subscribed = true;
   useTaskStore.subscribe(() => schedulePush());
   useSessionHistoryStore.subscribe(() => schedulePush());
+  initSettingsSync(() => schedulePush());
 }

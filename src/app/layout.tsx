@@ -6,6 +6,7 @@ import AuthSessionProvider from "@/components/providers/SessionProvider";
 import ServiceWorkerRegister from "@/components/providers/ServiceWorkerRegister";
 import GlobalShortcuts from "@/components/providers/GlobalShortcuts";
 import SyncManager from "@/components/providers/SyncManager";
+import GuestLifecycle from "@/components/providers/GuestLifecycle";
 import { AmbientMusic } from "@/components/ambient/AmbientMusic";
 
 const SITE_URL =
@@ -120,6 +121,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ServiceWorkerRegister />
           <GlobalShortcuts />
           <SyncManager />
+          <GuestLifecycle />
           {/* Global music player — survives route changes and exiting Focus Mode, driven only by the ambient store. */}
           <AmbientMusic />
         </AuthSessionProvider>

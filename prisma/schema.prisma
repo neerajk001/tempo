@@ -37,14 +37,29 @@ enum SessionEventType {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String        @id @default(cuid())
+  email     String        @unique
   name      String?
   image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   tasks     Task[]
   sessions  PomodoroSession[]
+  settings  UserSettings?
+}
+
+// Cross-device settings for signed-in users. One row per user; the client
+// clock (clientUpdatedAt) drives last-write-wins so a newer device wins.
+model UserSettings {
+  userId          String   @id
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prefs           Json     @default("{}")
+  pomodoro        Json     @default("{}")
+  ambient         Json     @default("{}")
+  diversions      Json     @default("[]")
+  clientUpdatedAt BigInt   @default(0)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
 }
 
 model Task {

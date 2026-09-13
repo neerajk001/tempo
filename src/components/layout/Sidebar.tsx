@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Icon from "@/components/ui/Icon";
 import { AVATAR_SRC } from "@/lib/assets";
+import { signInWithGoogle, signOutAndReset } from "@/lib/auth-actions";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -17,8 +18,9 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const email = session?.user?.email ?? "neeraj@tempo.io";
-  const name = session?.user?.name?.split(" ")[0] ?? "Neeraj";
+  const authed = status === "authenticated";
+  const email = authed ? session?.user?.email ?? "" : "Local only — sign in to sync";
+  const name = authed ? session?.user?.name?.split(" ")[0] ?? "You" : "Guest";
   const avatar = session?.user?.image ?? AVATAR_SRC;
 
   return (
@@ -66,11 +68,11 @@ export default function Sidebar() {
             <div className="text-body-sm font-semibold text-on-surface truncate">{name}</div>
             <div className="text-label-xs text-secondary truncate">{email}</div>
           </div>
-          {status === "authenticated" ? (
+          {authed ? (
             <button
               type="button"
               title="Sign out"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => signOutAndReset()}
               className="text-secondary hover:text-on-surface"
             >
               <Icon name="unfold_more" className="text-[18px]" />
@@ -78,8 +80,8 @@ export default function Sidebar() {
           ) : (
             <button
               type="button"
-              title="Sign in"
-              onClick={() => signIn("google", { callbackUrl: "/" })}
+              title="Sign in to sync across devices"
+              onClick={() => signInWithGoogle()}
               className="text-secondary hover:text-on-surface"
             >
               <Icon name="login" className="text-[18px]" />

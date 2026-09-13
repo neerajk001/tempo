@@ -11,6 +11,8 @@ import { useDiversionStore } from "@/stores/diversion-store";
 import { playChime } from "@/lib/chime";
 import { setNotifyEnabled } from "@/lib/notifications";
 import { syncNow } from "@/lib/sync";
+import { signInWithGoogle } from "@/lib/auth-actions";
+import { clearLocalTempoData } from "@/lib/local-data";
 import { useSyncStore } from "@/stores/sync-store";
 import { cn } from "@/lib/utils";
 
@@ -142,13 +144,7 @@ export default function SettingsPage() {
 
   const clearLocal = () => {
     if (!window.confirm("Clear local Tempo data on this device? Database records are preserved.")) return;
-    try {
-      Object.keys(window.localStorage)
-        .filter((k) => k.startsWith("tempo-"))
-        .forEach((k) => window.localStorage.removeItem(k));
-    } catch {
-      // Ignore.
-    }
+    clearLocalTempoData();
     window.location.reload();
   };
 
@@ -433,7 +429,7 @@ export default function SettingsPage() {
                   <span className="text-headline-md font-semibold text-on-surface">Cloud Backup</span>
                   <span className="text-body-sm text-on-surface-variant">
                     {authStatus !== "authenticated"
-                      ? "Sign in to back up tasks and history across devices."
+                      ? "Local only — data lives on this device for 7 days of inactivity. Sign in to sync tasks, history, and settings across devices."
                       : syncing
                         ? "Syncing…"
                         : syncError
@@ -444,19 +440,29 @@ export default function SettingsPage() {
                               if (s < 60) return "just now";
                               if (s < 3600) return `${Math.floor(s / 60)}m ago`;
                               return `${Math.floor(s / 3600)}h ago`;
-                            })()} · tasks and history converge across devices`
+                            })()} · tasks, history, and settings converge across devices`
                             : "Never synced on this device yet."}
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => void syncNow(authStatus === "authenticated")}
-                disabled={authStatus !== "authenticated" || syncing}
-                className="px-4 h-8 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium shadow-sm transition-colors self-start sm:self-auto disabled:opacity-50 flex-shrink-0"
-              >
-                {syncing ? "Syncing…" : "Sync now"}
-              </button>
+              {authStatus === "authenticated" ? (
+                <button
+                  type="button"
+                  onClick={() => void syncNow(true)}
+                  disabled={syncing}
+                  className="px-4 h-8 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium shadow-sm transition-colors self-start sm:self-auto disabled:opacity-50 flex-shrink-0"
+                >
+                  {syncing ? "Syncing…" : "Sync now"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => signInWithGoogle()}
+                  className="px-4 h-8 rounded bg-primary hover:bg-primary-container text-on-primary text-body-sm font-semibold shadow-sm transition-colors self-start sm:self-auto flex-shrink-0"
+                >
+                  Sign in to sync
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="flex flex-col justify-between p-4 rounded-lg bg-surface-container-low/50 gap-4">

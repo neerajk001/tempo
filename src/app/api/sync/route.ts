@@ -45,6 +45,15 @@ interface TaskPayload {
   lastPhase?: string | null;
 }
 
+interface SettingsPayload {
+  prefs?: unknown;
+  pomodoro?: unknown;
+  ambient?: unknown;
+  diversions?: unknown;
+  /** Client clock (ms). Drives last-write-wins across devices. */
+  clientUpdatedAt?: number;
+}
+
 interface SessionPayload {
   id: string;
   taskId?: string | null;
@@ -198,8 +207,18 @@ function toClientSession(s: any) {
   };
 }
 
+function toClientSettings(s: any) {
+  return {
+    prefs: (s.prefs as unknown) ?? {},
+    pomodoro: (s.pomodoro as unknown) ?? {},
+    ambient: (s.ambient as unknown) ?? {},
+    diversions: Array.isArray(s.diversions) ? s.diversions : [],
+    updatedAt: Number(s.clientUpdatedAt ?? 0),
+  };
+}
+
 async function serverState(userId: string) {
-  const [tasks, sessions] = await Promise.all([
+  const [tasks, sessions, settings] = await Promise.all([
     db.task.findMany({ where: { userId }, orderBy: { updatedAt: "desc" }, take: 2000 }),
     db.pomodoroSession.findMany({
       where: { userId },
@@ -207,8 +226,13 @@ async function serverState(userId: string) {
       take: 1000,
       include: { events: { orderBy: { timestamp: "asc" } } },
     }),
+    db.userSettings.findUnique({ where: { userId } }),
   ]);
-  return { tasks: tasks.map(toClientTask), sessions: sessions.map(toClientSession) };
+  return {
+    tasks: tasks.map(toClientTask),
+    sessions: sessions.map(toClientSession),
+    settings: settings ? toClientSettings(settings) : null,
+  };
 }
 
 export async function GET() {
@@ -228,6 +252,7 @@ export async function POST(req: Request) {
   let body: {
     tasks?: TaskPayload[];
     sessions?: SessionPayload[];
+    settings?: SettingsPayload;
     deletedTaskIds?: string[];
     deletedSessionIds?: string[];
   };
@@ -337,6 +362,34 @@ export async function POST(req: Request) {
             events: { create: data.events },
           } as never,
         });
+      }
+    }
+
+    // Settings: one row per user, last-write-wins on the client timestamp.
+    const rawSettings = body.settings;
+    if (rawSettings && typeof rawSettings === "object") {
+      const asObject = (v: unknown) =>
+        v && typeof v === "object" && !Array.isArray(v) ? v : {};
+      const clientUpdatedAt = BigInt(
+        Math.max(0, Math.round(num(rawSettings.clientUpdatedAt, 0)))
+      );
+      const data = {
+        prefs: asObject(rawSettings.prefs),
+        pomodoro: asObject(rawSettings.pomodoro),
+        ambient: asObject(rawSettings.ambient),
+        diversions: Array.isArray(rawSettings.diversions)
+          ? rawSettings.diversions.slice(0, 200)
+          : [],
+        clientUpdatedAt,
+      };
+      const existing = await db.userSettings.findUnique({
+        where: { userId: user.id },
+        select: { clientUpdatedAt: true },
+      });
+      if (!existing) {
+        await db.userSettings.create({ data: { userId: user.id, ...data } as never });
+      } else if (clientUpdatedAt > existing.clientUpdatedAt) {
+        await db.userSettings.update({ where: { userId: user.id }, data: data as never });
       }
     }
 

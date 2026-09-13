@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { signInWithGoogle, signOutAndReset } from "@/lib/auth-actions";
 
 function TempoGlyph({ className }: { className?: string }) {
   return (
@@ -48,7 +48,7 @@ export default function LoginPage() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.code === "Enter" && status === "unauthenticated") {
         e.preventDefault();
-        signIn("google", { callbackUrl: "/" });
+        signInWithGoogle();
       } else if (e.code === "Escape") {
         router.push("/");
       }
@@ -128,7 +128,7 @@ export default function LoginPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    onClick={() => signOutAndReset()}
                     className="px-5 py-2.5 rounded-xl bg-surface-container border border-outline-variant text-on-surface font-medium text-[14px] hover:bg-surface-container-high transition-colors"
                   >
                     Sign out
@@ -139,7 +139,7 @@ export default function LoginPage() {
               <>
                 <button
                   type="button"
-                  onClick={() => signIn("google", { callbackUrl: "/" })}
+                  onClick={() => signInWithGoogle()}
                   className="w-full group relative flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-primary hover:bg-primary-container active:brightness-95 text-on-primary font-semibold text-[14.5px] shadow-sm hover:shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <GoogleGlyph className="w-4 h-4 bg-white rounded-full p-[1px] flex-shrink-0" />
@@ -147,12 +147,20 @@ export default function LoginPage() {
                   <span className="text-xs font-mono text-on-primary/60 group-hover:text-on-primary ml-1 transition-colors">↵</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => router.push("/")}
+                  className="mt-3 w-full text-center text-[13px] font-medium text-on-surface-variant hover:text-on-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary rounded-lg py-1.5"
+                >
+                  Continue without signing in →
+                </button>
+
                 <div className="relative my-5">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-outline-variant" />
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="bg-surface-container-lowest px-2.5 text-on-surface-variant font-mono text-[11px] uppercase tracking-wider">Workspace Sync</span>
+                    <span className="bg-surface-container-lowest px-2.5 text-on-surface-variant font-mono text-[11px] uppercase tracking-wider">Use Tempo without an account</span>
                   </div>
                 </div>
 
@@ -162,17 +170,17 @@ export default function LoginPage() {
                   </div>
                   <div>
                     <p className="text-xs leading-relaxed text-on-surface font-medium">
-                      Sign in to sync your tasks across devices.
+                      Sign in to sync your data across devices.
                     </p>
                     <p className="text-[11px] text-on-surface-variant mt-0.5">
-                      Tempo only sees your basic Google profile — nothing else.
+                      Without an account everything stays on this device. Tempo only sees your basic Google profile — nothing else.
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3.5 border-t border-outline-variant flex items-center gap-1.5 text-xs text-on-surface-variant">
                   <LockIcon className="w-3.5 h-3.5" />
-                  OAuth 2.0 AES-256 Encrypted
+                  Optional · OAuth 2.0 AES-256 Encrypted
                 </div>
               </>
             )}

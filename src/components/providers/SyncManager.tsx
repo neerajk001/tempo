@@ -2,12 +2,13 @@
 
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { initSync, setSyncAuthed, maybeAutoSync } from "@/lib/sync";
+import { initSync, setSyncAuthed, maybeAutoSync, migrateGuestToAccount } from "@/lib/sync";
 
 /**
  * Background cloud sync driver. Local-first UI is untouched — this only
  * converges local stores with the server when signed in and online:
- * full sync on sign-in, then throttled syncs on tab focus + interval.
+ * a full push+merge (migrating any guest data) on sign-in, then throttled
+ * syncs on tab focus + interval.
  */
 export default function SyncManager() {
   const { status } = useSession();
@@ -18,7 +19,8 @@ export default function SyncManager() {
 
   useEffect(() => {
     setSyncAuthed(status === "authenticated");
-    if (status === "authenticated") void maybeAutoSync();
+    // Signing in merges whatever local (incl. guest) data exists into the account.
+    if (status === "authenticated") void migrateGuestToAccount();
   }, [status]);
 
   useEffect(() => {
