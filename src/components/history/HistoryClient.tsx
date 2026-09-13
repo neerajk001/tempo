@@ -7,6 +7,7 @@ import SessionInspector from "@/components/history/SessionInspector";
 import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { useSessionHistoryStore, getRecordLabel, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
 import { formatDurationMinutes } from "@/lib/utils";
+import type { FocusMode, PomodoroPhase } from "@/types";
 import { cn } from "@/lib/utils";
 
 type Range = "today" | "yesterday" | "week" | "custom";
@@ -25,11 +26,13 @@ function mondayOf(d: Date): Date {
   c.setDate(c.getDate() - ((c.getDay() + 6) % 7));
   return c;
 }
-function tzLabel(): string {
-  const mins = -new Date().getTimezoneOffset();
-  const sign = mins >= 0 ? "+" : "-";
-  const a = Math.abs(mins);
-  return `UTC${sign}${String(Math.floor(a / 60)).padStart(2, "0")}:${String(a % 60).padStart(2, "0")}`;
+function phaseLabel(phase: PomodoroPhase): string {
+  if (phase === "SHORT_BREAK") return "Short break";
+  if (phase === "LONG_BREAK") return "Long break";
+  return "Focus";
+}
+function modeLabel(mode: FocusMode): string {
+  return mode === "infinite" ? "Infinite focus" : "Timed focus";
 }
 function fmtHM(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -238,20 +241,18 @@ export default function HistoryClient() {
       {/* Header */}
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5 min-w-[280px]">
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-headline-lg text-on-surface tracking-tight">History</h1>
-            <span className="font-mono text-code-badge px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-medium">{tzLabel()}</span>
-          </div>
-          <p className="text-body-sm text-on-surface-variant">See where your focused time actually went.</p>
+          <h1 className="text-headline-lg text-on-surface tracking-tight">History</h1>
+          <p className="text-body-sm text-on-surface-variant">Every focus session you’ve tracked. Times are shown in your local time.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setMetricsOn((v) => !v)}
+            aria-pressed={metricsOn}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-low shadow-sm transition-all text-body-sm font-medium"
           >
             <Icon name="tune" className="text-[16px] text-on-surface-variant" />
-            <span>Metrics View</span>
+            <span>{metricsOn ? "Hide summary" : "Show summary"}</span>
           </button>
           <button
             type="button"
@@ -259,7 +260,7 @@ export default function HistoryClient() {
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-on-surface text-surface hover:brightness-110 shadow-sm transition-all text-body-sm font-medium"
           >
             <Icon name="file_download" className="text-[16px]" />
-            <span>Export CSV</span>
+            <span>Download CSV</span>
             <span className="font-mono text-code-badge text-on-surface/70 ml-1">⌘E</span>
           </button>
         </div>
@@ -269,22 +270,25 @@ export default function HistoryClient() {
       <section className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-surface-container-lowest shadow-sm">
         <div className="flex items-center gap-1.5 flex-wrap">
           <div className="flex items-center p-0.5 rounded-lg bg-surface-container-low">
-            {(["today", "yesterday", "week", "custom"] as Range[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => {
-                  setRange(r);
-                  setNav(0);
-                }}
-                className={cn(
-                  "px-3 py-0.5 rounded-md text-body-sm transition-colors capitalize",
-                  range === r ? "bg-surface-container-lowest text-on-surface font-medium shadow-sm" : "text-on-surface-variant hover:text-on-surface"
-                )}
-              >
-                {r === "week" ? "This Week" : r === "custom" ? "Custom Range" : r[0].toUpperCase() + r.slice(1)}
-              </button>
-            ))}
+            {(["today", "yesterday", "week", "custom"] as Range[]).map((r) => {
+              const label = r === "today" ? "Today" : r === "yesterday" ? "Yesterday" : r === "week" ? "Week" : "Custom";
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => {
+                    setRange(r);
+                    setNav(0);
+                  }}
+                  className={cn(
+                    "px-3 py-0.5 rounded-md text-body-sm transition-colors",
+                    range === r ? "bg-surface-container-lowest text-on-surface font-medium shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
           {range === "custom" ? (
             <div className="flex items-center gap-1.5">
@@ -315,27 +319,30 @@ export default function HistoryClient() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center p-0.5 rounded-lg bg-surface-container-low text-label-xs">
-            <span className="px-1.5 text-on-surface-variant uppercase font-semibold">Group</span>
-            {(["sessions", "tasks", "projects"] as Group[]).map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setGroup(g)}
-                className={cn(
-                  "px-3 py-0.5 rounded capitalize",
-                  group === g ? "bg-surface-container-lowest text-on-surface font-semibold shadow-sm" : "text-on-surface-variant hover:text-on-surface"
-                )}
-              >
-                {g}
-              </button>
-            ))}
+            <span className="px-1.5 text-on-surface-variant uppercase font-semibold">Group by</span>
+            {(["sessions", "tasks", "projects"] as Group[]).map((g) => {
+              const label = g === "sessions" ? "Sessions" : g === "tasks" ? "Tasks" : "Projects";
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGroup(g)}
+                  className={cn(
+                    "px-3 py-0.5 rounded",
+                    group === g ? "bg-surface-container-lowest text-on-surface font-semibold shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
           <div className="relative flex items-center min-w-[200px]">
             <Icon name="filter_list" className="absolute left-3 text-[16px] text-on-surface-variant pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter sessions, tasks..."
+              placeholder="Search by task or session"
               className="w-full h-8 pl-9 pr-3 bg-surface-container-low focus:bg-surface-container-lowest text-body-sm rounded-lg text-on-surface placeholder:text-on-surface-variant/70 transition-all outline-none focus:shadow-sm"
             />
           </div>
@@ -349,7 +356,7 @@ export default function HistoryClient() {
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-body-sm transition-colors"
           >
             <span className="w-2 h-2 rounded-full bg-primary-container" />
-            <span>{project === "all" ? "All Projects" : project}</span>
+            <span>{project === "all" ? "All projects" : project}</span>
             <Icon name="expand_more" className="text-[16px]" />
           </button>
         </div>
@@ -360,16 +367,16 @@ export default function HistoryClient() {
         <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <div className="p-4 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between gap-2 relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Focused Time</span>
+              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Focused time</span>
               <Icon name="timer" className="text-[18px] text-primary" />
             </div>
-            <div className="flex items-baseline gap-1.5">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="font-mono text-metric-mono-lg text-on-surface tracking-tight tabular-nums">{formatDurationMinutes(Math.round(focusedMs / 60000))}</span>
-              <span className="font-mono text-code-badge text-on-surface-variant">/ {formatDurationMinutes(goalMin)} goal</span>
+              <span className="font-mono text-code-badge text-on-surface-variant">{adherence}% of a {formatDurationMinutes(goalMin)} goal</span>
             </div>
             <div className="flex items-center gap-1 text-label-xs text-on-primary-fixed">
-              <Icon name="trending_up" className="text-[14px]" />
-              <span className="font-medium">{deltaMin >= 0 ? `+${formatDurationMinutes(deltaMin)}` : `−${formatDurationMinutes(-deltaMin)}`} vs previous period ({adherence}% adherence)</span>
+              <Icon name={deltaMin >= 0 ? "trending_up" : "trending_down"} className="text-[14px]" />
+              <span className="font-medium">{deltaMin >= 0 ? `+${formatDurationMinutes(deltaMin)}` : `−${formatDurationMinutes(-deltaMin)}`} vs last period</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-surface-container">
               <div className="h-full bg-primary" style={{ width: `${Math.min(100, adherence)}%` }} />
@@ -377,16 +384,16 @@ export default function HistoryClient() {
           </div>
           <div className="p-4 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between gap-2 relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Pomodoros Completed</span>
+              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Focus sessions finished</span>
               <Icon name="check_circle" className="text-[18px] text-primary" />
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="font-mono text-metric-mono-lg text-on-surface tracking-tight tabular-nums">{pomoDone}</span>
-              <span className="font-mono text-code-badge text-on-surface-variant">blocks locked</span>
+              <span className="font-mono text-code-badge text-on-surface-variant">of {pomoTotal} started</span>
             </div>
             <div className="flex items-center gap-1 text-label-xs text-on-surface-variant">
               <Icon name="done_all" className="text-[14px] text-primary" />
-              <span>{intentional}% intended targets achieved</span>
+              <span>{intentional}% reached the end</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-surface-container">
               <div className="h-full bg-primary" style={{ width: `${Math.min(100, intentional)}%` }} />
@@ -394,16 +401,20 @@ export default function HistoryClient() {
           </div>
           <div className="p-4 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between gap-2 relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Interruptions Total</span>
+              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Interruptions</span>
               <Icon name="notifications_paused" className="text-[18px] text-accent-amber" />
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="font-mono text-metric-mono-lg text-on-surface tracking-tight tabular-nums">{interruptions}</span>
-              <span className="font-mono text-code-badge text-on-accent-amber bg-accent-amber-container px-1 py-0.5 rounded">{formatDurationMinutes(Math.round(pausedMs / 60000))} lost total</span>
+              <span className="font-mono text-code-badge text-on-accent-amber bg-accent-amber-container px-1 py-0.5 rounded">{formatDurationMinutes(Math.round(pausedMs / 60000))} paused</span>
             </div>
             <div className="flex items-center gap-1 text-label-xs text-on-surface-variant">
               <Icon name="info" className="text-[14px]" />
-              <span>Avg {interruptions > 0 ? (pausedMs / interruptions / 60000).toFixed(1) : "0"}m duration per breach</span>
+              <span>
+                {interruptions > 0
+                  ? `About ${(pausedMs / interruptions / 60000).toFixed(1)}m paused each time`
+                  : "No pauses recorded"}
+              </span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-surface-container">
               <div className="h-full bg-accent-amber" style={{ width: `${Math.min(100, interruptions * 4)}%` }} />
@@ -411,16 +422,16 @@ export default function HistoryClient() {
           </div>
           <div className="p-4 rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between gap-2 relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Average Session</span>
+              <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-medium">Average session</span>
               <Icon name="tune" className="text-[18px] text-accent-yellow" />
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="font-mono text-metric-mono-lg text-on-surface tracking-tight tabular-nums">{formatDurationMinutes(Math.round(avgSession / 60000))}</span>
-              <span className="font-mono text-code-badge text-on-surface-variant">cadence</span>
+              <span className="font-mono text-code-badge text-on-surface-variant">per session</span>
             </div>
             <div className="flex items-center gap-1 text-label-xs text-on-accent-yellow">
               <Icon name="verified" className="text-[14px]" />
-              <span>Optimal deep work zone (45–55m)</span>
+              <span>{focus.length} focus session{focus.length === 1 ? "" : "s"} in this period</span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-surface-container">
               <div className="h-full bg-accent-yellow" style={{ width: `${Math.min(100, Math.round((avgSession / 60000 / 55) * 100))}%` }} />
@@ -433,18 +444,18 @@ export default function HistoryClient() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
         <div className="lg:col-span-7 flex flex-col gap-3 min-w-0">
           <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant overflow-hidden flex flex-col">
-            <div className="hidden md:grid grid-cols-12 px-4 py-2 bg-surface-container-low text-label-xs text-on-surface-variant uppercase tracking-wider select-none">
-              <div className="col-span-2">Date</div>
-              <div className="col-span-4">{group === "sessions" ? "Task & Scope" : group === "tasks" ? "Task" : "Project"}</div>
-              <div className="col-span-2 text-right">Window</div>
-              <div className="col-span-1 text-right">Focus</div>
-              <div className="col-span-1 text-right">Pause</div>
-              <div className="col-span-1 text-center">Int.</div>
-              <div className="col-span-1 text-right">Inspect</div>
+            <div className="hidden md:grid grid-cols-12 px-4 py-2 bg-surface-container-low text-[10px] font-medium text-on-surface-variant select-none">
+              <div className="col-span-2">{group === "sessions" ? "Date" : "Sessions"}</div>
+              <div className="col-span-4">{group === "sessions" ? "Task" : group === "tasks" ? "Task" : "Project"}</div>
+              <div className="col-span-2 text-right">Time</div>
+              <div className="col-span-1 text-right">Focused</div>
+              <div className="col-span-1 text-right">Paused</div>
+              <div className="col-span-1 text-right">Pauses</div>
+              <div className="col-span-1 text-right">Open</div>
             </div>
             <div className="divide-y divide-surface-container-high/60">
               {group === "sessions" && byDay.length === 0 && (
-                <p className="px-4 py-8 text-body-sm text-secondary">No sessions in this range. Run a focus block to start the audit trail.</p>
+                <p className="px-4 py-8 text-body-sm text-secondary">No sessions in this period yet. Start a focus session and it will show up here.</p>
               )}
               {group === "sessions" &&
                 byDay.map(([key, list]) => {
@@ -460,7 +471,7 @@ export default function HistoryClient() {
                           {prefix} — {d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
                         </span>
                         <span className="font-mono text-code-badge text-on-surface-variant">
-                          {list.length} sessions · {formatDurationMinutes(Math.round(dayFocus / 60000))} focus
+                          {list.length} session{list.length === 1 ? "" : "s"} · {formatDurationMinutes(Math.round(dayFocus / 60000))} focused
                         </span>
                       </div>
                       {list.map((x) => {
@@ -487,12 +498,12 @@ export default function HistoryClient() {
                                     {t.project}
                                   </span>
                                 )}
-                                <span className="font-mono text-[10px] text-on-surface-variant">{x.phase.replace("_", " ")}</span>
+                                <span className="text-[10px] text-on-surface-variant">{phaseLabel(x.phase)}</span>
                                 <span className={cn(
                                   "font-mono text-[10px] px-1 py-px rounded font-medium",
                                   getSessionMode(x) === "infinite" ? "bg-primary-fixed text-on-primary-fixed" : "bg-surface-container text-on-surface-variant"
                                 )}>
-                                  {getSessionMode(x) === "infinite" ? "∞ Infinite" : "Allocated"}
+                                  {modeLabel(getSessionMode(x))}
                                 </span>
                                 {(x.breakMs ?? 0) > 0 && (
                                   <span className="font-mono text-[10px] text-on-surface-variant">
@@ -553,10 +564,10 @@ export default function HistoryClient() {
                       onClick={() => setSelectedId(list[0]?.id ?? null)}
                       className="flex flex-col gap-1.5 px-4 py-3 md:grid md:grid-cols-12 md:items-center md:py-2.5 hover:bg-surface-container-low/80 cursor-pointer transition-colors"
                     >
-                      <div className="font-mono text-code-badge text-on-surface-variant md:col-span-2">{list.length} runs</div>
+                      <div className="font-mono text-code-badge text-on-surface-variant md:col-span-2">{list.length} session{list.length === 1 ? "" : "s"}</div>
                       <div className="text-body-sm font-medium text-on-surface truncate md:col-span-4">{title}</div>
                       <div className="hidden md:block md:col-span-2 md:text-right font-mono text-metric-mono-md text-on-surface-variant">—</div>
-                      <div className="font-mono text-metric-mono-md text-on-surface font-medium md:col-span-1 md:text-right"><span className="md:hidden text-label-xs text-secondary font-normal mr-1.5">Focus</span>{formatDurationMinutes(Math.round(focused / 60000))}</div>
+                      <div className="font-mono text-metric-mono-md text-on-surface font-medium md:col-span-1 md:text-right"><span className="md:hidden text-label-xs text-secondary font-normal mr-1.5">Focused</span>{formatDurationMinutes(Math.round(focused / 60000))}</div>
                       <div className="font-mono text-metric-mono-md text-on-surface-variant md:col-span-1 md:text-right"><span className="md:hidden text-label-xs text-secondary font-normal mr-1.5">Paused</span>{formatDurationMinutes(Math.round(paused / 60000))}</div>
                       <div className="md:col-span-1 md:text-center">
                         <span className="md:hidden text-label-xs text-secondary font-normal mr-1.5">Interruptions</span>
@@ -567,7 +578,7 @@ export default function HistoryClient() {
                   );
                 })}
               {group !== "sessions" && (group === "tasks" ? byTask.length === 0 : byProject.length === 0) && (
-                <p className="px-4 py-8 text-body-sm text-secondary">Nothing to aggregate in this range.</p>
+                <p className="px-4 py-8 text-body-sm text-secondary">No sessions to group in this period.</p>
               )}
             </div>
             {group === "sessions" && filtered.length > PAGE_SIZE && (
@@ -591,9 +602,9 @@ export default function HistoryClient() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Icon name="analytics" className="text-[16px] text-primary" />
-                <span className="text-headline-md text-on-surface">Daily Distribution</span>
+                <span className="text-headline-md text-on-surface">Focus by day</span>
               </div>
-              <span className="text-label-xs text-on-surface-variant">Adherence to 6h target/day</span>
+              <span className="text-label-xs text-on-surface-variant">Focused hours per day · 6h goal</span>
             </div>
             <div className="grid grid-cols-7 gap-2 items-end h-24 pt-2">
               {weekDays.map((d, i) => {
@@ -620,7 +631,7 @@ export default function HistoryClient() {
             <SessionInspector record={selected} onClose={() => setSelectedId(null)} onDeleted={() => setSelectedId(filtered[0]?.id ?? null)} />
           ) : (
             <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant p-6 text-body-sm text-secondary">
-              Select a session to inspect its micro-timeline.
+              Pick a session to see what happened.
             </div>
           )}
         </aside>

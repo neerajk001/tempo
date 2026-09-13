@@ -16,7 +16,7 @@ export default function SessionDetailsPage() {
       <div className="space-y-4 max-w-lg">
         <h1 className="text-headline-lg text-on-surface">Session</h1>
         <Card>
-          <p className="text-sm">Session not found. It may have been cleared.</p>
+          <p className="text-sm">We couldn’t find that session. It may have been deleted.</p>
           <Link href="/history" className="text-sm underline">
             Back to history
           </Link>
