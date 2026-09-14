@@ -181,7 +181,9 @@ export default function FocusSessionCard() {
   const CIRC = 2 * Math.PI * R;
 
   const startPrimary = () => {
-    if (session.status !== "IDLE") return;
+    // Only a live run is off-limits here; from IDLE or a finished/cancelled
+    // session this starts the next block.
+    if (session.status === "RUNNING" || session.status === "PAUSED") return;
     // switchToTask preserves the previous task's state and resumes the
     // selected task from its exact prior state (single-active).
     if (activeTask) switchToTask(activeTask.id);

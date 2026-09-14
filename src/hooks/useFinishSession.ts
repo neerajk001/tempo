@@ -94,12 +94,12 @@ export function useFinishSession() {
         breakMs,
       });
     }
+    // The completion chime follows the sound theme ("muted" = silent) and
+    // always plays. The notify toggles only gate the desktop banner.
     const prefs = usePrefsStore.getState();
-    if (snapshot.phase === "FOCUS" && prefs.notifyFocus) {
-      playChime(prefs.chimeTheme);
-      sendCompletionNotification(snapshot.phase, taskTitle);
-    } else if (snapshot.phase !== "FOCUS" && prefs.notifyBreak) {
-      playChime(prefs.chimeTheme);
+    playChime(prefs.chimeTheme);
+    const wantsBanner = snapshot.phase === "FOCUS" ? prefs.notifyFocus : prefs.notifyBreak;
+    if (wantsBanner) {
       sendCompletionNotification(snapshot.phase, taskTitle);
     }
     // Deliberate-start defaults: only auto-advance where the user enabled it.

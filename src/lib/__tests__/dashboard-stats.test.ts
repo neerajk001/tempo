@@ -107,14 +107,31 @@ describe("dashboard stats", () => {
     expect(s.timeline).toEqual([]);
   });
 
-  it("counts allocation-free quick sessions as 100% focus rate", () => {
+  it("counts allocation-free quick sessions as focus time, not as plan work", () => {
     const sessions = [
       sess({ id: "q1", taskId: null, taskTitle: "Deep Work Session", startedAt: day, focusedMs: 25 * MIN }),
     ];
     const s = computeDashboardStats([], sessions, key);
     expect(s.plannedMinutes).toBe(0);
     expect(s.focusedMinutes).toBe(25);
+    expect(s.taskFocusedMinutes).toBe(0);
     expect(s.focusRate).toBe(100);
-    expect(s.completedPomodoros).toBe(1);
+    expect(s.completedPomodoros).toBe(0);
+  });
+
+  it("does not let quick/unlinked focus consume the task plan", () => {
+    const tasks = [task({ id: "a", title: "Agentic AI", allocatedMinutes: 120, focusMinutes: 25 })];
+    const sessions = [
+      sess({ id: "t1", taskId: "a", startedAt: day, plannedMs: 25 * MIN, focusedMs: 25 * MIN }),
+      sess({ id: "t2", taskId: "a", startedAt: day + H, plannedMs: 25 * MIN, focusedMs: 25 * MIN }),
+      sess({ id: "q1", taskId: null, taskTitle: "Deep Work Session", startedAt: day + 2 * H, plannedMs: 25 * MIN, focusedMs: 25 * MIN }),
+    ];
+    const s = computeDashboardStats(tasks, sessions, key);
+    expect(s.plannedMinutes).toBe(120);
+    expect(s.focusedMinutes).toBe(75); // all focus, incl. the quick block
+    expect(s.taskFocusedMinutes).toBe(50); // only the two task blocks
+    expect(s.remainingMinutes).toBe(70);
+    expect(s.completedPomodoros).toBe(2);
+    expect(s.focusRate).toBe(42); // 50/120
   });
 });

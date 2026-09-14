@@ -304,8 +304,8 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-0.5">
               {(
                 [
-                  { key: "notifyFocus", icon: "check_circle", title: "Pomodoro completed", sub: "Subtle chime sound plus desktop system banner notification." },
-                  { key: "notifyBreak", icon: "coffee", title: "Break completed", sub: "Gentle audio cue reminding you when rest interval expires." },
+                  { key: "notifyFocus", icon: "check_circle", title: "Pomodoro completed", sub: "Desktop notification when a focus block ends. The completion chime always plays." },
+                  { key: "notifyBreak", icon: "coffee", title: "Break completed", sub: "Desktop notification when a break ends. The completion chime always plays." },
                   { key: "reviewPrompt", icon: "rate_review", title: "Daily review prompt", sub: "Shows an end-of-day review nudge on the dashboard after 18:30 local time." },
                 ] as Array<{ key: "notifyFocus" | "notifyBreak" | "reviewPrompt"; icon: string; title: string; sub: string }>
               ).map((row) => (

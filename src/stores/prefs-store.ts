@@ -24,7 +24,7 @@ interface PrefsState {
 }
 
 const DEFAULTS = {
-  autoStartBreaks: true,
+  autoStartBreaks: false,
   autoStartFocus: false,
   notifyFocus: false,
   notifyBreak: false,
@@ -56,6 +56,7 @@ export const usePrefsStore = create<PrefsState>()(
     }),
     {
       name: STORAGE_KEY,
+      version: 2,
       storage: createJSONStorage(ssrSafeStorage),
       partialize: (s) => ({
         autoStartBreaks: s.autoStartBreaks,
@@ -69,6 +70,25 @@ export const usePrefsStore = create<PrefsState>()(
         timerFaded: s.timerFaded,
         timerHidden: s.timerHidden,
       }) as PrefsState,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as Partial<PrefsState>;
+        // Breaks are started manually now. Earlier builds shipped with
+        // auto-start-breaks on by default, so reset it once for existing installs.
+        if (version < 2) {
+          try {
+            // Stamp the settings bundle so this local change wins the
+            // cross-device merge and a stale remote copy cannot turn it back on.
+            window.localStorage.setItem(
+              "tempo-settings-meta-v1",
+              JSON.stringify({ updatedAt: Date.now() })
+            );
+          } catch {
+            // Ignore.
+          }
+          return { ...state, autoStartBreaks: false } as PrefsState;
+        }
+        return state as PrefsState;
+      },
     }
   )
 );

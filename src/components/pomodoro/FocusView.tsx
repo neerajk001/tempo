@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
+import { usePomodoroStore, resolveBreaks, taskBreaks } from "@/stores/pomodoro-store";
 import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel, getTaskFocusedMs } from "@/stores/task-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
@@ -253,14 +253,21 @@ export default function FocusView() {
       ? selectTaskById(useTaskStore.getState().tasks, st.activeTaskId)
       : null;
     if (linked) {
+      const breaks = taskBreaks(linked);
+      const completedFocusCount = linked.completedFocusCount ?? linked.completedPomodoros ?? 0;
       if (getFocusMode(linked) === "infinite") {
         st.startForTask(linked.id, linked.title, undefined, {
           focusMode: "infinite",
           sessionName: linked.sessionName ?? null,
-          completedFocusCount: linked.completedFocusCount ?? linked.completedPomodoros ?? 0,
+          completedFocusCount,
+          breaks,
         });
       } else {
-        st.startForTask(linked.id, linked.title, nextSliceMinutes(linked.allocatedMinutes, linked.focusMinutes, linked.completedPomodoros) * 60000);
+        st.startForTask(linked.id, linked.title, nextSliceMinutes(linked.allocatedMinutes, linked.focusMinutes, linked.completedPomodoros) * 60000, {
+          focusMode: "allocated",
+          completedFocusCount,
+          breaks,
+        });
       }
     } else {
       st.startQuick(
@@ -353,14 +360,21 @@ export default function FocusView() {
 
   const startPrimary = () => {
     if (activeTask) {
+      const breaks = taskBreaks(activeTask);
+      const completedFocusCount = activeTask.completedFocusCount ?? activeTask.completedPomodoros ?? 0;
       if (getFocusMode(activeTask) === "infinite") {
         startForTask(activeTask.id, activeTask.title, undefined, {
           focusMode: "infinite",
           sessionName: activeTask.sessionName ?? null,
-          completedFocusCount: activeTask.completedFocusCount ?? activeTask.completedPomodoros ?? 0,
+          completedFocusCount,
+          breaks,
         });
       } else {
-        startForTask(activeTask.id, activeTask.title, sliceMin * 60000);
+        startForTask(activeTask.id, activeTask.title, sliceMin * 60000, {
+          focusMode: "allocated",
+          completedFocusCount,
+          breaks,
+        });
       }
     }
     else startQuick(quickTitle || undefined, quickMinutes * 60000, quickBreaks, quickCredit);

@@ -9,6 +9,9 @@ export function playChime(theme: ChimeTheme = "chime"): boolean {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return false;
     const ctx = new AC();
+    // A context created from a timer (not a direct gesture) can start
+    // suspended; resume so the completion chime actually sounds.
+    if (ctx.state === "suspended") void ctx.resume();
     const notes: Record<Exclude<ChimeTheme, "muted">, number[]> = {
       chime: [880, 1318.5],
       marimba: [523.25, 783.99, 1046.5],

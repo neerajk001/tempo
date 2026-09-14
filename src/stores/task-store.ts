@@ -6,7 +6,7 @@ import type { FocusMode, PomodoroPhase, TaskPriority, TaskStatus } from "@/types
 import { nextSliceMinutes, todayKey } from "@/lib/task-planning";
 import { getElapsedFocusMs } from "@/lib/pomodoro-machine";
 import { addTaskTombstone } from "@/lib/tombstones";
-import { usePomodoroStore } from "@/stores/pomodoro-store";
+import { usePomodoroStore, taskBreaks } from "@/stores/pomodoro-store";
 
 export const TASK_PROJECTS = ["Core Platform", "API Services", "Engineering", "Personal"] as const;
 export const TASK_PRIORITIES: TaskPriority[] = ["urgent", "high", "medium", "low"];
@@ -552,6 +552,7 @@ export const useTaskStore = create<TaskStore>()(
         const mode = getFocusMode(target);
         const completedFocusCount =
           target.completedFocusCount ?? target.completedPomodoros ?? 0;
+        const breaks = taskBreaks(target);
         if (target.status === "TODO") {
           get().setStatus(target.id, "IN_PROGRESS");
         }
@@ -561,6 +562,7 @@ export const useTaskStore = create<TaskStore>()(
             focusMode: "infinite",
             sessionName: target.sessionName ?? null,
             completedFocusCount,
+            breaks,
           });
         } else {
           // Allocated: resume the exact slice implied by preserved progress.
@@ -577,6 +579,7 @@ export const useTaskStore = create<TaskStore>()(
           pomo.startForTask(target.id, target.title, sliceMin * 60000, {
             focusMode: "allocated",
             completedFocusCount,
+            breaks,
           });
         }
       },

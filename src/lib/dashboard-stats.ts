@@ -30,7 +30,10 @@ export interface TimelineEntry {
 export interface DashboardStats {
   dateKey: string;
   plannedMinutes: number;
+  /** All focus logged today (task + quick/unlinked). */
   focusedMinutes: number;
+  /** Focus credited to today's allocated tasks (the plan). */
+  taskFocusedMinutes: number;
   remainingMinutes: number;
   completedPomodoros: number;
   interruptions: number;
@@ -58,10 +61,12 @@ function isFocus(s: SessionRecord): boolean {
  * Aggregate today's planned vs actual work.
  * - Planned: sum of allocated minutes for ALLOCATED tasks dated `dateKey`
  *   (Infinite tasks are open-ended and contribute no plan).
- * - Actual focus: sum of focusedMs from today's FOCUS sessions (all statuses;
- *   cancelled sessions still contributed real focus) — Allocated + Infinite.
- *   Breaks excluded.
- * - Pomodoros completed: COMPLETED FOCUS sessions only.
+ * - Focused: sum of focusedMs from today's FOCUS sessions (all statuses;
+ *   cancelled sessions still contributed real focus) — Allocated + Infinite,
+ *   including quick/unlinked sessions. Breaks excluded.
+ * - Plan progress (Remaining, Focus Rate, Pomodoros) counts only focus
+ *   credited to today's ALLOCATED tasks, so quick/unlinked sessions never
+ *   consume the plan and the three cards agree.
  */
 export function computeDashboardStats(
   tasks: Task[],
@@ -81,9 +86,20 @@ export function computeDashboardStats(
   );
   const focusedMs = focusSessions.reduce((sum, s) => sum + Math.max(0, s.focusedMs), 0);
   const focusedMinutes = Math.round(focusedMs / 60000);
-  const remainingMinutes = Math.max(0, plannedMinutes - focusedMinutes);
 
-  const completedPomodoros = focusSessions.filter((s) => s.status === "COMPLETED").length;
+  // Time credited to today's allocated tasks (the plan).
+  const allocatedTaskIds = new Set(
+    todayTasks.filter((t) => getFocusMode(t) !== "infinite").map((t) => t.id)
+  );
+  const taskFocusMs = focusSessions
+    .filter((s) => s.taskId !== null && allocatedTaskIds.has(s.taskId))
+    .reduce((sum, s) => sum + Math.max(0, s.focusedMs), 0);
+  const taskFocusedMinutes = Math.round(taskFocusMs / 60000);
+
+  const remainingMinutes = Math.max(0, plannedMinutes - taskFocusedMinutes);
+  const completedPomodoros = focusSessions.filter(
+    (s) => s.status === "COMPLETED" && s.taskId !== null && allocatedTaskIds.has(s.taskId)
+  ).length;
   const interruptions = todaySessions.reduce((sum, s) => sum + s.interruptions, 0);
   const pausedMs = todaySessions.reduce((sum, s) => sum + Math.max(0, s.pausedMs), 0);
   const sessionCount = todaySessions.length;
@@ -94,7 +110,7 @@ export function computeDashboardStats(
       ? focusedMinutes > 0
         ? 100
         : 0
-      : Math.min(100, Math.round((focusedMinutes / plannedMinutes) * 100));
+      : Math.min(100, Math.round((taskFocusedMinutes / plannedMinutes) * 100));
 
   const perTask: PerTaskStat[] = todayTasks.map((t) => {
     const linked = focusSessions.filter((s) => s.taskId === t.id);
@@ -150,6 +166,7 @@ export function computeDashboardStats(
     dateKey,
     plannedMinutes,
     focusedMinutes,
+    taskFocusedMinutes,
     remainingMinutes,
     completedPomodoros,
     interruptions,

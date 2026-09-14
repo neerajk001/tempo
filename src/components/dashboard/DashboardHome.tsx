@@ -44,13 +44,13 @@ export default function DashboardHome() {
     }
   }, 0);
 
+  // Focus-rate change vs yesterday, in percentage points. Only shown when
+  // yesterday had a plan, so a tiny baseline can't produce a wild number.
   const yesterdayKey = localDateKey(Date.now() - 24 * 60 * 60 * 1000);
-  const yesterdayFocused = sessions
-    .filter((x) => x.phase === "FOCUS" && localDateKey(x.startedAt) === yesterdayKey)
-    .reduce((s, x) => s + Math.max(0, x.focusedMs), 0);
+  const yesterdayStats = computeDashboardStats(tasks, sessions, yesterdayKey);
   const rateDelta =
-    yesterdayFocused > 0
-      ? Math.round(((stats.focusedMinutes * 60000 - yesterdayFocused) / yesterdayFocused) * 1000) / 10
+    yesterdayStats.plannedMinutes > 0
+      ? Math.round((stats.focusRate - yesterdayStats.focusRate) * 10) / 10
       : null;
 
   const autoRows = sessions
@@ -194,7 +194,7 @@ export default function DashboardHome() {
             <UpNextCard tasks={todayTasks} />
             <PlannedActualCard
               plannedMinutes={stats.plannedMinutes}
-              focusedMinutes={stats.focusedMinutes}
+              focusedMinutes={stats.taskFocusedMinutes}
               remainingMinutes={stats.remainingMinutes}
               focusRate={stats.focusRate}
             />

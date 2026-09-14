@@ -26,6 +26,8 @@ export interface StartForTaskOptions {
   sessionName?: string | null;
   /** Restore the task's cycle count so long-break cadence resumes exactly. */
   completedFocusCount?: number;
+  /** Per-task break cadence; overrides the workspace config for this run. */
+  breaks?: BreakOverride | null;
 }
 
 interface PomodoroActions {
@@ -143,6 +145,22 @@ export function resolveBreaks(
   };
 }
 
+/**
+ * Build a break override from a task's per-task cadence. Null when the task
+ * has no overrides, so the workspace config applies.
+ */
+export function taskBreaks(t: {
+  shortBreakMinutes?: number | null;
+  longBreakMinutes?: number | null;
+  longBreakInterval?: number | null;
+}): BreakOverride | null {
+  const out: BreakOverride = {};
+  if (t.shortBreakMinutes != null) out.shortBreakMs = t.shortBreakMinutes * 60000;
+  if (t.longBreakMinutes != null) out.longBreakMs = t.longBreakMinutes * 60000;
+  if (t.longBreakInterval != null) out.longBreakInterval = t.longBreakInterval;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 const STORAGE_KEY = "tempo-pomodoro-v1";
 
 // No-op storage for SSR (Next.js prerender has no localStorage)
@@ -240,8 +258,8 @@ export const usePomodoroStore = create<PomodoroStore>()(
           activeTaskTitle: taskTitle,
           // A task slice is not a quick session — clear the quick label.
           quickLabel: null,
-          // Task sessions follow task/global cadence — drop any quick override.
-          breakOverride: null,
+          // Use the task's own break cadence when it has one, else the workspace config.
+          breakOverride: opts?.breaks ? normalizeBreakOverride(opts.breaks) : null,
           focusMode: mode,
           sessionName: name,
           session: startSession(fresh, now, {
