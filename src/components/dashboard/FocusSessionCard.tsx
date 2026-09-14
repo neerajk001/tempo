@@ -73,17 +73,17 @@ export default function FocusSessionCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, now]);
 
-  // A finished focus block lands on the Session Complete screen.
+  // A finished focus block lands on the break screen (Infinite has no break).
   useEffect(() => {
     if (
       prevStatus.current !== "COMPLETED" &&
       session.status === "COMPLETED" &&
       session.phase === "FOCUS"
     ) {
-      router.push("/complete");
+      router.push(session.isInfinite === true || focusMode === "infinite" ? "/complete" : "/break");
     }
     prevStatus.current = session.status;
-  }, [session, router]);
+  }, [session, router, focusMode]);
 
   const activeTask = selectTaskById(tasks, activeTaskId);
   const activeMode = activeTask ? getFocusMode(activeTask) : focusMode;
@@ -184,12 +184,27 @@ export default function FocusSessionCard() {
     // Only a live run is off-limits here; from IDLE or a finished/cancelled
     // session this starts the next block.
     if (session.status === "RUNNING" || session.status === "PAUSED") return;
-    // switchToTask preserves the previous task's state and resumes the
-    // selected task from its exact prior state (single-active).
-    if (activeTask) switchToTask(activeTask.id);
-    else if (displayTask) switchToTask(displayTask.id);
-    else startQuick();
+    const wasBreak = session.phase === "SHORT_BREAK" || session.phase === "LONG_BREAK";
+    if (wasBreak) {
+      // Break done → resume the task's next focus block.
+      if (activeTask) switchToTask(activeTask.id);
+      else if (displayTask) switchToTask(displayTask.id);
+      else startQuick();
+    } else if (session.status === "COMPLETED") {
+      // Focus done → surface the break instead of skipping straight to focus.
+      usePomodoroStore.getState().startBreak();
+      router.push("/break");
+    } else {
+      // Standby → start focus.
+      if (activeTask) switchToTask(activeTask.id);
+      else if (displayTask) switchToTask(displayTask.id);
+      else startQuick();
+    }
   };
+
+  // Terminal-state label: a completed focus is followed by a break.
+  const nextLabel =
+    session.status === "COMPLETED" && session.phase === "FOCUS" ? "Start break" : "Start next";
 
   const isTerminal = session.status === "COMPLETED" || session.status === "CANCELLED";
   const dismiss = () => {
@@ -509,7 +524,7 @@ export default function FocusSessionCard() {
               </button>
             )}
             {(session.status === "COMPLETED" || session.status === "CANCELLED") && (
-              <Button onClick={startPrimary}>Start next</Button>
+              <Button onClick={startPrimary}>{nextLabel}</Button>
             )}
             {isInfinite && (activeTask ?? displayTask) && (ticking || totalElapsedMs > 0) && (
               <button

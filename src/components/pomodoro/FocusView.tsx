@@ -151,17 +151,17 @@ export default function FocusView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, now]);
 
-  // A finished focus block lands on the Session Complete screen.
+  // A finished focus block lands on the break screen (Infinite has no break).
   useEffect(() => {
     if (
       prevStatus.current !== "COMPLETED" &&
       session.status === "COMPLETED" &&
       session.phase === "FOCUS"
     ) {
-      router.push("/complete");
+      router.push(session.isInfinite === true || focusMode === "infinite" ? "/complete" : "/break");
     }
     prevStatus.current = session.status;
-  }, [session, router]);
+  }, [session, router, focusMode]);
 
   const activeTask = selectTaskById(tasks, activeTaskId);
   const breakOverride = usePomodoroStore((s) => s.breakOverride);

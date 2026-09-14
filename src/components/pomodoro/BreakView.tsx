@@ -9,6 +9,7 @@ import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
 import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
+import { getBreakPhaseAfterFocus } from "@/lib/pomodoro-config";
 import { calculatePomodoroPlan, countPlannedPomodoros, todayKey } from "@/lib/task-planning";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
@@ -35,6 +36,9 @@ export default function BreakView() {
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
   const focusMode = usePomodoroStore((s) => s.focusMode);
   const start = usePomodoroStore((s) => s.start);
+  const startBreak = usePomodoroStore((s) => s.startBreak);
+  const resume = usePomodoroStore((s) => s.resume);
+  const extend = usePomodoroStore((s) => s.extend);
   const reset = usePomodoroStore((s) => s.reset);
   const tasks = useTaskStore((s) => s.tasks);
   const autoStartFocus = usePrefsStore((s) => s.autoStartFocus);
@@ -43,6 +47,8 @@ export default function BreakView() {
 
   const [mounted, setMounted] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
+  // Manual "+1 min" added before the break is started.
+  const [extraMin, setExtraMin] = useState(0);
   useEffect(() => setMounted(true), []);
 
   const ticking = session.status === "RUNNING" || session.status === "PAUSED";
@@ -93,12 +99,43 @@ export default function BreakView() {
   const remainingSec = Math.ceil(remainingMs / 1000);
   const pct = session.plannedMs > 0 ? Math.min(100, (elapsedMs / session.plannedMs) * 100) : 0;
 
+  // "Break ready": a focus just finished and no break is running yet. Show the
+  // due break length (plus any manual +1s) so it can be started on purpose.
+  const ready = !onBreak;
+  const duePhase = getBreakPhaseAfterFocus(session.completedFocusCount, { ...config, ...breaks });
+  const dueMs = duePhase === "LONG_BREAK" ? breaks.longBreakMs : breaks.shortBreakMs;
+  const readyMs = dueMs + extraMin * 60000;
+  const displaySec = ready ? Math.ceil(readyMs / 1000) : remainingSec;
+  const displayPct = ready ? 0 : pct;
+  const displayIsLong = ready ? duePhase === "LONG_BREAK" : isLong;
+  const breakState: "ready" | "paused" | "running" | "done" = ready
+    ? "ready"
+    : session.status === "PAUSED"
+      ? "paused"
+      : ticking
+        ? "running"
+        : "done";
+
   const switchBreak = (phase: "SHORT_BREAK" | "LONG_BREAK") => {
+    setExtraMin(0);
     reset();
     start(
       phase,
       phase === "SHORT_BREAK" ? breaks.shortBreakMs : breaks.longBreakMs
     );
+  };
+
+  // Start the break from the ready state (focus done, nothing running yet).
+  const startReadyBreak = () => {
+    startBreak();
+    if (extraMin > 0) extend(extraMin);
+    setExtraMin(0);
+  };
+
+  const addMinute = () => {
+    // Before starting, adjust the pending length; once running, extend it.
+    if (ready) setExtraMin((m) => m + 1);
+    else extend(1);
   };
 
   const skipBreak = () => {
@@ -130,7 +167,13 @@ export default function BreakView() {
       if (tag === "BUTTON" && e.code === "Space") return;
       if (e.code === "Space") {
         e.preventDefault();
-        if (!e.repeat) skipBreak();
+        if (!e.repeat) {
+          const s = usePomodoroStore.getState().session;
+          const onBreakNow = s.phase === "SHORT_BREAK" || s.phase === "LONG_BREAK";
+          if (!onBreakNow) startReadyBreak();
+          else if (s.status === "PAUSED") resume();
+          else skipBreak();
+        }
       } else if (e.code === "Escape") {
         router.push("/");
       } else if (e.code === "KeyM") {
@@ -208,8 +251,16 @@ export default function BreakView() {
             <span className="text-xs font-mono uppercase tracking-wider text-on-tertiary-fixed bg-tertiary-fixed border border-tertiary/20 px-2 py-0.5 rounded-md font-medium">Break Mode</span>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-on-surface-variant pl-3 border-l border-outline-variant">
-            <span className={cn("w-1.5 h-1.5 rounded-full", liveBreak ? "bg-tertiary animate-pulse" : "bg-secondary-fixed-dim")} />
-            <span>{liveBreak ? (isLong ? "Extended Recovery Window" : "Rest Cadence Active") : "Break Paused"}</span>
+            <span className={cn("w-1.5 h-1.5 rounded-full", liveBreak && session.status === "RUNNING" ? "bg-tertiary animate-pulse" : "bg-secondary-fixed-dim")} />
+            <span>
+              {ready
+                ? "Break ready"
+                : session.status === "PAUSED"
+                  ? "Break paused"
+                  : displayIsLong
+                    ? "Extended Recovery Window"
+                    : "Rest Cadence Active"}
+            </span>
           </div>
         </div>
 
@@ -217,7 +268,11 @@ export default function BreakView() {
           {(["SHORT_BREAK", "LONG_BREAK"] as const).map((ph) => {
             const mins = Math.round((ph === "SHORT_BREAK" ? breaks.shortBreakMs : breaks.longBreakMs) / 60000);
             const label = ph === "SHORT_BREAK" ? `Short Break (${mins}m)` : `Long Break (${mins}m)`;
-            const selected = liveBreak ? session.phase === ph : ph === "SHORT_BREAK";
+            const selected = onBreak
+              ? session.phase === ph
+              : displayIsLong
+                ? ph === "LONG_BREAK"
+                : ph === "SHORT_BREAK";
             return (
               <button
                 key={ph}
@@ -269,7 +324,7 @@ export default function BreakView() {
               <circle cx="190" cy="190" r={R} fill="none" stroke="#32302b" strokeWidth="2" strokeDasharray="2 6" className="opacity-60" />
               <circle
                 cx="190" cy="190" r={R} fill="none" stroke="url(#breakGradient)" strokeWidth="4"
-                strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - pct / 100)}
+                strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - displayPct / 100)}
                 className="transition-all duration-1000"
               />
               <defs>
@@ -284,38 +339,83 @@ export default function BreakView() {
               <div className="flex items-center gap-1.5 mb-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-tertiary" />
                 <span className="text-[11px] font-mono uppercase tracking-widest text-on-tertiary-fixed font-semibold">
-                  {isLong ? "LONG BREAK" : "SHORT BREAK"}
+                  {displayIsLong ? "LONG BREAK" : "SHORT BREAK"}
                 </span>
               </div>
               <div className="font-mono text-6xl sm:text-7xl font-light tracking-tight text-on-surface tabular-nums my-1">
-                {formatClock(remainingSec)}
+                {formatClock(displaySec)}
               </div>
               <div className="mt-1 space-y-1">
                 <h1 className="text-xl font-semibold text-on-surface tracking-tight">
-                  {isLong ? "Take a proper break." : "Step away."}
+                  {breakState === "ready"
+                    ? "Break ready."
+                    : breakState === "done"
+                      ? "Break complete."
+                      : displayIsLong
+                        ? "Take a proper break."
+                        : "Step away."}
                 </h1>
                 <p className="text-xs text-on-surface-variant max-w-[240px] leading-relaxed font-normal">
-                  {isLong ? "Deep cognitive reset before your next cycle." : "Your next focus session starts when you're ready."}
+                  {breakState === "ready"
+                    ? "Start it when you're ready, skip it, or add a minute."
+                    : breakState === "done"
+                      ? "Break's over. Start the next focus block when you're ready."
+                      : displayIsLong
+                        ? "Deep cognitive reset before your next cycle."
+                        : "Your next focus session starts when you're ready."}
                 </p>
               </div>
               <div className="mt-4 flex items-center gap-1.5 text-[11px] text-on-surface-variant bg-tertiary-fixed/50 border border-tertiary/20 px-2.5 py-1 rounded-full">
                 <Icon name="light_mode" className="text-[12px] text-tertiary" />
-                <span>{isLong ? "Take a walk • Disconnect from screens" : "Rest your eyes • Stand and hydrate"}</span>
+                <span>{displayIsLong ? "Take a walk • Disconnect from screens" : "Rest your eyes • Stand and hydrate"}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 flex items-center justify-center gap-3 w-full max-w-sm z-20 flex-wrap">
-          <button
-            type="button"
-            onClick={skipBreak}
-            className="flex-1 min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-container text-on-primary text-sm font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] group"
-          >
-            <span>Skip Break</span>
-            <Icon name="skip_next" className="text-[16px] text-on-primary/70 group-hover:text-on-primary transition-colors" />
-            <Kbd dark>Space</Kbd>
-          </button>
+        <div className="mt-8 flex items-center justify-center gap-3 w-full max-w-lg z-20 flex-wrap">
+          {breakState === "running" ? (
+            <button
+              type="button"
+              onClick={skipBreak}
+              className="flex-1 min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-container text-on-primary text-sm font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] group"
+            >
+              <span>Skip Break</span>
+              <Icon name="skip_next" className="text-[16px] text-on-primary/70 group-hover:text-on-primary transition-colors" />
+              <Kbd dark>Space</Kbd>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={breakState === "done" ? skipBreak : breakState === "paused" ? resume : startReadyBreak}
+              className="flex-1 min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-container text-on-primary text-sm font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] group"
+            >
+              <Icon name="play_arrow" className="text-[16px] text-on-primary/80 group-hover:text-on-primary transition-colors" />
+              <span>{breakState === "done" ? "Start next focus" : "Start Break"}</span>
+              <Kbd dark>Space</Kbd>
+            </button>
+          )}
+          {breakState !== "done" && (
+            <button
+              type="button"
+              onClick={addMinute}
+              title="Add one minute to this break"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant text-on-surface text-sm font-medium rounded-xl transition-all duration-150 active:scale-[0.99] shadow-sm"
+            >
+              <Icon name="add" className="text-[14px] text-on-surface-variant" />
+              <span>+1 min</span>
+            </button>
+          )}
+          {(breakState === "ready" || breakState === "paused") && (
+            <button
+              type="button"
+              onClick={skipBreak}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant text-on-surface text-sm font-medium rounded-xl transition-all duration-150 active:scale-[0.99] shadow-sm"
+            >
+              <Icon name="skip_next" className="text-[14px] text-on-surface-variant" />
+              <span>Skip Break</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={endSession}
@@ -395,7 +495,13 @@ export default function BreakView() {
         <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] text-on-surface-variant bg-surface-container-high px-1.5 py-0.5 rounded border border-outline-variant">Space</span>
-            <span>Skip break & begin Pomodoro {nextIdx}</span>
+            <span>
+              {breakState === "running"
+                ? `Skip break & begin Pomodoro ${nextIdx}`
+                : breakState === "done"
+                  ? `Begin Pomodoro ${nextIdx}`
+                  : "Start break"}
+            </span>
           </div>
           <div className="hidden sm:flex items-center gap-2">
             <span className="font-mono text-[10px] text-on-surface-variant bg-surface-container-high px-1.5 py-0.5 rounded border border-outline-variant">Esc</span>
