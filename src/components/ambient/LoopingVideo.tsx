@@ -266,7 +266,7 @@ export default function LoopingVideo({
             ref={i === 0 ? aRef : bRef}
             playsInline
             muted
-            preload="auto"
+            preload="metadata"
             poster={poster}
             onTimeUpdate={handleTimeUpdate}
             onEnded={handleEnded}

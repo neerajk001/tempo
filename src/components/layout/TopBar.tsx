@@ -25,19 +25,35 @@ export default function TopBar() {
 
       <Link
         href="/tasks"
+        aria-label="Search tasks"
         className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg bg-surface-container-low text-secondary text-body-sm hover:bg-surface-container transition-colors min-w-[180px] border border-outline-variant"
       >
         <Icon name="search" className="text-[16px]" />
         <span className="flex-1 text-left">Search tasks…</span>
         <kbd className="px-1.5 py-0.5 rounded border border-outline bg-surface-container-lowest font-mono text-[10px] text-secondary">⌘K</kbd>
       </Link>
+      {/* Mobile search icon (sm:hidden) — same destination, 44px target. */}
+      <Link
+        href="/tasks"
+        aria-label="Search tasks"
+        className="sm:hidden flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg text-secondary hover:bg-surface-container transition-colors border border-outline-variant"
+      >
+        <Icon name="search" className="text-[20px]" />
+      </Link>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <Link href="/settings" title="Account & settings">
+        <Link
+          href="/settings"
+          aria-label="Account and settings"
+          title="Account & settings"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={avatar}
             alt="Account"
+            width={32}
+            height={32}
             className="w-8 h-8 rounded-full object-cover ring-1 ring-outline hover:ring-2 hover:ring-primary/50 transition-shadow"
           />
         </Link>

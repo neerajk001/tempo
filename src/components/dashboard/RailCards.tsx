@@ -207,7 +207,7 @@ export function InterruptionLogCard({
             </div>
             <span className="flex items-center gap-1 flex-shrink-0 ml-2">
               <span className="font-mono text-code-badge text-secondary">{x.minutes}m</span>
-              <button type="button" title="Remove" onClick={() => removeDiversion(x.id)} className="text-secondary hover:text-error text-sm leading-none">×</button>
+              <button type="button" title="Remove" aria-label={`Remove diversion ${x.title}`} onClick={() => removeDiversion(x.id)} className="min-w-[32px] min-h-[32px] flex items-center justify-center text-secondary hover:text-error text-sm leading-none rounded">×</button>
             </span>
           </div>
         ))}

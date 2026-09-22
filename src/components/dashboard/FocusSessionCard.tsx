@@ -108,7 +108,7 @@ export default function FocusSessionCard() {
   };
   const breakOverride = usePomodoroStore((s) => s.breakOverride);
   const effBreaks = resolveBreaks(config, breakOverride);
-  const displayTask = activeTask ?? tasks.find((t) => t.date === new Date().toISOString().slice(0, 10) && t.status !== "COMPLETED" && t.status !== "CANCELLED") ?? null;
+  const displayTask = activeTask ?? tasks.find((t) => t.date === todayKey() && t.status !== "COMPLETED" && t.status !== "CANCELLED") ?? null;
   const title = activeTask
     ? getFocusMode(activeTask) === "infinite"
       ? getSessionLabel(activeTask, activeTask.title)
@@ -165,8 +165,11 @@ export default function FocusSessionCard() {
       ? currentSliceMin * 60000
       : getRemainingMs(session, now);
   const elapsedMs = getElapsedFocusMs(session, now);
+  const isTerminal = session.status === "COMPLETED" || session.status === "CANCELLED";
   const totalElapsedMs = isInfinite && (activeTask ?? displayTask)
-    ? getTaskFocusedMs(activeTask ?? displayTask!) + elapsedMs
+    ? isTerminal
+      ? getTaskFocusedMs(activeTask ?? displayTask!)
+      : getTaskFocusedMs(activeTask ?? displayTask!) + elapsedMs
     : elapsedMs;
   const remainingSec = Number.isFinite(remainingMs) ? Math.ceil(remainingMs / 1000) : 0;
   const elapsedMin = Math.floor(totalElapsedMs / 60000);
@@ -206,7 +209,6 @@ export default function FocusSessionCard() {
   const nextLabel =
     session.status === "COMPLETED" && session.phase === "FOCUS" ? "Start break" : "Start next";
 
-  const isTerminal = session.status === "COMPLETED" || session.status === "CANCELLED";
   const dismiss = () => {
     // Safety: never touch a live timer. The button only renders in
     // terminal states, but guard anyway so it can never kill a run —
@@ -252,7 +254,7 @@ export default function FocusSessionCard() {
       const tasksNow = useTaskStore.getState().tasks;
       const target =
         selectTaskById(tasksNow, activeTaskId) ??
-        tasks.find((t) => t.date === new Date().toISOString().slice(0, 10) && t.status !== "COMPLETED" && t.status !== "CANCELLED") ??
+        tasks.find((t) => t.date === todayKey() && t.status !== "COMPLETED" && t.status !== "CANCELLED") ??
         null;
       if (target && getFocusMode(target) === "infinite") {
         useTaskStore.getState().resetTaskProgress(target.id);
@@ -374,10 +376,10 @@ export default function FocusSessionCard() {
           <Link
             href={session.phase === "FOCUS" ? "/focus" : "/break"}
             title="Open full-screen timer"
-            className="flex items-center gap-5 rounded-lg group text-left"
+            className="flex items-center gap-5 rounded-lg group text-left min-w-0"
           >
-            <div className="flex flex-col">
-              <div className={`font-mono text-[44px] leading-none font-semibold text-on-surface tracking-tight tabular-nums group-hover:text-primary transition-colors ${session.status === "PAUSED" ? "opacity-60" : ""}`}>
+            <div className="flex flex-col min-w-0">
+              <div className={`font-mono text-3xl sm:text-[44px] leading-none font-semibold text-on-surface tracking-tight tabular-nums break-all group-hover:text-primary transition-colors ${session.status === "PAUSED" ? "opacity-60" : ""}`}>
                 {isInfinite ? formatElapsedHMS(totalElapsedMs) : formatClock(remainingSec)}
               </div>
               <div className="flex items-center gap-2 mt-1 text-secondary text-label-xs">
@@ -468,7 +470,13 @@ export default function FocusSessionCard() {
             {session.status === "RUNNING" && (
               <button
                 type="button"
-                onClick={pause}
+                onClick={() => {
+                  try {
+                    pause();
+                  } catch {
+                    // Rapid double-click / race — ignore invalid transition.
+                  }
+                }}
                 className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-on-surface text-surface text-body-sm font-medium hover:brightness-110 shadow-sm transition-all active:scale-95"
               >
                 <Icon name="pause" className="text-[18px]" />
@@ -479,7 +487,13 @@ export default function FocusSessionCard() {
             {session.status === "PAUSED" && (
               <button
                 type="button"
-                onClick={resume}
+                onClick={() => {
+                  try {
+                    resume();
+                  } catch {
+                    // Rapid double-click / race — ignore invalid transition.
+                  }
+                }}
                 className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-on-primary text-body-sm font-medium hover:bg-primary-container shadow-sm transition-all active:scale-95"
               >
                 <Icon name="play_arrow" className="text-[18px]" />

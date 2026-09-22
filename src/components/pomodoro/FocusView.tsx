@@ -121,7 +121,8 @@ export default function FocusView() {
   // Engages while a session ticks — never on standby, so Start is reachable.
   const immersive = !!ambientVideoOn && !!ambientVideo && videoMode === "background" && ticking;
   const chromeHidden = immersive && !chromeVisible;
-  const chromeClass = `transition-opacity duration-500 ${chromeHidden ? "opacity-0 pointer-events-none" : "opacity-100"}`;
+  // Use visibility (not just opacity) so hidden controls are not tabbable while invisible.
+  const chromeClass = `transition-opacity duration-500 ${chromeHidden ? "opacity-0 pointer-events-none invisible" : "opacity-100 visible"}`;
 
   // Any activity reveals chrome; 5s of stillness returns to minimal.
   // Mouse, touch, wheel, keys, and focus all count — interacting with a
@@ -253,33 +254,26 @@ export default function FocusView() {
       ? selectTaskById(useTaskStore.getState().tasks, st.activeTaskId)
       : null;
     if (linked) {
-      const breaks = taskBreaks(linked);
-      const completedFocusCount = linked.completedFocusCount ?? linked.completedPomodoros ?? 0;
-      if (getFocusMode(linked) === "infinite") {
-        st.startForTask(linked.id, linked.title, undefined, {
-          focusMode: "infinite",
-          sessionName: linked.sessionName ?? null,
-          completedFocusCount,
-          breaks,
-        });
-      } else {
-        st.startForTask(linked.id, linked.title, nextSliceMinutes(linked.allocatedMinutes, linked.focusMinutes, linked.completedPomodoros) * 60000, {
-          focusMode: "allocated",
-          completedFocusCount,
-          breaks,
-        });
+      try {
+        useTaskStore.getState().switchToTask(linked.id);
+      } catch {
+        // Best-effort — switch must not throw to keyboard shortcut.
       }
     } else {
-      st.startQuick(
-        quickTitle || undefined,
-        quickMinutes * 60000,
-        {
-          shortBreakMs: quickShortMin * 60000,
-          longBreakMs: quickLongMin * 60000,
-          longBreakInterval: quickInterval,
-        },
-        quickCredit
-      );
+      try {
+        st.startQuick(
+          quickTitle || undefined,
+          quickMinutes * 60000,
+          {
+            shortBreakMs: quickShortMin * 60000,
+            longBreakMs: quickLongMin * 60000,
+            longBreakInterval: quickInterval,
+          },
+          quickCredit
+        );
+      } catch {
+        // Ignore invalid transition on rapid Space presses.
+      }
     }
   };
 
@@ -344,8 +338,12 @@ export default function FocusView() {
       : getRemainingMs(session, now);
   const elapsedMs = getElapsedFocusMs(session, now);
   // Total elapsed for infinite includes previously preserved runs.
+  // Terminal sessions already folded live time into the task — don't add twice.
+  const isTerminal = session.status === "COMPLETED" || session.status === "CANCELLED";
   const totalElapsedMs = isInfinite && activeTask
-    ? getTaskFocusedMs(activeTask) + elapsedMs
+    ? isTerminal
+      ? getTaskFocusedMs(activeTask)
+      : getTaskFocusedMs(activeTask) + elapsedMs
     : elapsedMs;
   const pausedMs = getPausedMs(session, now);
   const remainingSec = Number.isFinite(remainingMs) ? Math.ceil(remainingMs / 1000) : 0;
@@ -359,22 +357,15 @@ export default function FocusView() {
   const startedLabel = session.startedAt ? fmtClock(session.startedAt) : "—";
 
   const startPrimary = () => {
+    if (session.status === "RUNNING" || session.status === "PAUSED") return;
+    // Route through switchToTask so elapsed work on the old task is preserved.
+    // startForTask alone would log history but leave task counters stale.
     if (activeTask) {
-      const breaks = taskBreaks(activeTask);
-      const completedFocusCount = activeTask.completedFocusCount ?? activeTask.completedPomodoros ?? 0;
-      if (getFocusMode(activeTask) === "infinite") {
-        startForTask(activeTask.id, activeTask.title, undefined, {
-          focusMode: "infinite",
-          sessionName: activeTask.sessionName ?? null,
-          completedFocusCount,
-          breaks,
-        });
-      } else {
-        startForTask(activeTask.id, activeTask.title, sliceMin * 60000, {
-          focusMode: "allocated",
-          completedFocusCount,
-          breaks,
-        });
+      try {
+        useTaskStore.getState().switchToTask(activeTask.id);
+      } catch {
+        // Fall through to quick start if switch fails.
+        startQuick(quickTitle || undefined, quickMinutes * 60000, quickBreaks, quickCredit);
       }
     }
     else startQuick(quickTitle || undefined, quickMinutes * 60000, quickBreaks, quickCredit);
@@ -438,12 +429,14 @@ export default function FocusView() {
           </div>
           <VideoToggleButton onModeChange={setVideoMode} />
           <MusicToggleButton />
-          {immersive && (
+          {(immersive || ticking) && (
             <button
               type="button"
               onClick={() => setPrefs({ timerFaded: !timerFaded })}
               title={timerFaded ? "Unfade timer" : "Fade timer so the video shows through"}
-              className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors"
+              aria-label={timerFaded ? "Unfade timer" : "Fade timer"}
+              aria-pressed={timerFaded}
+              className="flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant shadow-sm hover:bg-surface-container-low text-on-surface px-3 py-1 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-primary"
             >
               <Icon name="opacity" className={cn("text-[16px]", timerFaded ? "text-primary" : "text-on-surface-variant")} />
               <span className="text-body-sm font-medium hidden sm:inline">Fade</span>

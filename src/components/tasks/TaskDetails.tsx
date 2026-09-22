@@ -108,6 +108,7 @@ export default function TaskDetails() {
         e.preventDefault();
         subRef.current?.focus();
       } else if (e.key === "?") {
+        if (inField) return;
         setLegendOpen((v) => !v);
       }
     };
@@ -620,7 +621,7 @@ export default function TaskDetails() {
             ) : (
               <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-surface-container-high">
                 {shownTimeline.map((e, idx) => (
-                  <div key={`${e.at}-${idx}`} className="relative flex items-start gap-2 group">
+                  <div key={`${e.ri}-${e.type}-${e.at}-${idx}`} className="relative flex items-start gap-2 group">
                     <span className={cn(
                       "absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full ring-4 ring-surface-container-lowest",
                       e.type === "COMPLETE" ? "bg-primary" : e.type === "START" ? "bg-secondary" : "bg-surface-container-highest"

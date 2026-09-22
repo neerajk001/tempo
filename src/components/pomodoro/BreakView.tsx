@@ -11,6 +11,7 @@ import { useFinishSession } from "@/hooks/useFinishSession";
 import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
 import { getBreakPhaseAfterFocus } from "@/lib/pomodoro-config";
 import { calculatePomodoroPlan, countPlannedPomodoros, todayKey } from "@/lib/task-planning";
+import { localDateKey } from "@/lib/dashboard-stats";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
 import Icon from "@/components/ui/Icon";
@@ -68,8 +69,13 @@ export default function BreakView() {
   const isLong = session.phase === "LONG_BREAK";
   const activeTask = selectTaskById(tasks, activeTaskId);
 
-  // Last completed focus block (session information card).
-  const lastFocus = sessions.find((x) => x.phase === "FOCUS" && x.status === "COMPLETED") ?? null;
+  // Last completed focus block (today only, not all-time).
+  const lastFocus =
+    sessions.find(
+      (x) => x.phase === "FOCUS" && x.status === "COMPLETED" && localDateKey(x.startedAt) === todayKey()
+    ) ??
+    sessions.find((x) => x.phase === "FOCUS" && x.status === "COMPLETED") ??
+    null;
 
   // Next focus block.
   const todayTasks = tasks.filter((t) => t.date === todayKey());
@@ -84,8 +90,10 @@ export default function BreakView() {
   })();
   const nextIdx = Math.min((nextTask?.completedPomodoros ?? 0) + 1, Math.max(nextPlanLen, 1));
 
-  // Daily target: completed focus blocks vs planned.
-  const completedToday = sessions.filter((x) => x.phase === "FOCUS" && x.status === "COMPLETED").length;
+  // Daily target: completed focus blocks vs planned (today only).
+  const completedToday = sessions.filter(
+    (x) => x.phase === "FOCUS" && x.status === "COMPLETED" && localDateKey(x.startedAt) === todayKey()
+  ).length;
   const plannedToday = todayTasks.reduce((s, t) => {
     try {
       return s + countPlannedPomodoros(t.allocatedMinutes, t.focusMinutes);
@@ -118,11 +126,16 @@ export default function BreakView() {
 
   const switchBreak = (phase: "SHORT_BREAK" | "LONG_BREAK") => {
     setExtraMin(0);
-    reset();
-    start(
-      phase,
-      phase === "SHORT_BREAK" ? breaks.shortBreakMs : breaks.longBreakMs
-    );
+    // start() preempts + logs the live break as CANCELLED. Never reset() first
+    // or the running break vanishes with no history record.
+    try {
+      start(
+        phase,
+        phase === "SHORT_BREAK" ? breaks.shortBreakMs : breaks.longBreakMs
+      );
+    } catch {
+      // Timer busy — leave live session untouched.
+    }
   };
 
   // Start the break from the ready state (focus done, nothing running yet).
@@ -228,7 +241,7 @@ export default function BreakView() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-surface text-on-surface flex flex-col justify-between overflow-hidden overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-surface text-on-surface flex flex-col justify-between overflow-y-auto">
       {/* Restorative backdrop — barely-there warm amber depth */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[850px] h-[850px] bg-gradient-to-b from-tertiary-fixed/50 via-accent-amber-container/20 to-transparent rounded-full blur-3xl opacity-70" />

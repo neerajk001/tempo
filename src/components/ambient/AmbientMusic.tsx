@@ -68,13 +68,13 @@ export function MusicPill() {
     "w-7 h-7 rounded-lg inline-flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors flex-shrink-0";
   return (
     <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-sm max-w-full">
-      <button type="button" title="Previous track" onClick={() => setTrack(stepTrack(track.id, -1))} className={btn}>
+      <button type="button" title="Previous track" aria-label="Previous track" onClick={() => setTrack(stepTrack(track.id, -1))} className={btn}>
         <Icon name="skip_previous" className="text-[16px]" />
       </button>
-      <button type="button" title={playing ? "Pause music" : "Play music"} onClick={() => setPlaying(!playing)} className={btn}>
+      <button type="button" title={playing ? "Pause music" : "Play music"} aria-label={playing ? "Pause music" : "Play music"} onClick={() => setPlaying(!playing)} className={btn}>
         <Icon name={playing ? "pause" : "play_arrow"} className="text-[16px]" />
       </button>
-      <button type="button" title="Next track" onClick={() => setTrack(stepTrack(track.id, 1))} className={btn}>
+      <button type="button" title="Next track" aria-label="Next track" onClick={() => setTrack(stepTrack(track.id, 1))} className={btn}>
         <Icon name="skip_next" className="text-[16px]" />
       </button>
       <span className="font-mono text-code-badge text-on-surface-variant truncate max-w-[110px] hidden sm:inline">
@@ -84,6 +84,8 @@ export function MusicPill() {
         <button
           type="button"
           title={muted ? "Unmute music" : "Mute music"}
+          aria-label={muted ? "Unmute music" : "Mute music"}
+          aria-pressed={muted}
           onClick={() => setMuted(!muted)}
           className="text-on-surface-variant hover:text-on-surface transition-colors flex"
         >

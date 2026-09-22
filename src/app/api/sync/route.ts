@@ -293,28 +293,44 @@ export async function POST(req: Request) {
       await db.pomodoroSession.deleteMany({ where: { userId: user.id, id: { in: deletedSessionIds } } });
     }
 
+    // Batched upsert (avoids N+1): one read, then batched writes.
+    const incomingTaskIds = tasks
+      .filter((t) => t && typeof t.id === "string" && t.id)
+      .map((t) => String((t as TaskPayload).id));
+    const existingTasks =
+      incomingTaskIds.length > 0
+        ? await db.task.findMany({
+            where: { id: { in: incomingTaskIds }, userId: user.id },
+            select: { id: true, updatedAt: true },
+          })
+        : [];
+    const existingTaskMap = new Map(existingTasks.map((t) => [t.id, t.updatedAt.getTime()]));
+    const taskWrites: any[] = [];
     for (const raw of tasks) {
       if (!raw || typeof raw.id !== "string" || !raw.id) continue;
       const data = taskData(raw, user.id);
       const incomingUpdatedAt = num(raw.updatedAt, 0);
-      const existing = await db.task.findFirst({
-        where: { id: data.id, userId: user.id },
-        select: { updatedAt: true },
-      });
-      if (existing && existing.updatedAt.getTime() > incomingUpdatedAt) continue;
-      if (existing) {
+      const existingTime = existingTaskMap.get(data.id);
+      if (existingTime !== undefined && existingTime > incomingUpdatedAt) continue;
+      if (existingTime !== undefined) {
         const { id, userId, ...rest } = data;
-        await db.task.update({ where: { id: data.id }, data: rest as never });
+        taskWrites.push(
+          db.task.updateMany({ where: { id: data.id, userId: user.id }, data: rest as never })
+        );
       } else {
-        await db.task.create({ data: data as never });
+        taskWrites.push(db.task.create({ data: data as never }));
       }
+    }
+    // Chunked transaction to avoid oversized payloads.
+    for (let i = 0; i < taskWrites.length; i += 100) {
+      const chunk = taskWrites.slice(i, i + 100);
+      if (chunk.length === 1) await chunk[0];
+      else if (chunk.length > 1) await db.$transaction(chunk);
     }
 
     // One external event links to exactly one task: drop server rows the
     // client already replaced.
-    const incomingIds = tasks
-      .filter((t) => t && typeof t.id === "string" && t.id)
-      .map((t) => String((t as TaskPayload).id));
+    const incomingIds = incomingTaskIds;
     const eventIds = Array.from(
       new Set(
         tasks.map((t) => str(t.calendarEventId)).filter((x): x is string => !!x)
@@ -326,18 +342,54 @@ export async function POST(req: Request) {
       });
     }
 
+    // Validate session->task links: attacker must not link to another user's task.
+    const referencedTaskIds = Array.from(
+      new Set(
+        sessions
+          .map((s) => str(s.taskId))
+          .filter((x): x is string => !!x)
+          .slice(0, 1000)
+      )
+    );
+    const ownedTasks =
+      referencedTaskIds.length > 0
+        ? await db.task.findMany({
+            where: { id: { in: referencedTaskIds }, userId: user.id },
+            select: { id: true },
+          })
+        : [];
+    const ownedTaskIds = new Set([
+      ...ownedTasks.map((t) => t.id),
+      ...incomingTaskIds,
+    ]);
+
+    const incomingSessionIds = sessions
+      .filter((s) => s && typeof s.id === "string" && s.id)
+      .map((s) => String((s as SessionPayload).id));
+    const existingSessions =
+      incomingSessionIds.length > 0
+        ? await db.pomodoroSession.findMany({
+            where: { id: { in: incomingSessionIds }, userId: user.id },
+            select: { id: true, endedAt: true },
+          })
+        : [];
+    const existingSessionMap = new Map(
+      existingSessions.map((s) => [s.id, s.endedAt?.getTime() ?? 0])
+    );
+    // Sequential writes for sessions (events need delete-then-create).
+    // Still avoids N+1 reads by pre-fetching above.
     for (const raw of sessions) {
       if (!raw || typeof raw.id !== "string" || !raw.id) continue;
       const data = sessionData(raw, user.id);
-      const existing = await db.pomodoroSession.findFirst({
-        where: { id: data.id, userId: user.id },
-        select: { endedAt: true },
-      });
-      if (existing && (existing.endedAt?.getTime() ?? 0) > data.endedAt.getTime()) continue;
-      if (existing) {
+      if (data.taskId && !ownedTaskIds.has(data.taskId)) {
+        data.taskId = null;
+      }
+      const existingTime = existingSessionMap.get(data.id);
+      if (existingTime !== undefined && existingTime > data.endedAt.getTime()) continue;
+      if (existingTime !== undefined) {
         await db.sessionEvent.deleteMany({ where: { sessionId: data.id } });
-        await db.pomodoroSession.update({
-          where: { id: data.id },
+        await db.pomodoroSession.updateMany({
+          where: { id: data.id, userId: user.id },
           data: {
             taskId: data.taskId,
             taskTitle: data.taskTitle,

@@ -46,10 +46,9 @@ export default function LoginPage() {
       const tag = t?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.code === "Enter" && status === "unauthenticated") {
-        e.preventDefault();
-        signInWithGoogle();
-      } else if (e.code === "Escape") {
+      // Enter only activates when the Google button is focused (not anywhere),
+      // so screen-reader / keyboard users don't trigger sign-in accidentally.
+      if (e.code === "Escape") {
         router.push("/");
       }
     };
@@ -189,8 +188,8 @@ export default function LoginPage() {
           {!signedIn && status !== "loading" && (
             <div className="mt-6 flex items-center justify-center gap-2 text-xs text-on-surface-variant">
               <span>Press</span>
-              <kbd className="px-1.5 py-0.5 rounded border border-outline-variant bg-surface-container-lowest font-mono text-[11px] text-on-surface">Enter ↵</kbd>
-              <span>to continue with default account</span>
+              <kbd className="px-1.5 py-0.5 rounded border border-outline-variant bg-surface-container-lowest font-mono text-[11px] text-on-surface">Tab + Enter ↵</kbd>
+              <span>on “Continue with Google”</span>
             </div>
           )}
         </div>

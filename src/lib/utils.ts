@@ -6,6 +6,12 @@ export function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
   const m = Math.floor(s / 60);
   const r = s % 60;
+  // Long sessions (e.g. 180m quick blocks) render as H:MM:SS so the dial never shows 180:00.
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    const mm = String(m % 60).padStart(2, "0");
+    return `${h}:${mm}:${String(r).padStart(2, "0")}`;
+  }
   return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 }
 

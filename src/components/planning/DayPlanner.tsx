@@ -65,15 +65,17 @@ export default function DayPlanner() {
   const [breakMin, setBreakMin] = useState(() => Math.round(pomodoroConfig.shortBreakMs / 60000));
   const [blocks, setBlocks] = useState<UIBlock[] | null>(null);
 
-  const busy: Array<{ id: string; title: string; startMs: number; endMs: number }> = [];
+  const busy: Array<{ id: string; title: string; startMs: number; endMs: number }> = useMemo(() => [], []);
 
-  const container = { startMs: Date.parse(manualStart), endMs: Date.parse(manualEnd) };
+  const container = useMemo(
+    () => ({ startMs: Date.parse(manualStart), endMs: Date.parse(manualEnd) }),
+    [manualStart, manualEnd]
+  );
 
   const free = useMemo(() => {
     if (!Number.isFinite(container.startMs) || !Number.isFinite(container.endMs) || container.endMs <= container.startMs) return [];
     return subtractBusy(container, busy);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manualStart, manualEnd]);
+  }, [container, busy]);
 
   const generate = () => {
     if (free.length === 0 || remainingMs <= 0) {

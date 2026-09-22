@@ -78,6 +78,35 @@ export function nextSliceMinutes(
   }
 }
 
+/**
+ * Count fully consumed plan blocks given focused minutes.
+ * Walks the plan subtracting focused time (handles short final block).
+ * Example: 75/50 => [50,25]; focused 60 => 1 block done (50 consumed, 10 into 25).
+ */
+export function completedBlocksFromFocused(
+  allocatedMinutes: number,
+  focusMinutes: number,
+  focusedMinutes: number
+): number {
+  try {
+    const plan = calculatePomodoroPlan(allocatedMinutes, focusMinutes);
+    let remaining = Math.max(0, Math.round(focusedMinutes));
+    let done = 0;
+    for (const block of plan) {
+      if (remaining >= block.minutes) {
+        remaining -= block.minutes;
+        done += 1;
+      } else {
+        break;
+      }
+    }
+    return Math.min(done, plan.length);
+  } catch {
+    const f = Math.round(focusMinutes) || 1;
+    return Math.floor(Math.max(0, Math.round(focusedMinutes)) / Math.max(1, f));
+  }
+}
+
 export function getTaskProgress(
   allocatedMinutes: number,
   focusedMinutes: number,
@@ -89,7 +118,7 @@ export function getTaskProgress(
   const percent = allocated === 0 ? 0 : Math.min(100, Math.round((focused / allocated) * 100));
   const totalPomodoros = allocated === 0 ? 0 : countPlannedPomodoros(allocated, focusMinutes);
   const completedPomodoros =
-    focusMinutes > 0 ? Math.floor(focused / Math.round(focusMinutes)) : 0;
+    focusMinutes > 0 ? completedBlocksFromFocused(allocated, focusMinutes, focused) : 0;
   return {
     allocatedMinutes: allocated,
     focusedMinutes: focused,

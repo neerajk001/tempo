@@ -13,6 +13,7 @@ const NAV = [
   { href: "/tasks", label: "Tasks", icon: "task_alt" },
   { href: "/history", label: "History", icon: "bar_chart" },
   { href: "/library", label: "Focus Library", icon: "video_library" },
+  { href: "/settings", label: "Settings", icon: "tune", mobileOnly: true },
 ];
 
 export default function Sidebar() {
@@ -28,15 +29,35 @@ export default function Sidebar() {
       <div className="hidden md:block px-2 pt-1 pb-3 text-label-xs font-medium uppercase tracking-wider text-secondary">
         Workspaces
       </div>
-      <nav className="flex flex-row md:flex-col gap-1 overflow-x-auto flex-1 items-center md:items-stretch">
+      <nav className="flex flex-row md:flex-col gap-1 overflow-x-auto flex-1 items-center md:items-stretch" aria-label="Primary">
         {NAV.map((item) => {
           const active = item.exact ? pathname === item.href : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          if ((item as { mobileOnly?: boolean }).mobileOnly) {
+            // Rendered in mobile scroll row only; desktop has dedicated Settings section below.
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                aria-label={item.label}
+                className={cn(
+                  "md:hidden flex items-center gap-2.5 rounded-lg px-3 h-11 min-h-[44px] text-body-sm whitespace-nowrap border border-transparent",
+                  active
+                    ? "bg-primary-fixed/60 border-primary/20 text-on-surface font-semibold"
+                    : "text-secondary hover:bg-surface-container-low font-medium"
+                )}
+              >
+                <Icon name={item.icon} className={cn("text-[20px]", active && "text-primary")} />
+                {item.label}
+              </Link>
+            );
+          }
           return (
             <Link
               key={item.label}
               href={item.href}
+              aria-label={item.label}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 h-9 text-body-sm whitespace-nowrap border border-transparent",
+                "flex items-center gap-2.5 rounded-lg px-3 h-11 md:h-9 min-h-[44px] md:min-h-0 text-body-sm whitespace-nowrap border border-transparent",
                 active
                   ? "bg-primary-fixed/60 border-primary/20 text-on-surface font-semibold"
                   : "text-secondary hover:bg-surface-container-low font-medium"
@@ -47,6 +68,32 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {/* Mobile auth: sign in/out reachable without desktop panel. */}
+        <span className="md:hidden flex items-center">
+          {authed ? (
+            <button
+              type="button"
+              aria-label="Sign out"
+              title="Sign out"
+              onClick={() => signOutAndReset()}
+              className="flex items-center gap-2 rounded-lg px-3 h-11 min-h-[44px] text-body-sm text-secondary hover:bg-surface-container-low font-medium whitespace-nowrap"
+            >
+              <Icon name="logout" className="text-[20px]" />
+              Out
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="Sign in to sync across devices"
+              title="Sign in to sync across devices"
+              onClick={() => signInWithGoogle()}
+              className="flex items-center gap-2 rounded-lg px-3 h-11 min-h-[44px] text-body-sm text-secondary hover:bg-surface-container-low font-medium whitespace-nowrap"
+            >
+              <Icon name="login" className="text-[20px]" />
+              Sign in
+            </button>
+          )}
+        </span>
       </nav>
       <div className="hidden md:flex flex-col gap-1 pt-2">
         <Link
@@ -63,7 +110,7 @@ export default function Sidebar() {
         </Link>
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-surface-container-low transition-colors">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover ring-1 ring-outline" />
+          <img src={avatar} alt={authed ? `${name} avatar` : "Guest avatar"} width={32} height={32} className="w-8 h-8 rounded-full object-cover ring-1 ring-outline" />
           <div className="flex-1 min-w-0 text-left">
             <div className="text-body-sm font-semibold text-on-surface truncate">{name}</div>
             <div className="text-label-xs text-secondary truncate">{email}</div>
@@ -71,18 +118,20 @@ export default function Sidebar() {
           {authed ? (
             <button
               type="button"
+              aria-label="Sign out"
               title="Sign out"
               onClick={() => signOutAndReset()}
-              className="text-secondary hover:text-on-surface"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
             >
               <Icon name="unfold_more" className="text-[18px]" />
             </button>
           ) : (
             <button
               type="button"
+              aria-label="Sign in to sync across devices"
               title="Sign in to sync across devices"
               onClick={() => signInWithGoogle()}
-              className="text-secondary hover:text-on-surface"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
             >
               <Icon name="login" className="text-[18px]" />
             </button>

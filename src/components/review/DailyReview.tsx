@@ -40,7 +40,14 @@ export default function DailyReview() {
   const sessions = useSessionHistoryStore((s) => s.sessions);
   const [dayOffset, setDayOffset] = useState(0);
 
-  const viewedMs = Date.now() + dayOffset * 86400000;
+  // Calendar-day arithmetic (DST-safe): shift by date, not by 86400000ms.
+  const shiftDays = (baseMs: number, days: number): number => {
+    const d = new Date(baseMs);
+    d.setDate(d.getDate() + days);
+    return d.getTime();
+  };
+
+  const viewedMs = shiftDays(Date.now(), dayOffset);
   const viewedKey = localDateKey(viewedMs);
   const viewedDate = useMemo(() => new Date(viewedMs), [viewedMs]);
 
@@ -63,8 +70,10 @@ export default function DailyReview() {
   const pausedMin = Math.round(pausedMs / 60000);
   const total = Math.max(1, stats.focusedMinutes + pausedMin);
 
-  const adherence = stats.plannedMinutes > 0 ? Math.min(100, Math.round((stats.focusedMinutes / stats.plannedMinutes) * 100)) : 0;
-  const variance = stats.focusedMinutes - stats.plannedMinutes;
+  // Adherence = plan-credited focus (same as Dashboard focusRate).
+  // stats.focusedMinutes includes quick/unlinked; taskFocusedMinutes is plan-only.
+  const adherence = stats.plannedMinutes > 0 ? Math.min(100, Math.round((stats.taskFocusedMinutes / stats.plannedMinutes) * 100)) : stats.taskFocusedMinutes > 0 ? 100 : 0;
+  const variance = stats.taskFocusedMinutes - stats.plannedMinutes;
 
   const longest = useMemo(() => {
     const clean = focusSessions.filter((x) => x.interruptions === 0).sort((a, b) => b.focusedMs - a.focusedMs)[0];
@@ -92,10 +101,12 @@ export default function DailyReview() {
       ? new Date(firstStart + (lastEnd - firstStart) / 2).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
       : "MIDDAY";
 
-  const tomorrowKey = localDateKey(Date.now() + (dayOffset + 1) * 86400000);
+  const tomorrowKey = localDateKey(shiftDays(Date.now(), dayOffset + 1));
   const tomorrowTasks = tasks.filter((t) => t.date === tomorrowKey).slice(0, 3);
-  const tomorrowPlanned = tasks.filter((t) => t.date === tomorrowKey).reduce((s, t) => s + t.allocatedMinutes, 0);
-  const tomorrowLabel = new Date(Date.now() + (dayOffset + 1) * 86400000).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const tomorrowPlanned = tasks
+    .filter((t) => t.date === tomorrowKey && getFocusMode(t) !== "infinite")
+    .reduce((s, t) => s + t.allocatedMinutes, 0);
+  const tomorrowLabel = new Date(shiftDays(Date.now(), dayOffset + 1)).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
   const exportSummary = () => {
     const lines = [

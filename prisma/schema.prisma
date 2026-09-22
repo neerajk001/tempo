@@ -144,6 +144,8 @@ model PomodoroSession {
   @@index([status])
   @@index([startedAt])
   @@index([userId])
+  @@index([userId, startedAt])
+  @@index([userId, taskId])
 }
 
 model SessionEvent {

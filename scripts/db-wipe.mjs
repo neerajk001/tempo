@@ -2,6 +2,15 @@ import fs from "node:fs";
 import { PrismaClient } from "@prisma/client";
 
 // One-off destructive maintenance: wipe product data, keep users (logins).
+// SAFETY: never run in production; requires explicit --confirm flag.
+if (process.env.NODE_ENV === "production") {
+  console.error("Refusing to wipe: NODE_ENV=production. Aborting.");
+  process.exit(1);
+}
+if (!process.argv.includes("--confirm")) {
+  console.error("Refusing to wipe: pass --confirm to proceed. Usage: node scripts/db-wipe.mjs --confirm");
+  process.exit(1);
+}
 const envText = fs.readFileSync(new URL("../.env", import.meta.url), "utf8");
 const line = envText.split(/\r?\n/).find((l) => l.startsWith("DATABASE_URL="));
 if (!line) throw new Error("DATABASE_URL missing in .env");

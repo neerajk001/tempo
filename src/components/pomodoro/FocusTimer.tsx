@@ -105,7 +105,7 @@ export function TimerCircular({ mm, ss, pct, paused, ticking, elapsedMs, infinit
         <span className="font-mono text-code-badge uppercase tracking-widest text-on-surface-variant mb-0.5 font-medium">
           Time Remaining
         </span>
-        <div className="flex items-baseline justify-center tracking-tight font-mono text-[68px] sm:text-[92px] leading-none text-on-surface font-medium tabular-nums my-0.5">
+        <div className="flex items-baseline justify-center tracking-tight font-mono text-[56px] sm:text-[68px] lg:text-[92px] leading-none text-on-surface font-medium tabular-nums my-0.5 break-all">
           <span>{mm}</span>
           <span className={cn("inline-block text-primary mx-0.5", ticking && !paused ? "animate-[pulse_1.5s_infinite]" : "opacity-40")}>:</span>
           <span>{ss}</span>
@@ -132,9 +132,9 @@ function FlipUnit({ value, label }: { value: string; label: string }) {
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative w-28 h-36 sm:w-36 sm:h-44 rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-sm overflow-hidden [perspective:500px]">
+      <div className="relative w-20 h-28 sm:w-28 sm:h-36 md:w-36 md:h-44 rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-sm overflow-hidden [perspective:500px]">
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="font-mono text-6xl sm:text-7xl font-medium text-on-surface tabular-nums">{value}</span>
+          <span className="font-mono text-5xl sm:text-6xl md:text-7xl font-medium text-on-surface tabular-nums">{value}</span>
         </div>
         <div className="absolute left-0 right-0 top-1/2 h-px bg-outline-variant" />
         {flipping && (
@@ -143,7 +143,7 @@ function FlipUnit({ value, label }: { value: string; label: string }) {
             className="absolute inset-x-0 top-0 h-1/2 overflow-hidden origin-bottom animate-flip z-10"
           >
             <div className="h-[200%] flex items-center justify-center">
-              <span className="font-mono text-6xl sm:text-7xl font-medium text-on-surface tabular-nums">{prev}</span>
+              <span className="font-mono text-5xl sm:text-6xl md:text-7xl font-medium text-on-surface tabular-nums">{prev}</span>
             </div>
           </div>
         )}

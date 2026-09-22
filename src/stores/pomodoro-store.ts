@@ -314,12 +314,24 @@ export const usePomodoroStore = create<PomodoroStore>()(
 
       pause: () => {
         const { session } = get();
-        set({ session: pauseSession(session, Date.now()) });
+        // Guard rapid double-clicks: ignore invalid transitions instead of
+        // throwing uncaught exceptions from click/key handlers.
+        if (session.status !== "RUNNING") return;
+        try {
+          set({ session: pauseSession(session, Date.now()) });
+        } catch {
+          // No-op — timer already moved.
+        }
       },
 
       resume: () => {
         const { session } = get();
-        set({ session: resumeSession(session, Date.now()) });
+        if (session.status !== "PAUSED") return;
+        try {
+          set({ session: resumeSession(session, Date.now()) });
+        } catch {
+          // No-op — timer already moved.
+        }
       },
 
       complete: () => {

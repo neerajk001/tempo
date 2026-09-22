@@ -46,7 +46,10 @@ export default function DashboardHome() {
 
   // Focus-rate change vs yesterday, in percentage points. Only shown when
   // yesterday had a plan, so a tiny baseline can't produce a wild number.
-  const yesterdayKey = localDateKey(Date.now() - 24 * 60 * 60 * 1000);
+  // Calendar-day shift (DST-safe), not -86400000ms.
+  const _y = new Date();
+  _y.setDate(_y.getDate() - 1);
+  const yesterdayKey = localDateKey(_y.getTime());
   const yesterdayStats = computeDashboardStats(tasks, sessions, yesterdayKey);
   const rateDelta =
     yesterdayStats.plannedMinutes > 0
@@ -140,7 +143,7 @@ export default function DashboardHome() {
             <Link href="/review" className="h-8 px-3 rounded-lg bg-primary text-on-primary text-body-sm font-medium inline-flex items-center">
               Open review
             </Link>
-            <button type="button" onClick={() => setNudgeOff(true)} className="text-secondary hover:text-on-surface text-lg leading-none" title="Dismiss">
+            <button type="button" onClick={() => setNudgeOff(true)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface text-lg leading-none rounded-lg" title="Dismiss" aria-label="Dismiss review nudge">
               ×
             </button>
           </div>
@@ -184,7 +187,7 @@ export default function DashboardHome() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-8 flex flex-col gap-6 min-w-0 lg:sticky lg:top-6">
+          <div className="lg:col-span-8 flex flex-col gap-6 min-w-0">
             <FocusSessionCard />
             <ScheduleList tasks={todayTasks} />
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export default function ConfirmDialog({
   open,
@@ -17,13 +17,48 @@ export default function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const prevFocus = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
+    prevFocus.current = document.activeElement as HTMLElement | null;
+    // Lock body scroll while open.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Focus dialog on open.
+    const t = setTimeout(() => dialogRef.current?.focus(), 0);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCancel();
+      // Simple focus trap: keep Tab inside dialog.
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      // Return focus to trigger.
+      try {
+        prevFocus.current?.focus();
+      } catch {
+        // Ignore.
+      }
+    };
   }, [open, onCancel]);
 
   if (!open) return null;
@@ -35,7 +70,14 @@ export default function ConfirmDialog({
         if (e.target === e.currentTarget) onCancel();
       }}
     >
-      <div className="w-full max-w-sm bg-surface-container-lowest rounded-xl shadow-xl border border-outline/60 p-5 flex flex-col gap-3 animate-rise">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        className="w-full max-w-sm bg-surface-container-lowest rounded-xl shadow-xl border border-outline/60 p-5 flex flex-col gap-3 animate-rise outline-none"
+      >
         <h2 className="text-headline-md text-on-surface">{title}</h2>
         <p className="text-body-sm text-secondary leading-relaxed">{message}</p>
         <div className="flex justify-end gap-2 mt-1">

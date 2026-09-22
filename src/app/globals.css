@@ -47,6 +47,16 @@ body {
   outline-offset: 2px;
 }
 
+/* Inputs use focus:outline-none + border-only in components — restore a
+   visible ring for keyboard users (border color alone is insufficient). */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(127, 176, 105, 0.7) !important;
+  outline-offset: 1px;
+  border-color: rgba(127, 176, 105, 0.7) !important;
+}
+
 /* Native controls follow the dark theme */
 select,
 input {

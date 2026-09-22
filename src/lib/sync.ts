@@ -246,6 +246,18 @@ export function mergeSessions(
     const cur = byId.get(s.id);
     if (!cur) byId.set(s.id, s);
     else if (s.endedAt > cur.endedAt) byId.set(s.id, s);
+    else if (s.endedAt === cur.endedAt) {
+      // Same endedAt but corrected content (focusedMs/interruptions) — prefer
+      // larger focusedMs, then deterministic id tie-break so devices agree.
+      if (
+        s.focusedMs > cur.focusedMs ||
+        (s.focusedMs === cur.focusedMs && s.interruptions > cur.interruptions) ||
+        (s.focusedMs === cur.focusedMs &&
+          s.interruptions === cur.interruptions &&
+          s.id > cur.id)
+      )
+        byId.set(s.id, s);
+    }
   }
   const sessions = Array.from(byId.values())
     .sort((a: SessionRecord, b: SessionRecord) => b.startedAt - a.startedAt || (a.id < b.id ? -1 : 1))

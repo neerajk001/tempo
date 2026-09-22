@@ -64,21 +64,23 @@ export function VideoPill({ mode, setMode }: { mode: VideoMode; setMode: (m: Vid
       <span className="font-mono text-code-badge text-on-surface-variant truncate max-w-[110px] hidden sm:inline">
         {video.title}
       </span>
-      <button type="button" title={playing ? "Pause video" : "Play video"} onClick={() => setPlaying(!playing)} className={btn}>
+      <button type="button" title={playing ? "Pause video" : "Play video"} aria-label={playing ? "Pause video" : "Play video"} onClick={() => setPlaying(!playing)} className={btn}>
         <Icon name={playing ? "pause" : "play_arrow"} className="text-[16px]" />
       </button>
       <button
         type="button"
         title={loop ? "Looping on" : "Looping off"}
+        aria-label={loop ? "Looping on" : "Looping off"}
+        aria-pressed={loop}
         onClick={() => setLoop(!loop)}
         className={cn(btn, loop && "text-primary")}
       >
         <Icon name="repeat" className="text-[16px]" />
       </button>
-      <button type="button" title="Minimize to floating player" onClick={() => setMode("mini")} className={btn}>
+      <button type="button" title="Minimize to floating player" aria-label="Minimize to floating player" onClick={() => setMode("mini")} className={btn}>
         <Icon name="picture_in_picture_alt" className="text-[16px]" />
       </button>
-      <button type="button" title="Fullscreen video" onClick={() => setMode("fullscreen")} className={btn}>
+      <button type="button" title="Fullscreen video" aria-label="Fullscreen video" onClick={() => setMode("fullscreen")} className={btn}>
         <Icon name="fullscreen" className="text-[16px]" />
       </button>
     </div>

@@ -111,12 +111,17 @@ export default function NewTaskModal({
 
   useEffect(() => {
     if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, title, description, date, effectiveAllocated, effectiveFocus, customFocus, useCustomFocus, shortBreak, longBreak, longInterval, project, priority, initial, focusMode, sessionName]);
 
@@ -168,7 +173,7 @@ export default function NewTaskModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-xl bg-surface-container-lowest rounded-xl shadow-xl border border-outline flex flex-col overflow-hidden max-h-[90vh] animate-rise">
+      <div role="dialog" aria-modal="true" aria-label={initial ? "Edit Task" : "New Task"} className="w-full max-w-xl bg-surface-container-lowest rounded-xl shadow-xl border border-outline flex flex-col overflow-hidden max-h-[90vh] animate-rise">
         <div className="flex items-start justify-between px-6 pt-4 pb-3 border-b border-outline-variant/20 bg-surface-container-low/40">
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
 import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel } from "@/stores/task-store";
 import { useSessionHistoryStore, getRecordLabel, getSessionMode } from "@/stores/session-history-store";
-import { computeDashboardStats } from "@/lib/dashboard-stats";
+import { computeDashboardStats, localDateKey } from "@/lib/dashboard-stats";
 import { calculatePomodoroPlan, todayKey } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
 import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
@@ -23,7 +23,13 @@ export default function CompleteView() {
   const tasks = useTaskStore((s) => s.tasks);
   const sessions = useSessionHistoryStore((s) => s.sessions);
 
-  const record = sessions.find((x) => x.phase === "FOCUS" && x.status === "COMPLETED") ?? null;
+  const today = todayKey();
+  const record =
+    sessions.find(
+      (x) => x.phase === "FOCUS" && x.status === "COMPLETED" && localDateKey(x.startedAt) === today
+    ) ??
+    sessions.find((x) => x.phase === "FOCUS" && x.status === "COMPLETED") ??
+    null;
   const task = selectTaskById(tasks, record?.taskId ?? activeTaskId);
   const stats = computeDashboardStats(tasks, sessions, todayKey());
   const recordInfinite = record ? getSessionMode(record) === "infinite" : (task ? getFocusMode(task) === "infinite" : false);
@@ -105,14 +111,22 @@ export default function CompleteView() {
     const st = usePomodoroStore.getState().session.status;
     if (st === "COMPLETED" || st === "CANCELLED" || st === "IDLE") {
       if (task) useTaskStore.getState().switchToTask(task.id);
-      else if (record) startQuick(record.taskTitle, record.plannedMs);
+      else if (record) {
+        // Infinite records have plannedMs=0 — restarting via startQuick would
+        // fall back to the 50m default. Route infinite through its task when possible.
+        if (recordInfinite && record.taskId) {
+          const t = useTaskStore.getState().tasks.find((x) => x.id === record.taskId);
+          if (t) useTaskStore.getState().switchToTask(t.id);
+          else startQuick(record.taskTitle, record.plannedMs);
+        } else startQuick(record.taskTitle, record.plannedMs);
+      }
       else start("FOCUS");
     }
     router.push("/focus");
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-surface text-on-surface antialiased flex flex-col justify-between overflow-hidden overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-surface text-on-surface antialiased flex flex-col justify-between overflow-y-auto">
       <div className="fixed inset-0 pointer-events-none z-0"
         style={{ background: "radial-gradient(circle at 50% 45%, rgba(127,176,105,0.07) 0%, rgba(232,200,106,0.035) 38%, transparent 72%)" }} />
 
@@ -288,7 +302,9 @@ export default function CompleteView() {
             <button
               type="button"
               onClick={() => {
-                startBreak();
+                // Guard double-start when auto-break already ran in useFinishSession.
+                const st = usePomodoroStore.getState().session.status;
+                if (st === "COMPLETED" || st === "CANCELLED" || st === "IDLE") startBreak();
                 router.push("/break");
               }}
               className="group relative flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-tertiary-fixed hover:brightness-125 border border-tertiary/25 text-on-tertiary-fixed font-medium text-sm transition-all active:scale-[0.99]"

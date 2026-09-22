@@ -10,8 +10,9 @@ export interface CurrentUser {
 
 /**
  * Resolve the authenticated user server-side (never trust client userId).
- * Creates the User row on first login and claims pre-auth legacy rows
- * (personal single-user app: rows with NULL userId belong to this user).
+ * Creates the User row on first login.
+ * NOTE: Legacy rows with NULL userId are NOT auto-claimed (would leak
+ * data across users on a shared DB). Migration must be explicit/opt-in.
  * Returns null when unauthenticated — callers respond 401.
  */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -29,10 +30,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     create: { email, name, image },
     select: { id: true, email: true },
   });
-
-  // Claim legacy rows created before auth existed.
-  await db.task.updateMany({ where: { userId: null }, data: { userId: user.id } });
-  await db.pomodoroSession.updateMany({ where: { userId: null }, data: { userId: user.id } });
 
   return user;
 }

@@ -41,13 +41,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const nextStatus =
       type === "PAUSE" ? "PAUSED" : type === "RESUME" ? "RUNNING" : type === "COMPLETE" ? "COMPLETED" : "CANCELLED";
 
-    const updated = await db.pomodoroSession.update({
-      where: { id: params.id },
+    const res = await db.pomodoroSession.updateMany({
+      where: { id: params.id, userId: user.id, status: session.status },
       data: {
         status: nextStatus,
         ...(nextStatus === "COMPLETED" || nextStatus === "CANCELLED" ? { endedAt: now } : {}),
-        events: { create: [{ type, timestamp: now }] },
       },
+    });
+    if (res.count === 0) {
+      return NextResponse.json(
+        { error: `Cannot ${type} a session (timer state changed, retry)` },
+        { status: 409 }
+      );
+    }
+    await db.sessionEvent.create({
+      data: { sessionId: params.id, type, timestamp: now },
+    });
+    const updated = await db.pomodoroSession.findFirst({
+      where: { id: params.id, userId: user.id },
       include: {
         events: { orderBy: { timestamp: "asc" } },
         task: { select: { id: true, title: true } },

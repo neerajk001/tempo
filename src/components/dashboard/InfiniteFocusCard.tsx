@@ -15,6 +15,7 @@ import {
 import { getElapsedFocusMs } from "@/lib/pomodoro-machine";
 import { formatDurationMinutes } from "@/lib/utils";
 import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useNow } from "@/hooks/useNow";
 import { todayKey } from "@/lib/task-planning";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,7 @@ export default function InfiniteFocusCard() {
 
   const candidates = useMemo(() => infiniteCandidates(tasks), [tasks]);
   const [overrideId, setOverrideId] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const selected =
     candidates.find((t) => t.id === overrideId) ??
     candidates.find((t) => t.id === activeTaskId) ??
@@ -170,18 +172,29 @@ export default function InfiniteFocusCard() {
             )}
           </button>
           {selected && totalElapsedMs > 0 && !liveOnSelected && (
-            <button
-              type="button"
-              onClick={() => {
-                if (!window.confirm(`Reset "${getSessionLabel(selected, selected.title)}" timer to 00:00:00? Past sessions stay in History.`)) return;
-                useTaskStore.getState().resetTaskProgress(selected.id);
-              }}
-              title="Reset infinite timer to 00:00:00"
-              className="h-8 px-3 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 text-body-sm font-medium transition-colors inline-flex items-center justify-center gap-1.5"
-            >
-              <Icon name="restart_alt" className="text-[16px]" />
-              <span>Reset timer to 00:00:00</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmReset(true)}
+                title="Reset infinite timer to 00:00:00"
+                aria-label={`Reset ${getSessionLabel(selected, selected.title)} timer to 00:00:00`}
+                className="h-8 px-3 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 text-body-sm font-medium transition-colors inline-flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Icon name="restart_alt" className="text-[16px]" />
+                <span>Reset timer to 00:00:00</span>
+              </button>
+              <ConfirmDialog
+                open={confirmReset}
+                title={`Reset "${getSessionLabel(selected, selected.title)}" timer?`}
+                message="This zeroes the timer back to 00:00:00. Past sessions stay in History."
+                confirmLabel="Reset to 00:00:00"
+                onCancel={() => setConfirmReset(false)}
+                onConfirm={() => {
+                  setConfirmReset(false);
+                  useTaskStore.getState().resetTaskProgress(selected.id);
+                }}
+              />
+            </>
           )}
           {ticking && !liveOnSelected && (
             <Link

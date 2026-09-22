@@ -68,7 +68,9 @@ export function useFinishSession() {
       } else {
         // Allocated: existing minute-based workflow unchanged, plus
         // interruption/cycle preservation for exact resume.
-        recordFocus(activeTaskId, Math.max(1, Math.round(focusedMs / 60000)));
+        // Use floor (not round/max-1) so a 10s accidental finish credits 0, not 1m.
+        const mins = Math.floor(focusedMs / 60000);
+        if (mins > 0) recordFocus(activeTaskId, mins);
         useTaskStore.getState().accumulateProgress(activeTaskId, {
           interruptions: snapshot.pauseCount,
           completedFocusCount: snapshot.completedFocusCount,

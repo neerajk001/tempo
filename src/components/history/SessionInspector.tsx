@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { useSessionHistoryStore, getRecordLabel, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
@@ -207,7 +209,7 @@ export default function SessionInspector({
         <button
           type="button"
           onClick={rerun}
-          className="flex-1 py-1.5 px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors text-body-sm font-medium flex items-center justify-center gap-1"
+          className="flex-1 py-1.5 px-3 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors text-body-sm font-medium flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Icon name="add_circle" className="text-[15px]" />
           <span>Start this again</span>
@@ -215,21 +217,12 @@ export default function SessionInspector({
         <Link
           href={record.taskId ? `/tasks/${record.taskId}` : "/tasks"}
           title="Open task"
-          className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors"
+          aria-label="Open task"
+          className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Icon name="edit" className="text-[18px]" />
         </Link>
-        <button
-          type="button"
-          title="Delete session"
-          onClick={() => {
-            removeSession(record.id);
-            onDeleted?.();
-          }}
-          className="p-1.5 rounded-lg bg-surface-container hover:bg-error/15 hover:text-error text-on-surface-variant transition-colors"
-        >
-          <Icon name="delete" className="text-[18px]" />
-        </button>
+        <DeleteSessionButton recordId={record.id} onDeleted={onDeleted} />
       </div>
 
       <div className="p-3 rounded-xl bg-surface-container-lowest shadow-sm border border-outline bg-surface-container-lowest flex items-center justify-between">
@@ -251,5 +244,35 @@ export default function SessionInspector({
         <Icon name="military_tech" className="text-[20px] text-primary" />
       </div>
     </div>
+  );
+}
+
+function DeleteSessionButton({ recordId, onDeleted }: { recordId: string; onDeleted?: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const removeSession = useSessionHistoryStore((s) => s.removeSession);
+  return (
+    <>
+      <button
+        type="button"
+        title="Delete session"
+        aria-label="Delete session"
+        onClick={() => setConfirming(true)}
+        className="p-1.5 rounded-lg bg-surface-container hover:bg-error/15 hover:text-error text-on-surface-variant transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <Icon name="delete" className="text-[18px]" />
+      </button>
+      <ConfirmDialog
+        open={confirming}
+        title="Delete this session?"
+        message="This removes the session from History. Task totals stay as-is."
+        confirmLabel="Delete session"
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          removeSession(recordId);
+          onDeleted?.();
+        }}
+      />
+    </>
   );
 }

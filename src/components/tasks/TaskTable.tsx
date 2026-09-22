@@ -206,6 +206,9 @@ export function TaskRow({
       <div className="col-span-7 md:col-span-4 flex items-center gap-2.5 min-w-0">
         <button
           type="button"
+          role="checkbox"
+          aria-checked={done}
+          aria-label={done ? `Reopen task ${task.title}` : `Mark complete ${task.title}`}
           title={done ? "Reopen task" : "Mark complete"}
           onClick={toggleDone}
           className={cn(
@@ -263,6 +266,10 @@ export function TaskRow({
         <PriorityChip priority={task.priority ?? "medium"} />
       </div>
       <div className="hidden md:flex md:col-span-1 items-center justify-center">
+        <StatusChip task={task} now={now} />
+      </div>
+      {/* Mobile: compact status so small screens don't lose state. */}
+      <div className="flex md:hidden col-span-12 order-4 items-center">
         <StatusChip task={task} now={now} />
       </div>
       <div className="col-span-5 order-2 md:order-none md:col-span-2 flex items-center justify-end gap-1">
