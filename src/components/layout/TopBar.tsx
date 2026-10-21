@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession } from "@/lib/session";
 import Icon from "@/components/ui/Icon";
 import { AVATAR_SRC } from "@/lib/assets";
+import { IS_DESKTOP } from "@/lib/platform";
 
 export default function TopBar() {
   const { data: session } = useSession();
@@ -42,6 +43,25 @@ export default function TopBar() {
       </Link>
 
       <div className="ml-auto flex items-center gap-1.5">
+        {!IS_DESKTOP && (
+          <>
+            <Link
+              href="/download"
+              className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-lg border border-outline-variant bg-surface-container-low text-on-surface text-body-sm font-medium hover:bg-surface-container transition-colors"
+            >
+              <Icon name="desktop_windows" className="text-[16px] text-secondary" />
+              Get the app
+            </Link>
+            <Link
+              href="/download"
+              aria-label="Download the desktop app"
+              title="Download the desktop app"
+              className="sm:hidden flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg text-secondary hover:bg-surface-container transition-colors border border-outline-variant"
+            >
+              <Icon name="desktop_windows" className="text-[20px]" />
+            </Link>
+          </>
+        )}
         <Link
           href="/settings"
           aria-label="Account and settings"

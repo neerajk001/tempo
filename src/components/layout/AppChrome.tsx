@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
 import Sidebar from "@/components/layout/Sidebar";
 import MiniTimer from "@/components/desktop/MiniTimer";
@@ -16,6 +17,7 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
   // Desktop starts undecided so the mini window never mounts the full shell
   // (and the server/client markup still match).
   const [mini, setMini] = useState<boolean | null>(IS_DESKTOP ? null : false);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (IS_DESKTOP) setMini(isMiniWindow());
@@ -23,6 +25,9 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
 
   if (mini === null) return <div className="min-h-screen bg-surface" />;
   if (mini) return <MiniTimer />;
+
+  // The download page is a standalone landing page, not part of the workspace.
+  if (pathname?.startsWith("/download")) return <>{children}</>;
 
   return (
     <div className="flex flex-col min-h-screen">

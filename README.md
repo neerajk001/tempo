@@ -255,6 +255,11 @@ The installer is per-user (no admin) and unsigned, so Windows SmartScreen may wa
 on first run. Rebuilding with a newer version and running the new installer upgrades
 in place. Exports (JSON archive / CSV metrics) are the backup path for local data.
 
+Publishing: attach the installer to a GitHub release under the stable asset name
+`Tempo_x64-setup.exe`. `/download` links to
+`releases/latest/download/Tempo_x64-setup.exe`, so that URL keeps working across
+versions as long as the asset name stays the same.
+
 # Environment
 
 | Variable | Used for |
