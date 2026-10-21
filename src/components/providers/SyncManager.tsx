@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { initSync, setSyncAuthed, maybeAutoSync, migrateGuestToAccount } from "@/lib/sync";
 
 /**

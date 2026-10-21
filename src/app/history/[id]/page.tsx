@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Card from "@/components/ui/Card";
 import SessionInspector from "@/components/history/SessionInspector";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
+import { useRouteId } from "@/hooks/useRouteId";
 
 export default function SessionDetailsPage() {
-  const params = useParams<{ id: string }>();
+  const id = useRouteId();
   const router = useRouter();
-  const session = useSessionHistoryStore((s) => s.sessions.find((x) => x.id === params.id));
+  const session = useSessionHistoryStore((s) => s.sessions.find((x) => x.id === id));
 
   if (!session) {
     return (

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import Icon from "@/components/ui/Icon";
 import { AVATAR_SRC } from "@/lib/assets";
 import { signInWithGoogle, signOutAndReset } from "@/lib/auth-actions";
+import { IS_DESKTOP } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -20,8 +21,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const authed = status === "authenticated";
-  const email = authed ? session?.user?.email ?? "" : "Local only — sign in to sync";
-  const name = authed ? session?.user?.name?.split(" ")[0] ?? "You" : "Guest";
+  const email = authed ? session?.user?.email ?? "" : IS_DESKTOP ? "Saved on this device" : "Local only — sign in to sync";
+  const name = authed ? session?.user?.name?.split(" ")[0] ?? "You" : IS_DESKTOP ? "Local" : "Guest";
   const avatar = session?.user?.image ?? AVATAR_SRC;
 
   return (
@@ -69,31 +70,33 @@ export default function Sidebar() {
           );
         })}
         {/* Mobile auth: sign in/out reachable without desktop panel. */}
-        <span className="md:hidden flex items-center">
-          {authed ? (
-            <button
-              type="button"
-              aria-label="Sign out"
-              title="Sign out"
-              onClick={() => signOutAndReset()}
-              className="flex items-center gap-2 rounded-lg px-3 h-11 min-h-[44px] text-body-sm text-secondary hover:bg-surface-container-low font-medium whitespace-nowrap"
-            >
-              <Icon name="logout" className="text-[20px]" />
-              Out
-            </button>
-          ) : (
-            <button
-              type="button"
-              aria-label="Sign in to sync across devices"
-              title="Sign in to sync across devices"
-              onClick={() => signInWithGoogle()}
-              className="flex items-center gap-2 rounded-lg px-3 h-11 min-h-[44px] text-body-sm text-secondary hover:bg-surface-container-low font-medium whitespace-nowrap"
-            >
-              <Icon name="login" className="text-[20px]" />
-              Sign in
-            </button>
-          )}
-        </span>
+        {!IS_DESKTOP && (
+          <span className="md:hidden flex items-center">
+            {authed ? (
+              <button
+                type="button"
+                aria-label="Sign out"
+                title="Sign out"
+                onClick={() => signOutAndReset()}
+                className="flex items-center gap-2 rounded-lg px-3 h-11 min-h-[44px] text-body-sm text-secondary hover:bg-surface-container-low font-medium whitespace-nowrap"
+              >
+                <Icon name="logout" className="text-[20px]" />
+                Out
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="Sign in to sync across devices"
+                title="Sign in to sync across devices"
+                onClick={() => signInWithGoogle()}
+                className="flex items-center gap-2 rounded-lg px-3 h-11 min-h-[44px] text-body-sm text-secondary hover:bg-surface-container-low font-medium whitespace-nowrap"
+              >
+                <Icon name="login" className="text-[20px]" />
+                Sign in
+              </button>
+            )}
+          </span>
+        )}
       </nav>
       <div className="hidden md:flex flex-col gap-1 pt-2">
         <Link
@@ -115,27 +118,28 @@ export default function Sidebar() {
             <div className="text-body-sm font-semibold text-on-surface truncate">{name}</div>
             <div className="text-label-xs text-secondary truncate">{email}</div>
           </div>
-          {authed ? (
-            <button
-              type="button"
-              aria-label="Sign out"
-              title="Sign out"
-              onClick={() => signOutAndReset()}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
-            >
-              <Icon name="unfold_more" className="text-[18px]" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              aria-label="Sign in to sync across devices"
-              title="Sign in to sync across devices"
-              onClick={() => signInWithGoogle()}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
-            >
-              <Icon name="login" className="text-[18px]" />
-            </button>
-          )}
+          {!IS_DESKTOP &&
+            (authed ? (
+              <button
+                type="button"
+                aria-label="Sign out"
+                title="Sign out"
+                onClick={() => signOutAndReset()}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
+              >
+                <Icon name="unfold_more" className="text-[18px]" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="Sign in to sync across devices"
+                title="Sign in to sync across devices"
+                onClick={() => signInWithGoogle()}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
+              >
+                <Icon name="login" className="text-[18px]" />
+              </button>
+            ))}
         </div>
       </div>
     </aside>

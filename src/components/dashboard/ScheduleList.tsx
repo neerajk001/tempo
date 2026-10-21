@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import Icon from "@/components/ui/Icon";
+import { taskHref } from "@/lib/hrefs";
 import { getElapsedFocusMs, getRemainingMs } from "@/lib/pomodoro-machine";
 import { getTaskProgress } from "@/lib/task-planning";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
@@ -138,7 +139,7 @@ export default function ScheduleList({ tasks }: { tasks: Task[] }) {
                         {infinite ? "∞ Infinite" : `${t.focusMinutes}m blocks`}
                       </span>
                     </div>
-                    <Link href={`/tasks/${t.id}`} className="text-headline-md text-on-surface font-semibold tracking-tight mt-0.5 truncate hover:text-primary transition-colors">{infinite ? getSessionLabel(t, t.title) : t.title}</Link>
+                    <Link href={taskHref(t.id)} className="text-headline-md text-on-surface font-semibold tracking-tight mt-0.5 truncate hover:text-primary transition-colors">{infinite ? getSessionLabel(t, t.title) : t.title}</Link>
                     {infinite && t.sessionName ? (
                       <div className="text-body-sm text-on-surface-variant line-clamp-1 mt-0.5">Task: {t.title}</div>
                     ) : t.description ? (

@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import { signInWithGoogle, signOutAndReset } from "@/lib/auth-actions";
+import { IS_DESKTOP } from "@/lib/platform";
 
 function TempoGlyph({ className }: { className?: string }) {
   return (
@@ -107,7 +108,21 @@ export default function LoginPage() {
 
           {/* Interaction card */}
           <div className="w-full bg-surface-container-lowest border border-outline-variant rounded-2xl p-7 shadow-sm text-left">
-            {status === "loading" ? (
+            {IS_DESKTOP ? (
+              <div className="text-center">
+                <p className="text-sm font-medium text-on-surface">This is the Tempo desktop app.</p>
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  Everything is stored locally on this device. Accounts and cloud sync live in the web version.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/")}
+                  className="mt-4 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-semibold text-[14px] transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  Open Tempo
+                </button>
+              </div>
+            ) : status === "loading" ? (
               <p className="text-sm text-on-surface-variant text-center py-3">Checking session…</p>
             ) : signedIn ? (
               <div className="text-center">

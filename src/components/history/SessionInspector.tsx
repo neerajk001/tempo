@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { taskHref } from "@/lib/hrefs";
 import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { useSessionHistoryStore, getRecordLabel, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
@@ -190,7 +191,7 @@ export default function SessionInspector({
       <div className="flex flex-col gap-1.5 pt-1 border-t border-outline-variant/20">
         <span className="text-label-xs uppercase tracking-wider text-on-surface-variant font-semibold">Linked task</span>
         {task ? (
-          <Link href={`/tasks/${task.id}`} className="flex items-center justify-between p-1.5 rounded bg-surface-container-low text-body-sm hover:bg-surface-container transition-colors">
+          <Link href={taskHref(task.id)} className="flex items-center justify-between p-1.5 rounded bg-surface-container-low text-body-sm hover:bg-surface-container transition-colors">
             <div className="flex items-center gap-1.5 min-w-0">
               <Icon name="task_alt" className="text-[16px] text-primary" />
               <span className="truncate font-medium text-on-surface">{task.title}</span>
@@ -215,7 +216,7 @@ export default function SessionInspector({
           <span>Start this again</span>
         </button>
         <Link
-          href={record.taskId ? `/tasks/${record.taskId}` : "/tasks"}
+            href={record.taskId ? taskHref(record.taskId) : "/tasks"}
           title="Open task"
           aria-label="Open task"
           className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-colors focus-visible:ring-2 focus-visible:ring-primary"

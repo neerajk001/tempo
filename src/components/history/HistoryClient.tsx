@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { taskHref } from "@/lib/hrefs";
 import { useTaskStore, type Task } from "@/stores/task-store";
 import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
 import { formatDurationMinutes } from "@/lib/utils";
@@ -68,7 +69,7 @@ function taskRow(t: Task, focusedMs: number): Row {
   return {
     key: `t:${t.id}`,
     title: t.title,
-    href: `/tasks/${t.id}`,
+    href: taskHref(t.id),
     project: t.project ?? null,
     status: t.status,
     focusedMs,

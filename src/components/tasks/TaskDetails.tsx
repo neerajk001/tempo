@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useRouteId } from "@/hooks/useRouteId";
+import { useSession } from "@/lib/session";
 import Icon from "@/components/ui/Icon";
 import NewTaskModal from "@/components/tasks/NewTaskModal";
 import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel } from "@/stores/task-store";
@@ -11,6 +12,7 @@ import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { useSessionHistoryStore, getSessionMode, type SessionRecord } from "@/stores/session-history-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
+import { sessionHref } from "@/lib/hrefs";
 import { getElapsedFocusMs, getRemainingMs } from "@/lib/pomodoro-machine";
 import { calculatePomodoroPlan } from "@/lib/task-planning";
 import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
@@ -29,7 +31,7 @@ function scoreOf(r: SessionRecord): number {
 }
 
 export default function TaskDetails() {
-  const params = useParams<{ id: string }>();
+  const routeId = useRouteId();
   const router = useRouter();
   const { data: session } = useSession();
   const tasks = useTaskStore((s) => s.tasks);
@@ -54,7 +56,7 @@ export default function TaskDetails() {
   const [noteEditing, setNoteEditing] = useState(false);
   const subRef = useRef<HTMLInputElement>(null);
 
-  const task = selectTaskById(tasks, params.id);
+  const task = selectTaskById(tasks, routeId);
   const ticking = pomodoro.status === "RUNNING" || pomodoro.status === "PAUSED";
   const liveOnTask = !!task && task.id === activeTaskId && ticking;
   const now = useNow(liveOnTask);
@@ -561,7 +563,7 @@ export default function TaskDetails() {
                 <p className="text-body-sm text-secondary p-2">No focus sessions logged for this task yet.</p>
               )}
               {records.map((r, i) => (
-                <Link key={r.id} href={`/history/${r.id}`} className="flex items-center justify-between p-3 rounded-lg bg-surface hover:bg-surface-container-low transition-colors group">
+                <Link key={r.id} href={sessionHref(r.id)} className="flex items-center justify-between p-3 rounded-lg bg-surface hover:bg-surface-container-low transition-colors group">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="w-6 h-6 rounded-md bg-secondary-container text-on-secondary-fixed font-mono text-[12px] flex items-center justify-center font-semibold flex-shrink-0">
                       {String(i + 1).padStart(2, "0")}

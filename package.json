@@ -14,10 +14,16 @@
     "test": "vitest run",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "build:desktop": "node scripts/build-desktop.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.18.0",
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-notification": "^2.5.1",
     "next": "14.2.35",
     "next-auth": "^4.24.15",
     "react": "^18.3.1",
@@ -25,6 +31,7 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

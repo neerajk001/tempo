@@ -6,7 +6,6 @@ A personal desktop-first productivity application that combines:
 - task planning
 - activity tracking
 - interruption tracking
-- Google Calendar
 - planned vs actual productivity analytics
 
 ## Core Philosophy
@@ -32,8 +31,6 @@ The goal is to make actual working time visible.
 # Core Flow
 
 ```text
-Google Calendar
-       ↓
 Planned Time
        ↓
 Tasks
@@ -53,14 +50,7 @@ Daily Dashboard
 
 # Example
 
-A Calendar event:
-
-```text
-10:00 → 16:00
-Build AI Agent Project
-```
-
-becomes:
+A task with a 6-hour estimate:
 
 ```text
 Task:
@@ -232,21 +222,52 @@ npm run lint
 npm run build
 ```
 
+# Desktop App (Tauri)
+
+The native app is a fully local, offline build (Tauri 2 + WebView2): no server, no
+account, no database. Tasks, sessions, and settings live on the device, inside the
+app's WebView profile.
+
+```bash
+npm run desktop:dev     # native shell against the dev server
+npm run build:desktop   # static export -> out/ (API + dynamic routes excluded)
+npm run desktop:build   # release binary + installer
+```
+
+Outputs:
+
+```text
+src-tauri/target/release/tempo.exe                              portable binary
+src-tauri/target/release/bundle/nsis/Tempo_<version>_x64-setup.exe   per-user installer
+```
+
+Native behavior:
+
+- Closing the main window hides it to the tray; quit from the tray menu.
+- Global hotkey `Ctrl+Shift+Space` shows/hides the window.
+- Always-on-top mini timer widget, toggleable from the tray.
+- Native notifications, Windows taskbar progress, idle auto-pause.
+- Focus Guard (hosts-file site blocking) is Windows-only and installs a one-time
+  scheduled task with a single UAC prompt; it is hidden on other platforms.
+- Single instance, window geometry restore, and a "Start on login" tray toggle.
+
+The installer is per-user (no admin) and unsigned, so Windows SmartScreen may warn
+on first run. Rebuilding with a newer version and running the new installer upgrades
+in place. Exports (JSON archive / CSV metrics) are the backup path for local data.
+
 # Environment
 
 | Variable | Used for |
 |---|---|
 | `DATABASE_URL` | Postgres (Neon/Supabase). Server persistence for tasks/sessions. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth + Calendar `readonly`. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth sign-in. |
 | `GOOGLE_REDIRECT_URI` | Must match the OAuth client redirect: `<origin>/api/auth/callback/google`. |
 | `NEXTAUTH_URL` | App origin (`http://localhost:3000` locally). |
-| `NEXTAUTH_SECRET` | Encrypts the session JWT (which holds Calendar tokens server-side). |
+| `NEXTAUTH_SECRET` | Encrypts the session JWT. |
 
-Google Cloud setup: enable **Google Calendar API** → OAuth consent screen → Web OAuth client
-with the redirect above. Requested scope is `calendar.readonly` only.
-
-Tokens never reach the browser: the JWT lives in an httpOnly cookie and the session
-endpoint only exposes `calendarConnected: true/false`.
+Google Cloud setup: enable the OAuth consent screen → Web OAuth client with the
+redirect above. No Calendar scopes are requested. The desktop build needs none of
+these variables.
 
 # Routes
 
@@ -254,14 +275,16 @@ endpoint only exposes `calendarConnected: true/false`.
 /              Dashboard: timer + today's planned vs actual (open, works offline)
 /focus         Distraction-free focus view, keyboard shortcuts (open)
 /tasks         Task CRUD + Start Focus (sign-in)
-/calendar      Google Calendar + Plan as Task (sign-in)
-/plan          Calendar-aware day planner (sign-in)
+/plan          Day planner (sign-in)
 /history       Session history + details (sign-in)
 /history/[id]  Session timeline (sign-in)
 /settings      Pomodoro config + notifications (sign-in)
 /login         Google sign-in
-/api/tasks, /api/sessions, /api/calendar/*  (sign-in, user-scoped, 401 otherwise)
+/api/tasks, /api/sessions, /api/sync  (sign-in, user-scoped, 401 otherwise)
 ```
+
+In the desktop build the API, auth, and dynamic routes are excluded; the same screens
+run from the static export with local storage.
 
 # Production Checklist
 
@@ -269,7 +292,7 @@ endpoint only exposes `calendarConnected: true/false`.
 - Google OAuth client has the production redirect `https://<app>/api/auth/callback/google`.
 - `NEXTAUTH_URL` is the production origin; `NEXTAUTH_SECRET` is a fresh random value.
 - HTTPS on (required for PWA install + OAuth); `/manifest.webmanifest` served.
-- Timer writes only on state transitions (no per-second persistence); Calendar uses
-  explicit refresh (no polling); history capped client-side.
+- Timer writes only on state transitions (no per-second persistence); history capped
+  client-side.
 - Personal single-user threat model: per-user row isolation is enforced server-side
   (`requireUser`), but there is no rate limiting or team/roles support by design.

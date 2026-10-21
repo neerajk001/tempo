@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { useSession } from "@/lib/session";
+import { invokeCommand } from "@/lib/desktop";
 import Icon from "@/components/ui/Icon";
 import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { usePrefsStore, type ChimeTheme, type TimerStyle } from "@/stores/prefs-store";
@@ -9,9 +10,14 @@ import { useTaskStore } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useDiversionStore } from "@/stores/diversion-store";
 import { playChime } from "@/lib/chime";
-import { setNotifyEnabled } from "@/lib/notifications";
+import {
+  notificationPermissionState,
+  requestNotificationPermission,
+  setNotifyEnabled,
+} from "@/lib/notifications";
 import { syncNow } from "@/lib/sync";
 import { signInWithGoogle } from "@/lib/auth-actions";
+import { IS_DESKTOP } from "@/lib/platform";
 import { clearLocalTempoData } from "@/lib/local-data";
 import { useSyncStore } from "@/stores/sync-store";
 import { cn } from "@/lib/utils";
@@ -55,6 +61,7 @@ function Stepper({ value, unit, onStep, min, max, disabled }: { value: number; u
 
 const NAV = [
   { id: "section-focus", label: "Focus Rhythm", icon: "timer" },
+  ...(IS_DESKTOP ? [{ id: "section-blocking", label: "Focus Guard", icon: "shield" }] : []),
   { id: "section-notifications", label: "Audio & Alerts", icon: "notifications_active" },
   { id: "section-appearance", label: "Appearance", icon: "palette" },
   { id: "section-privacy", label: "Data & Privacy", icon: "shield" },
@@ -71,6 +78,16 @@ export default function SettingsPage() {
   const [activeNav, setActiveNav] = useState("section-focus");
   const [resetNote, setResetNote] = useState<string | null>(null);
   const [permNote, setPermNote] = useState<string | null>(null);
+  const [helperInstalled, setHelperInstalled] = useState<boolean | null>(null);
+  const [blockingSupported, setBlockingSupported] = useState(false);
+  const [idleSupported, setIdleSupported] = useState(false);
+
+  useEffect(() => {
+    if (!IS_DESKTOP) return;
+    void invokeCommand<boolean>("blocking_supported").then((v) => setBlockingSupported(v === true));
+    void invokeCommand<boolean>("idle_supported").then((v) => setIdleSupported(v === true));
+    void invokeCommand<boolean>("block_helper_installed").then((v) => setHelperInstalled(v === true));
+  }, []);
 
   const mins = (ms: number) => Math.round(ms / 60000);
   const editingLocked = pomoSession.status === "RUNNING" || pomoSession.status === "PAUSED";
@@ -89,13 +106,14 @@ export default function SettingsPage() {
       return;
     }
     try {
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "denied") {
-        setPermNote("Browser notifications are blocked — allow them in site settings first.");
+      const state = await notificationPermissionState();
+      if (state === "denied") {
+        setPermNote("Notifications are blocked — allow them in your system settings first.");
         return;
       }
-      if (typeof window !== "undefined" && "Notification" in window && Notification.permission !== "granted") {
-        const res = await Notification.requestPermission();
-        if (res !== "granted") {
+      if (state !== "granted") {
+        const granted = await requestNotificationPermission();
+        if (!granted) {
           setPermNote("Permission not granted — alerts stay off.");
           return;
         }
@@ -104,7 +122,7 @@ export default function SettingsPage() {
       prefs.set({ [kind]: true } as Partial<typeof prefs>);
       setNotifyEnabled(true);
     } catch {
-      setPermNote("Could not enable notifications in this browser.");
+      setPermNote("Could not enable notifications on this device.");
     }
   };
 
@@ -182,7 +200,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         <nav className="lg:col-span-3 flex lg:flex-col gap-0.5 lg:sticky lg:top-20 bg-surface-container-lowest/80 backdrop-blur p-1.5 rounded-xl shadow-sm z-10 overflow-x-auto">
-          {NAV.map((n) => (
+          {NAV.filter((n) => n.id !== "section-blocking" || blockingSupported).map((n) => (
             <a
               key={n.id}
               href={`#${n.id}`}
@@ -292,8 +310,81 @@ export default function SettingsPage() {
                 </div>
                 <Toggle on={prefs.autoStartFocus} onClick={() => prefs.set({ autoStartFocus: !prefs.autoStartFocus })} label="Automatically start next focus session" />
               </div>
+              {IS_DESKTOP && idleSupported && (
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-surface-container-low transition-colors">
+                  <div className="flex flex-col pr-4 min-w-0">
+                    <span className="text-body-md font-semibold text-on-surface">Pause when I step away</span>
+                    <span className="text-body-sm text-on-surface-variant">
+                      Pauses a running focus block after {Math.round(prefs.idlePauseSeconds / 60)} minutes without keyboard or mouse activity.
+                    </span>
+                  </div>
+                  <Toggle on={prefs.autoPauseIdle} onClick={() => prefs.set({ autoPauseIdle: !prefs.autoPauseIdle })} label="Pause when idle" />
+                </div>
+              )}
             </div>
           </section>
+
+          {/* Focus Guard — website blocking (Windows desktop only) */}
+          {IS_DESKTOP && blockingSupported && (
+            <section id="section-blocking" className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant p-4 sm:p-6 flex flex-col gap-4 scroll-mt-24">
+              <div className="flex flex-col pb-1">
+                <h2 className="text-headline-lg text-on-surface tracking-tight">Focus Guard</h2>
+                <p className="text-body-sm text-on-surface-variant">
+                  Block distracting sites while a focus block runs. Uses the Windows hosts file, so applying and removing the block asks for administrator permission (UAC).
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-surface-container-low transition-colors">
+                <div className="flex flex-col pr-4 min-w-0">
+                  <span className="text-body-md font-semibold text-on-surface">Block listed sites during focus</span>
+                  <span className="text-body-sm text-on-surface-variant">Applied when a focus block starts, removed the moment it ends or pauses into a break.</span>
+                </div>
+                <Toggle on={prefs.blockEnabled} onClick={() => prefs.set({ blockEnabled: !prefs.blockEnabled })} label="Block sites during focus" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="text-label-xs uppercase tracking-wider text-secondary">Blocked domains · one per line</span>
+                <textarea
+                  value={prefs.blockDomains.join("\n")}
+                  onChange={(e) =>
+                    prefs.set({
+                      blockDomains: e.target.value
+                        .split("\n")
+                        .map((line) => line.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  rows={8}
+                  spellCheck={false}
+                  className="w-full rounded-lg bg-surface-container-low border border-outline-variant p-3 font-mono text-body-sm text-on-surface focus:outline-none focus:border-primary/50 resize-y"
+                />
+                <span className="text-[11px] text-on-surface-variant">
+                  e.g. <code className="font-mono">youtube.com</code> — the <code className="font-mono">www.</code> and subdomain forms are covered automatically.
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-surface-container-low/50">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-body-sm font-semibold text-on-surface">
+                    Focus Guard helper
+                    {helperInstalled === null ? "" : helperInstalled ? " · installed" : " · not installed yet"}
+                  </span>
+                  <span className="text-[11px] text-on-surface-variant">
+                    Installed once with administrator permission; after that, blocking never prompts again.
+                  </span>
+                </div>
+                {helperInstalled && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await invokeCommand("remove_block_helper");
+                      setHelperInstalled(false);
+                    }}
+                    className="px-3 h-8 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium transition-colors flex-shrink-0"
+                  >
+                    Remove helper
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Audio & Alerts */}
           <section id="section-notifications" className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant p-4 sm:p-6 flex flex-col gap-4 scroll-mt-24">
@@ -428,9 +519,11 @@ export default function SettingsPage() {
                 <div className="flex flex-col min-w-0">
                   <span className="text-headline-md font-semibold text-on-surface">Cloud Backup</span>
                   <span className="text-body-sm text-on-surface-variant">
-                    {authStatus !== "authenticated"
-                      ? "Local only — data lives on this device for 7 days of inactivity. Sign in to sync tasks, history, and settings across devices."
-                      : syncing
+                    {IS_DESKTOP
+                      ? "Local desktop app — tasks, history, and settings are stored on this device."
+                      : authStatus !== "authenticated"
+                        ? "Local only — data lives on this device for 7 days of inactivity. Sign in to sync tasks, history, and settings across devices."
+                        : syncing
                         ? "Syncing…"
                         : syncError
                           ? `Last sync failed — ${syncError}`
@@ -445,7 +538,7 @@ export default function SettingsPage() {
                   </span>
                 </div>
               </div>
-              {authStatus === "authenticated" ? (
+              {IS_DESKTOP ? null : authStatus === "authenticated" ? (
                 <button
                   type="button"
                   onClick={() => void syncNow(true)}

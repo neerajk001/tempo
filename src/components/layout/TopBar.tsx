@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session";
 import Icon from "@/components/ui/Icon";
 import { AVATAR_SRC } from "@/lib/assets";
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { taskHref } from "@/lib/hrefs";
 import { getTaskProgress } from "@/lib/task-planning";
 import { formatDurationMinutes } from "@/lib/utils";
 import { useTaskStore, getFocusMode, type Task } from "@/stores/task-store";
@@ -223,7 +224,7 @@ export function TaskRow({
           )}
         </button>
         <div className="flex flex-col min-w-0">
-          <Link href={`/tasks/${task.id}`} className="text-body-md font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
+          <Link href={taskHref(task.id)} className="text-body-md font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
             {task.title}
           </Link>
           {isInfiniteTask && task.sessionName ? (

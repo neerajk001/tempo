@@ -12,6 +12,14 @@ interface PrefsState {
   notifyFocus: boolean;
   notifyBreak: boolean;
   reviewPrompt: boolean;
+  /** Pause a running focus session after the idle threshold (desktop only). */
+  autoPauseIdle: boolean;
+  /** Idle seconds before auto-pause kicks in. */
+  idlePauseSeconds: number;
+  /** Block listed sites during a running focus block (desktop only). */
+  blockEnabled: boolean;
+  /** Domains to block; one per entry. */
+  blockDomains: string[];
   chimeTheme: ChimeTheme;
   compact: boolean;
   timerStyle: TimerStyle;
@@ -29,6 +37,19 @@ const DEFAULTS = {
   notifyFocus: false,
   notifyBreak: false,
   reviewPrompt: false,
+  autoPauseIdle: false,
+  idlePauseSeconds: 300,
+  blockEnabled: false,
+  blockDomains: [
+    "youtube.com",
+    "x.com",
+    "twitter.com",
+    "reddit.com",
+    "instagram.com",
+    "facebook.com",
+    "tiktok.com",
+    "netflix.com",
+  ] as string[],
   chimeTheme: "chime" as ChimeTheme,
   compact: false,
   timerStyle: "circular" as TimerStyle,
@@ -64,6 +85,10 @@ export const usePrefsStore = create<PrefsState>()(
         notifyFocus: s.notifyFocus,
         notifyBreak: s.notifyBreak,
         reviewPrompt: s.reviewPrompt,
+        autoPauseIdle: s.autoPauseIdle,
+        idlePauseSeconds: s.idlePauseSeconds,
+        blockEnabled: s.blockEnabled,
+        blockDomains: s.blockDomains,
         chimeTheme: s.chimeTheme,
         compact: s.compact,
         timerStyle: s.timerStyle,

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
+import { taskHref } from "@/lib/hrefs";
 import { computeDashboardStats, localDateKey } from "@/lib/dashboard-stats";
 import { countPlannedPomodoros } from "@/lib/task-planning";
 import { useTaskStore, getFocusMode, type Task } from "@/stores/task-store";
@@ -413,7 +414,7 @@ export default function DailyReview() {
             <p className="text-body-sm text-secondary">Nothing staged for tomorrow yet.</p>
           )}
           {tomorrowTasks.map((t) => (
-            <Link key={t.id} href={`/tasks/${t.id}`} className="flex flex-col p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
+            <Link key={t.id} href={taskHref(t.id)} className="flex flex-col p-3 rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-label-xs text-primary font-semibold">
                   {t.startMs ? fmtHM(t.startMs) : "Unscheduled"}
