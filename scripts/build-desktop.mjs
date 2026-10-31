@@ -44,7 +44,14 @@ try {
   execSync("next build", {
     stdio: "inherit",
     cwd: root,
-    env: { ...process.env, TEMPO_DESKTOP: "1", NEXT_PUBLIC_DESKTOP: "1" },
+    env: {
+      ...process.env,
+      TEMPO_DESKTOP: "1",
+      NEXT_PUBLIC_DESKTOP: "1",
+      // Absolute origin used by the desktop app for sign-in and sync.
+      NEXT_PUBLIC_API_BASE:
+        process.env.NEXT_PUBLIC_API_BASE ?? "https://tempo.neerajx.site",
+    },
   });
 } finally {
   for (const [fromRel, toRel] of MOVES) {

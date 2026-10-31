@@ -24,6 +24,7 @@
     "@prisma/client": "^5.18.0",
     "@tauri-apps/api": "^2.12.1",
     "@tauri-apps/plugin-notification": "^2.5.1",
+    "jose": "^4.15.9",
     "next": "14.2.35",
     "next-auth": "^4.24.15",
     "react": "^18.3.1",

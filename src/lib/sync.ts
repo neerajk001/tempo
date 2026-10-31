@@ -43,6 +43,9 @@ import {
 } from "@/lib/live-sync";
 import { loadGuestMeta, clearGuestMeta } from "@/lib/guest";
 import { todayKey } from "@/lib/task-planning";
+import { IS_DESKTOP } from "@/lib/platform";
+import { apiUrl } from "@/lib/api-base";
+import { useDesktopAuthStore } from "@/stores/desktop-auth-store";
 import type { PomodoroPhase, SessionEventType, TaskPriority, TaskStatus } from "@/types";
 
 const PUSH_DEBOUNCE_MS = 2500;
@@ -349,6 +352,22 @@ function online(): boolean {
   return typeof navigator === "undefined" || navigator.onLine !== false;
 }
 
+/** Desktop authenticates with a Bearer sync token; the web uses the cookie. */
+function authHeaders(): Record<string, string> {
+  if (!IS_DESKTOP) return {};
+  const token = useDesktopAuthStore.getState().token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function handleUnauthorized(): void {
+  if (IS_DESKTOP) {
+    useDesktopAuthStore.getState().expire();
+    useSyncStore.getState().setResult(false, "Session expired — sign in again.");
+  } else {
+    useSyncStore.getState().setResult(false, "Sign in to sync.");
+  }
+}
+
 /** Full cycle: push local state, merge the server state back. */
 export async function syncNow(authedOverride?: boolean): Promise<boolean> {
   const ok = authedOverride ?? authed;
@@ -360,9 +379,9 @@ export async function syncNow(authedOverride?: boolean): Promise<boolean> {
     const taskIds = Object.keys(tombs.tasks);
     const sessionIds = Object.keys(tombs.sessions);
     const live = collectLiveState();
-    const res = await fetch("/api/sync", {
+    const res = await fetch(apiUrl("/api/sync"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         tasks: useTaskStore.getState().tasks,
         sessions: useSessionHistoryStore.getState().sessions,
@@ -373,7 +392,7 @@ export async function syncNow(authedOverride?: boolean): Promise<boolean> {
       }),
     });
     if (res.status === 401) {
-      useSyncStore.getState().setResult(false, "Sign in to sync.");
+      handleUnauthorized();
       return false;
     }
     if (!res.ok) throw new Error(`Sync failed (${res.status}).`);
@@ -398,9 +417,9 @@ export async function pullNow(authedOverride?: boolean): Promise<boolean> {
   if (useSyncStore.getState().syncing) return false;
   useSyncStore.getState().setSyncing(true);
   try {
-    const res = await fetch("/api/sync");
+    const res = await fetch(apiUrl("/api/sync"), { headers: authHeaders() });
     if (res.status === 401) {
-      useSyncStore.getState().setResult(false, "Sign in to sync.");
+      handleUnauthorized();
       return false;
     }
     if (!res.ok) throw new Error(`Sync failed (${res.status}).`);

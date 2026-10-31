@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { verifyDesktopToken } from "@/lib/desktop-auth";
 
 export interface CurrentUser {
   id: string;
@@ -39,4 +40,24 @@ export function unauthorized(): NextResponse {
     { error: "Sign in to access your data.", needsAuth: true },
     { status: 401 }
   );
+}
+
+/**
+ * Resolve the caller from either the browser session cookie or a desktop
+ * Bearer token. The desktop token is scoped to a single user id and signed
+ * server-side, so it is never trusted from client input.
+ */
+export async function getCurrentUserFromRequest(
+  req: Request
+): Promise<CurrentUser | null> {
+  const header = req.headers.get("authorization");
+  if (header?.toLowerCase().startsWith("bearer ")) {
+    const claims = await verifyDesktopToken(header.slice(7).trim(), "sync");
+    if (!claims) return null;
+    return db.user.findUnique({
+      where: { id: claims.sub },
+      select: { id: true, email: true },
+    });
+  }
+  return getCurrentUser();
 }

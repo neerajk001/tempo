@@ -3,21 +3,38 @@
 import { signIn, signOut } from "next-auth/react";
 import { clearLocalTempoData } from "@/lib/local-data";
 import { IS_DESKTOP } from "@/lib/platform";
+import { useDesktopAuthStore } from "@/stores/desktop-auth-store";
 
-export function signInWithGoogle(): void {
-  // The local desktop build has no accounts to sign into.
-  if (IS_DESKTOP) return;
-  void signIn("google", { callbackUrl: "/" });
+/** Keep post-login redirects on this origin (never an open redirect). */
+function safeCallback(callbackUrl?: string): string {
+  if (!callbackUrl) return "/";
+  try {
+    const url = new URL(callbackUrl, window.location.origin);
+    return url.origin === window.location.origin ? `${url.pathname}${url.search}` : "/";
+  } catch {
+    return "/";
+  }
+}
+
+export function signInWithGoogle(callbackUrl?: string): void {
+  if (IS_DESKTOP) {
+    // Opens the system browser; the loopback listener completes the flow.
+    void useDesktopAuthStore.getState().signIn();
+    return;
+  }
+  void signIn("google", { callbackUrl: safeCallback(callbackUrl) });
 }
 
 /**
- * Sign out and clear this device's local data. The account's records live in
- * the database (the source of truth) and are pulled back on the next sign-in,
- * so the next person on this device starts from a clean guest state instead of
- * inheriting the previous account's data.
+ * Sign out. On the web this also clears this device's local cache because the
+ * account's records live in the database. On the desktop the local data is the
+ * primary copy, so only the sync token is removed.
  */
 export function signOutAndReset(): void {
+  if (IS_DESKTOP) {
+    void useDesktopAuthStore.getState().signOut();
+    return;
+  }
   clearLocalTempoData();
-  if (IS_DESKTOP) return;
   void signOut({ callbackUrl: "/" });
 }

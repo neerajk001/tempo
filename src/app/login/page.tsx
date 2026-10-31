@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/session";
 import { signInWithGoogle, signOutAndReset } from "@/lib/auth-actions";
 import { IS_DESKTOP } from "@/lib/platform";
+import { useDesktopAuthStore } from "@/stores/desktop-auth-store";
 
 function TempoGlyph({ className }: { className?: string }) {
   return (
@@ -40,6 +41,32 @@ export default function LoginPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const signedIn = status === "authenticated" && !!session?.user;
+  const authError = useDesktopAuthStore((s) => s.error);
+  const [callbackUrl, setCallbackUrl] = useState("/");
+  const continued = useRef(false);
+
+  // The desktop handoff arrives as /login?callbackUrl=/api/desktop/auth/start...
+  // Only same-origin targets are followed.
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("callbackUrl");
+    if (!raw) return;
+    try {
+      const url = new URL(raw, window.location.origin);
+      if (url.origin === window.location.origin) {
+        setCallbackUrl(`${url.pathname}${url.search}`);
+      }
+    } catch {
+      // Ignore malformed callbacks and stay on "/".
+    }
+  }, []);
+
+  // Already signed in (e.g. a second desktop sign-in): continue the handoff
+  // without asking the user to click through the login card again.
+  useEffect(() => {
+    if (!signedIn || callbackUrl === "/" || continued.current) return;
+    continued.current = true;
+    window.location.assign(callbackUrl);
+  }, [signedIn, callbackUrl]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -110,17 +137,59 @@ export default function LoginPage() {
           <div className="w-full bg-surface-container-lowest border border-outline-variant rounded-2xl p-7 shadow-sm text-left">
             {IS_DESKTOP ? (
               <div className="text-center">
-                <p className="text-sm font-medium text-on-surface">This is the Tempo desktop app.</p>
-                <p className="mt-1 text-xs text-on-surface-variant">
-                  Everything is stored locally on this device. Accounts and cloud sync live in the web version.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => router.push("/")}
-                  className="mt-4 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-semibold text-[14px] transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  Open Tempo
-                </button>
+                {signedIn ? (
+                  <>
+                    <p className="text-sm font-medium text-on-surface">
+                      Signed in as {session?.user?.email ?? session?.user?.name}
+                    </p>
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                      Tasks, history, and settings sync with your account. Local data still works offline.
+                    </p>
+                    <div className="mt-4 flex gap-2 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/")}
+                        className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-semibold text-[14px] transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        Open Tempo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => signOutAndReset()}
+                        className="px-5 py-2.5 rounded-xl bg-surface-container border border-outline-variant text-on-surface font-medium text-[14px] hover:bg-surface-container-high transition-colors"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-on-surface">Sign in to sync Tempo</p>
+                    <p className="mt-1 text-xs text-on-surface-variant">
+                      Everything works locally without an account. Signing in syncs tasks, history,
+                      and settings with the web app — including the data already on this device.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => signInWithGoogle()}
+                      disabled={status === "loading"}
+                      className="mt-4 w-full flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-semibold text-[14px] transition-colors disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <GoogleGlyph className="w-4 h-4 bg-white rounded-full p-[1px] flex-shrink-0" />
+                      {status === "loading" ? "Waiting for the browser…" : "Sign in with Google"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/")}
+                      className="mt-2 w-full text-center text-[13px] font-medium text-on-surface-variant hover:text-on-surface transition-colors rounded-lg py-1.5"
+                    >
+                      Continue locally
+                    </button>
+                    {authError && (
+                      <p className="mt-2 text-[11px] text-accent-amber">{authError}</p>
+                    )}
+                  </>
+                )}
               </div>
             ) : status === "loading" ? (
               <p className="text-sm text-on-surface-variant text-center py-3">Checking session…</p>
@@ -153,7 +222,7 @@ export default function LoginPage() {
               <>
                 <button
                   type="button"
-                  onClick={() => signInWithGoogle()}
+                  onClick={() => signInWithGoogle(callbackUrl)}
                   className="w-full group relative flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-primary hover:bg-primary-container active:brightness-95 text-on-primary font-semibold text-[14.5px] shadow-sm hover:shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <GoogleGlyph className="w-4 h-4 bg-white rounded-full p-[1px] flex-shrink-0" />
@@ -200,7 +269,7 @@ export default function LoginPage() {
             )}
           </div>
 
-          {!signedIn && status !== "loading" && (
+          {!IS_DESKTOP && !signedIn && status !== "loading" && (
             <div className="mt-6 flex items-center justify-center gap-2 text-xs text-on-surface-variant">
               <span>Press</span>
               <kbd className="px-1.5 py-0.5 rounded border border-outline-variant bg-surface-container-lowest font-mono text-[11px] text-on-surface">Tab + Enter ↵</kbd>

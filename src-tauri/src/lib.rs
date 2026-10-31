@@ -1,3 +1,6 @@
+use std::io::{Read, Write};
+use std::net::TcpListener;
+
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -40,8 +43,8 @@ fn toggle_main(app: &tauri::AppHandle) {
 
 /// Create the small always-on-top timer widget, hidden until toggled.
 fn build_mini_window(app: &tauri::AppHandle) -> tauri::Result<()> {
-    const W: f64 = 284.0;
-    const H: f64 = 68.0;
+    const W: f64 = 252.0;
+    const H: f64 = 58.0;
 
     let mut x = 48.0;
     let mut y = 48.0;
@@ -109,6 +112,178 @@ fn blocking_supported() -> bool {
 #[tauri::command]
 fn idle_supported() -> bool {
     cfg!(windows)
+}
+
+// --- Account linking -------------------------------------------------------
+//
+// The desktop app signs in through the system browser. A loopback listener
+// receives the short-lived login token, which the webview exchanges for a sync
+// token and stores here. Keeping the listener and the file in Rust means the
+// token never has to live in browser storage.
+
+const AUTH_EVENT: &str = "tempo://auth-result";
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthRecord {
+    token: String,
+    user: serde_json::Value,
+    expires_at: u64,
+}
+
+fn auth_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("No app data directory: {e}"))?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Could not create app data directory: {e}"))?;
+    Ok(dir.join("desktop-auth.json"))
+}
+
+#[tauri::command]
+fn desktop_auth_load(app: tauri::AppHandle) -> Option<AuthRecord> {
+    let path = auth_path(&app).ok()?;
+    let raw = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+#[tauri::command]
+fn desktop_auth_save(app: tauri::AppHandle, record: AuthRecord) -> Result<(), String> {
+    let path = auth_path(&app)?;
+    let raw = serde_json::to_string_pretty(&record).map_err(|e| e.to_string())?;
+    std::fs::write(path, raw).map_err(|e| format!("Could not save sign-in: {e}"))
+}
+
+#[tauri::command]
+fn desktop_auth_clear(app: tauri::AppHandle) -> Result<(), String> {
+    if let Ok(path) = auth_path(&app) {
+        let _ = std::fs::remove_file(path);
+    }
+    Ok(())
+}
+
+fn query_param(query: &str, key: &str) -> Option<String> {
+    query.split('&').find_map(|pair| {
+        let (k, v) = pair.split_once('=')?;
+        if k == key {
+            urlencoding::decode(v).ok().map(|c| c.into_owned())
+        } else {
+            None
+        }
+    })
+}
+
+/// Bind a loopback listener, open the browser at the sign-in URL, and emit the
+/// returned login token (or an error) to the main window.
+#[tauri::command]
+fn start_desktop_auth(
+    app: tauri::AppHandle,
+    state: String,
+    api_base: String,
+    code_challenge: String,
+) -> Result<serde_json::Value, String> {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|e| format!("Could not open the sign-in listener: {e}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("Could not read the listener address: {e}"))?
+        .port();
+    let redirect = format!("http://127.0.0.1:{port}/callback");
+    let url = format!(
+        "{}/api/desktop/auth/start?redirect_uri={}&state={}&code_challenge={}",
+        api_base.trim_end_matches('/'),
+        urlencoding::encode(&redirect),
+        urlencoding::encode(&state),
+        urlencoding::encode(&code_challenge),
+    );
+
+    open::that_detached(&url).map_err(|e| format!("Could not open the browser: {e}"))?;
+
+    let handle = app.clone();
+    let expected_state = state.clone();
+    std::thread::spawn(move || {
+        let _ = listener.set_nonblocking(true);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
+        loop {
+            if std::time::Instant::now() > deadline {
+                let _ = handle.emit_to(
+                    MAIN,
+                    AUTH_EVENT,
+                    serde_json::json!({ "state": expected_state.clone(), "error": "Sign-in timed out." }),
+                );
+                return;
+            }
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+                    let mut buf = [0u8; 8192];
+                    let n = stream.read(&mut buf).unwrap_or(0);
+                    let request = String::from_utf8_lossy(&buf[..n]);
+                    let target = request
+                        .lines()
+                        .next()
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .unwrap_or("");
+                    let query = target.split_once('?').map(|(_, q)| q).unwrap_or("");
+                    let token = query_param(query, "token");
+                    let returned_state = query_param(query, "state");
+
+                    let page = "<!doctype html><meta charset=\"utf-8\"><title>Tempo</title>\
+                        <body style=\"margin:0;height:100vh;display:grid;place-items:center;\
+                        background:#12110f;color:#f2ede3;font-family:system-ui,sans-serif\">\
+                        <div style=\"text-align:center\"><h1 style=\"font-size:20px;margin:0 0 8px\">Tempo</h1>\
+                        <p style=\"color:#a8a29a;margin:0\">You can close this tab and return to the app.</p></div></body>";
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        page.len(),
+                        page
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                    let _ = stream.flush();
+
+                    if returned_state.as_deref() != Some(expected_state.as_str()) {
+                        let _ = handle.emit_to(
+                            MAIN,
+                            AUTH_EVENT,
+                            serde_json::json!({ "state": returned_state, "error": "Sign-in state mismatch." }),
+                        );
+                        return;
+                    }
+                    match token {
+                        Some(token) if !token.is_empty() => {
+                            let _ = handle.emit_to(
+                                MAIN,
+                                AUTH_EVENT,
+                                serde_json::json!({ "state": expected_state.clone(), "token": token }),
+                            );
+                        }
+                        _ => {
+                            let _ = handle.emit_to(
+                                MAIN,
+                                AUTH_EVENT,
+                                serde_json::json!({ "state": expected_state.clone(), "error": "No sign-in token received." }),
+                            );
+                        }
+                    }
+                    return;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(150));
+                }
+                Err(_) => {
+                    let _ = handle.emit_to(
+                        MAIN,
+                        AUTH_EVENT,
+                        serde_json::json!({ "state": expected_state.clone(), "error": "Sign-in listener failed." }),
+                    );
+                    return;
+                }
+            }
+        }
+    });
+
+    Ok(serde_json::json!({ "port": port, "url": url }))
 }
 
 /// Progress `0..=1` for a live block, or a negative value to clear the bar.
@@ -206,6 +381,10 @@ pub fn run() {
             hide_mini_window,
             blocking_supported,
             idle_supported,
+            start_desktop_auth,
+            desktop_auth_load,
+            desktop_auth_save,
+            desktop_auth_clear,
             set_taskbar_progress,
             blocking::apply_block,
             blocking::clear_block,

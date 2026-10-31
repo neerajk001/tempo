@@ -14,6 +14,8 @@ export const EVT_STATE = "tempo://state";
 export const EVT_COMMAND = "tempo://command";
 export const EVT_REQUEST_STATE = "tempo://request-state";
 export const EVT_IDLE = "tempo://idle";
+/** Result of the loopback sign-in redirect, emitted by the Rust listener. */
+export const EVT_AUTH = "tempo://auth-result";
 
 export type DesktopCommand =
   | { action: "toggle" }
@@ -28,6 +30,12 @@ export interface DesktopStatePayload {
   focusMode: "allocated" | "infinite";
   sessionName: string | null;
   quickLabel: string | null;
+  /**
+   * Duration of the break that is due after a just-completed focus block.
+   * Present only in the "break ready" state (focus finished, break not yet
+   * started) so the mini widget can show it instead of idling at "--:--".
+   */
+  readyBreakMs?: number;
 }
 
 export function isTauri(): boolean {

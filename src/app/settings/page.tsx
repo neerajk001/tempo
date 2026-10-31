@@ -20,6 +20,7 @@ import { signInWithGoogle } from "@/lib/auth-actions";
 import { IS_DESKTOP } from "@/lib/platform";
 import { clearLocalTempoData } from "@/lib/local-data";
 import { useSyncStore } from "@/stores/sync-store";
+import { useDesktopAuthStore } from "@/stores/desktop-auth-store";
 import { cn } from "@/lib/utils";
 
 function Toggle({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
@@ -73,6 +74,7 @@ export default function SettingsPage() {
   const syncing = useSyncStore((s) => s.syncing);
   const syncError = useSyncStore((s) => s.error);
   const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
+  const authError = useDesktopAuthStore((s) => s.error);
   const { config, setConfig, session: pomoSession } = usePomodoroStore();
   const prefs = usePrefsStore();
   const [activeNav, setActiveNav] = useState("section-focus");
@@ -519,11 +521,11 @@ export default function SettingsPage() {
                 <div className="flex flex-col min-w-0">
                   <span className="text-headline-md font-semibold text-on-surface">Cloud Backup</span>
                   <span className="text-body-sm text-on-surface-variant">
-                    {IS_DESKTOP
-                      ? "Local desktop app — tasks, history, and settings are stored on this device."
-                      : authStatus !== "authenticated"
-                        ? "Local only — data lives on this device for 7 days of inactivity. Sign in to sync tasks, history, and settings across devices."
-                        : syncing
+                    {authStatus !== "authenticated"
+                      ? IS_DESKTOP
+                        ? "Local desktop app — tasks, history, and settings are stored on this device. Sign in to sync them across devices."
+                        : "Local only — data lives on this device for 7 days of inactivity. Sign in to sync tasks, history, and settings across devices."
+                      : syncing
                         ? "Syncing…"
                         : syncError
                           ? `Last sync failed — ${syncError}`
@@ -534,11 +536,11 @@ export default function SettingsPage() {
                               if (s < 3600) return `${Math.floor(s / 60)}m ago`;
                               return `${Math.floor(s / 3600)}h ago`;
                             })()} · tasks, history, and settings converge across devices`
-                            : "Never synced on this device yet."}
+                            : "Signed in — no sync yet."}
                   </span>
                 </div>
               </div>
-              {IS_DESKTOP ? null : authStatus === "authenticated" ? (
+              {authStatus === "authenticated" ? (
                 <button
                   type="button"
                   onClick={() => void syncNow(true)}
@@ -557,6 +559,9 @@ export default function SettingsPage() {
                 </button>
               )}
             </div>
+            {IS_DESKTOP && authStatus !== "authenticated" && authError && (
+              <p className="text-xs text-accent-amber">{authError}</p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="flex flex-col justify-between p-4 rounded-lg bg-surface-container-low/50 gap-4">
                 <div className="flex flex-col gap-1.5">

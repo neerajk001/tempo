@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, unauthorized } from "@/lib/current-user";
+import { getCurrentUserFromRequest } from "@/lib/current-user";
+import { desktopCors } from "@/lib/cors";
 import { db } from "@/lib/db";
 
 /**
@@ -248,20 +249,28 @@ async function serverState(userId: string) {
   };
 }
 
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+function respond(req: Request, body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: desktopCors(req) });
+}
+
+export async function OPTIONS(req: Request) {
+  return new NextResponse(null, { status: 204, headers: desktopCors(req) });
+}
+
+export async function GET(req: Request) {
+  const user = await getCurrentUserFromRequest(req);
+  if (!user) return respond(req, { error: "Sign in to access your data.", needsAuth: true }, 401);
   try {
-    return NextResponse.json(await serverState(user.id));
+    return respond(req, await serverState(user.id));
   } catch (e) {
     console.error("GET /api/sync failed", e);
-    return NextResponse.json({ error: "Sync unavailable." }, { status: 500 });
+    return respond(req, { error: "Sync unavailable." }, 500);
   }
 }
 
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
-  if (!user) return unauthorized();
+  const user = await getCurrentUserFromRequest(req);
+  if (!user) return respond(req, { error: "Sign in to access your data.", needsAuth: true }, 401);
   let body: {
     tasks?: TaskPayload[];
     sessions?: SessionPayload[];
@@ -273,7 +282,7 @@ export async function POST(req: Request) {
   try {
     body = (await req.json()) as typeof body;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+    return respond(req, { error: "Invalid JSON." }, 400);
   }
   const tasks = Array.isArray(body.tasks) ? body.tasks.slice(0, 2000) : [];
   const sessions = Array.isArray(body.sessions) ? body.sessions.slice(0, 1000) : [];
@@ -485,9 +494,9 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json(await serverState(user.id));
+    return respond(req, await serverState(user.id));
   } catch (e) {
     console.error("POST /api/sync failed", e);
-    return NextResponse.json({ error: "Sync unavailable." }, { status: 500 });
+    return respond(req, { error: "Sync unavailable." }, 500);
   }
 }

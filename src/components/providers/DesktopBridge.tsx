@@ -14,8 +14,20 @@ import {
 } from "@/lib/desktop";
 import type { DesktopCommand, DesktopStatePayload } from "@/lib/desktop";
 import { getElapsedFocusMs, getRemainingMs } from "@/lib/pomodoro-machine";
-import { usePomodoroStore } from "@/stores/pomodoro-store";
+import { getBreakPhaseAfterFocus } from "@/lib/pomodoro-config";
+import { resolveBreaks, usePomodoroStore } from "@/stores/pomodoro-store";
 import { usePrefsStore } from "@/stores/prefs-store";
+
+/** Break duration due after the just-finished focus block (null unless break-ready). */
+function readyBreakMs(): number | undefined {
+  const s = usePomodoroStore.getState();
+  if (s.session.status !== "COMPLETED" || s.session.phase !== "FOCUS" || s.session.isInfinite) {
+    return undefined;
+  }
+  const breaks = resolveBreaks(s.config, s.breakOverride);
+  const due = getBreakPhaseAfterFocus(s.session.completedFocusCount, { ...s.config, ...breaks });
+  return due === "LONG_BREAK" ? breaks.longBreakMs : breaks.shortBreakMs;
+}
 
 function snapshot(): DesktopStatePayload {
   const s = usePomodoroStore.getState();
@@ -25,6 +37,7 @@ function snapshot(): DesktopStatePayload {
     focusMode: s.focusMode,
     sessionName: s.sessionName,
     quickLabel: s.quickLabel,
+    readyBreakMs: readyBreakMs(),
   };
 }
 
@@ -131,6 +144,9 @@ export default function DesktopBridge() {
     syncBlock();
 
     const ticker = setInterval(() => {
+      // Re-broadcast each second so the mini widget recovers instantly from a
+      // missed event (e.g. while it was hidden) instead of showing stale state.
+      broadcast();
       void invokeCommand("set_tray_tooltip", { text: tooltipText() });
 
       // Windows taskbar progress for the live block.

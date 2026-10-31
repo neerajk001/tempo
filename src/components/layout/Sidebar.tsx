@@ -113,33 +113,32 @@ export default function Sidebar() {
         </Link>
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-surface-container-low transition-colors">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={avatar} alt={authed ? `${name} avatar` : "Guest avatar"} width={32} height={32} className="w-8 h-8 rounded-full object-cover ring-1 ring-outline" />
+          <img src={avatar} alt={authed ? `${name} avatar` : IS_DESKTOP ? "Local avatar" : "Guest avatar"} width={32} height={32} className="w-8 h-8 rounded-full object-cover ring-1 ring-outline" />
           <div className="flex-1 min-w-0 text-left">
             <div className="text-body-sm font-semibold text-on-surface truncate">{name}</div>
             <div className="text-label-xs text-secondary truncate">{email}</div>
           </div>
-          {!IS_DESKTOP &&
-            (authed ? (
-              <button
-                type="button"
-                aria-label="Sign out"
-                title="Sign out"
-                onClick={() => signOutAndReset()}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
-              >
-                <Icon name="unfold_more" className="text-[18px]" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label="Sign in to sync across devices"
-                title="Sign in to sync across devices"
-                onClick={() => signInWithGoogle()}
-                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
-              >
-                <Icon name="login" className="text-[18px]" />
-              </button>
-            ))}
+          {authed ? (
+            <button
+              type="button"
+              aria-label="Sign out"
+              title="Sign out"
+              onClick={() => signOutAndReset()}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
+            >
+              <Icon name="unfold_more" className="text-[18px]" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label={IS_DESKTOP ? "Sign in to sync" : "Sign in to sync across devices"}
+              title={IS_DESKTOP ? "Sign in to sync with the web app" : "Sign in to sync across devices"}
+              onClick={() => signInWithGoogle()}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-secondary hover:text-on-surface rounded-lg"
+            >
+              <Icon name="login" className="text-[18px]" />
+            </button>
+          )}
         </div>
       </div>
     </aside>
