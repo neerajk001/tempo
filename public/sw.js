@@ -10,7 +10,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(STATIC_CACHE)
-      .then((cache) => cache.addAll(["/icons/icon-192.png", "/icons/icon-512.png", "/manifest.webmanifest"]))
+      .then((cache) => cache.addAll(["/", "/icons/icon-192.png", "/icons/icon-512.png", "/manifest.webmanifest"]))
       .then(() => self.skipWaiting())
       .catch(() => self.skipWaiting())
   );
@@ -34,14 +34,16 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return; // network-only: auth + data stay fresh
 
-  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/") || url.pathname === "/manifest.webmanifest") {
+  if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/") || url.pathname.startsWith("/fonts/") || url.pathname === "/manifest.webmanifest") {
     event.respondWith(
       caches.match(req).then(
         (hit) =>
           hit ??
           fetch(req).then((res) => {
-            const copy = res.clone();
-            caches.open(STATIC_CACHE).then((c) => c.put(req, copy));
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(STATIC_CACHE).then((c) => c.put(req, copy));
+            }
             return res;
           })
       )
@@ -53,11 +55,17 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(PAGE_CACHE).then((c) => c.put("/", copy));
+          if (res.ok) {
+            const copy = res.clone();
+            // Store under the requested path, not "/". Storing every route as
+            // "/" made offline reloads serve the wrong page's HTML.
+            caches.open(PAGE_CACHE).then((c) => c.put(req, copy));
+          }
           return res;
         })
-        .catch(() => caches.match("/"))
+        .catch(() =>
+          caches.match(req).then((hit) => hit ?? caches.match("/"))
+        )
     );
   }
 });

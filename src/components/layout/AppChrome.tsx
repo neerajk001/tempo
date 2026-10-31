@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
 import Sidebar from "@/components/layout/Sidebar";
 import MiniTimer from "@/components/desktop/MiniTimer";
+import TimerSupervisor from "@/components/providers/TimerSupervisor";
 import { isMiniWindow } from "@/lib/desktop";
 import { IS_DESKTOP } from "@/lib/platform";
 
@@ -31,6 +32,7 @@ export default function AppChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <TimerSupervisor />
       <TopBar />
       <div className="flex flex-col md:flex-row flex-1">
         <Sidebar />

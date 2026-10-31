@@ -205,6 +205,40 @@ export function getElapsedFocusMs(state: PomodoroState, now: number): number {
   return Math.max(0, wall - getPausedMs(state, now));
 }
 
+/**
+ * Focus time that may be credited for a completed/cancelled session.
+ *
+ * Allocated FOCUS is capped at its plan so a sleep/offline gap (or a late
+ * wake-up completion) can never inflate task totals or History. Infinite
+ * sessions are open-ended by design; break phases are not focus time and are
+ * handled separately by the caller.
+ */
+export function getCreditedFocusMs(state: PomodoroState, now: number): number {
+  const elapsed = getElapsedFocusMs(state, now);
+  if (state.isInfinite || state.phase !== "FOCUS") return elapsed;
+  return Math.min(elapsed, state.plannedMs);
+}
+
+/**
+ * Clamp a terminal allocated FOCUS session's `endedAt` to its scheduled end.
+ * A completion that happens after sleep/relaunch should not be timestamped at
+ * the wake time. Early cancellations/completions are left untouched.
+ */
+export function clampCompletionEnd(state: PomodoroState): PomodoroState {
+  if (
+    state.isInfinite ||
+    state.phase !== "FOCUS" ||
+    state.startedAt === null ||
+    state.endedAt === null ||
+    (state.status !== "COMPLETED" && state.status !== "CANCELLED")
+  ) {
+    return state;
+  }
+  const scheduledEnd = state.startedAt + state.totalPausedMs + state.plannedMs;
+  if (state.endedAt <= scheduledEnd) return state;
+  return { ...state, endedAt: scheduledEnd };
+}
+
 export function getRemainingMs(state: PomodoroState, now: number): number {
   if (state.isInfinite) return Number.POSITIVE_INFINITY;
   return Math.max(0, state.plannedMs - getElapsedFocusMs(state, now));

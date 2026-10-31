@@ -7,9 +7,13 @@ import { IS_DESKTOP } from "@/lib/platform";
  * through `useRouteId`, so both link shapes resolve identically.
  */
 export function taskHref(id: string): string {
-  return IS_DESKTOP ? `/tasks/detail/?id=${encodeURIComponent(id)}` : `/tasks/${id}`;
+  return IS_DESKTOP
+    ? `/tasks/detail/?id=${encodeURIComponent(id)}`
+    : `/tasks/${encodeURIComponent(id)}`;
 }
 
 export function sessionHref(id: string): string {
-  return IS_DESKTOP ? `/history/detail/?id=${encodeURIComponent(id)}` : `/history/${id}`;
+  return IS_DESKTOP
+    ? `/history/detail/?id=${encodeURIComponent(id)}`
+    : `/history/${encodeURIComponent(id)}`;
 }

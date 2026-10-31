@@ -18,6 +18,7 @@ import { calculatePomodoroPlan } from "@/lib/task-planning";
 import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
 import { formatClock, formatDurationMinutes } from "@/lib/utils";
 import { AVATAR_SRC } from "@/lib/assets";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 
 function fmtHM(ms: number): string {
@@ -43,11 +44,13 @@ export default function TaskDetails() {
   const pomodoro = usePomodoroStore((s) => s.session);
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
   const pause = usePomodoroStore((s) => s.pause);
+  const resume = usePomodoroStore((s) => s.resume);
   const switchToTask = useTaskStore((s) => s.switchToTask);
   const { handleComplete } = useFinishSession();
 
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
@@ -59,7 +62,7 @@ export default function TaskDetails() {
   const task = selectTaskById(tasks, routeId);
   const ticking = pomodoro.status === "RUNNING" || pomodoro.status === "PAUSED";
   const liveOnTask = !!task && task.id === activeTaskId && ticking;
-  const now = useNow(liveOnTask);
+  const now = useNow(liveOnTask && pomodoro.status === "RUNNING");
 
   const records = useMemo(
     () => (task ? sessions.filter((x) => x.taskId === task.id && x.phase === "FOCUS").sort((a, b) => a.startedAt - b.startedAt) : []),
@@ -361,8 +364,7 @@ export default function TaskDetails() {
                         { label: "Reopen", fn: () => setStatus(task.id, "TODO") },
                         {
                           label: "Delete", fn: () => {
-                            removeTask(task.id);
-                            router.push("/tasks");
+                            setConfirmingDelete(true);
                           },
                         },
                       ] as Array<{ label: string; fn: () => void }>
@@ -533,7 +535,7 @@ export default function TaskDetails() {
                     )}
                   </div>
                   <div className="flex items-center gap-0.5">
-                    <button type="button" title="Pause session" onClick={pause} className="h-8 w-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center transition-colors">
+                    <button type="button" title={pomodoro.status === "PAUSED" ? "Resume session" : "Pause session"} onClick={() => (pomodoro.status === "PAUSED" ? resume() : pause())} className="h-8 w-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center transition-colors">
                       <Icon name={pomodoro.status === "PAUSED" ? "play_arrow" : "pause"} className="text-[18px]" />
                     </button>
                     <button type="button" onClick={handleComplete} className="h-8 px-3 rounded-lg bg-surface-container-highest hover:bg-primary-fixed text-on-surface text-body-sm font-medium flex items-center gap-1 transition-colors">
@@ -739,7 +741,7 @@ export default function TaskDetails() {
                 </div>
                 <div className="flex flex-col min-w-0 leading-tight">
                   <span className="text-label-xs text-on-surface-variant">Created By</span>
-                  <span className="text-body-sm font-medium text-on-surface">{session?.user?.name?.split(" ")[0] ?? "Neeraj"}</span>
+                  <span className="text-body-sm font-medium text-on-surface">{session?.user?.name?.split(" ")[0] ?? "Guest"}</span>
                   <span className="text-label-xs text-on-surface-variant">
                     {new Date(task.createdAt).toLocaleDateString("en-US", { weekday: "long" })}, {new Date(task.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
@@ -751,13 +753,25 @@ export default function TaskDetails() {
       </div>
 
       <NewTaskModal open={editOpen} initial={task} onClose={() => setEditOpen(false)} />
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete this task?"
+        message="The task and its progress will be removed. This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          setConfirmingDelete(false);
+          removeTask(task.id);
+          router.push("/tasks");
+        }}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }
 
 function LiveRemaining({ infinite }: { infinite?: boolean }) {
   const pomodoro = usePomodoroStore((s) => s.session);
-  const now = useNow(true);
+  const now = useNow(pomodoro.status === "RUNNING");
   if (infinite || pomodoro.isInfinite === true) {
     return (
       <span className="font-mono text-metric-mono-lg font-semibold text-primary tracking-tight tabular-nums">

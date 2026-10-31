@@ -33,7 +33,7 @@ function startsIn(t: Task, now: number): string | null {
 function LiveLeft() {
   const session = usePomodoroStore((s) => s.session);
   const focusMode = usePomodoroStore((s) => s.focusMode);
-  const now = useNow(true);
+  const now = useNow(true, 30000);
   if (session.isInfinite === true || focusMode === "infinite") {
     return (
       <span className="font-mono text-code-badge text-primary font-semibold">

@@ -20,6 +20,7 @@
 
 import { useTaskStore, type Task } from "@/stores/task-store";
 import { useSessionHistoryStore, type SessionRecord } from "@/stores/session-history-store";
+import { usePomodoroStore } from "@/stores/pomodoro-store";
 import { useSyncStore } from "@/stores/sync-store";
 import {
   loadTombstones,
@@ -32,6 +33,7 @@ import {
   applyRemoteSettings,
   normalizeRemoteSettings,
   shouldApplySettings,
+  toRemoteSettings,
   initSettingsSync,
 } from "@/lib/settings-sync";
 import {
@@ -139,6 +141,12 @@ export function normalizeRemoteTask(r: any): Task | null {
   };
 }
 
+/** Keep the first N-1 events plus the terminal event (START/COMPLETE/CANCEL). */
+function capEvents<T>(events: T[], max = 100): T[] {
+  if (events.length <= max) return events;
+  return [...events.slice(0, max - 1), events[events.length - 1]];
+}
+
 export function normalizeRemoteSession(r: any): SessionRecord | null {
   if (!r || typeof r.id !== "string" || !r.id) return null;
   const num = (v: unknown, fb: number): number =>
@@ -160,17 +168,18 @@ export function normalizeRemoteSession(r: any): SessionRecord | null {
     sessionName: typeof r.sessionName === "string" && r.sessionName.trim() ? r.sessionName.trim().slice(0, 200) : null,
     breakMs: Math.max(0, Math.round(num(r.breakMs, 0))),
     events: Array.isArray(r.events)
-      ? (r.events as LooseEvent[])
-          .filter((e) => e && typeof e.at === "number")
-          .slice(0, 100)
-          .map((e) => ({
-            type: (["START", "PAUSE", "RESUME", "COMPLETE", "CANCEL"].includes(
-              typeof e.type === "string" ? e.type : ""
-            )
-              ? e.type
-              : "START") as SessionEventType,
-            at: Math.round(typeof e.at === "number" ? e.at : 0),
-          }))
+      ? capEvents(
+          (r.events as LooseEvent[])
+            .filter((e) => e && typeof e.at === "number")
+            .map((e) => ({
+              type: (["START", "PAUSE", "RESUME", "COMPLETE", "CANCEL"].includes(
+                typeof e.type === "string" ? e.type : ""
+              )
+                ? e.type
+                : "START") as SessionEventType,
+              at: Math.round(typeof e.at === "number" ? e.at : 0),
+            }))
+        )
       : [],
   };
 }
@@ -372,23 +381,34 @@ function handleUnauthorized(): void {
 export async function syncNow(authedOverride?: boolean): Promise<boolean> {
   const ok = authedOverride ?? authed;
   if (!ok || !online()) return false;
-  if (useSyncStore.getState().syncing) return false;
+  if (useSyncStore.getState().syncing) {
+    // A mutation arrived while a sync was in flight; flush it afterwards.
+    pendingPush = true;
+    return false;
+  }
   useSyncStore.getState().setSyncing(true);
   try {
     const tombs = loadTombstones();
     const taskIds = Object.keys(tombs.tasks);
     const sessionIds = Object.keys(tombs.sessions);
     const live = collectLiveState();
+    let clearHistory = false;
+    try {
+      clearHistory = window.localStorage.getItem("tempo-history-clear-request") === "1";
+    } catch {
+      // Storage unavailable — skip the server clear.
+    }
     const res = await fetch(apiUrl("/api/sync"), {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         tasks: useTaskStore.getState().tasks,
         sessions: useSessionHistoryStore.getState().sessions,
-        settings: collectLocalSettings(),
+        settings: toRemoteSettings(collectLocalSettings()),
         live: { state: live, clientUpdatedAt: live.updatedAt },
         deletedTaskIds: taskIds,
         deletedSessionIds: sessionIds,
+        clearHistory,
       }),
     });
     if (res.status === 401) {
@@ -401,12 +421,24 @@ export async function syncNow(authedOverride?: boolean): Promise<boolean> {
     // Local data is now account-owned: the guest inactivity TTL no longer
     // applies on this device.
     if (ok) clearGuestMeta();
+    if (clearHistory) {
+      try {
+        window.localStorage.removeItem("tempo-history-clear-request");
+      } catch {
+        // Ignore.
+      }
+    }
     useSyncStore.getState().setResult(true);
     if (needsFlush) schedulePush();
     return true;
   } catch (e) {
     useSyncStore.getState().setResult(false, e instanceof Error ? e.message : "Sync failed.");
     return false;
+  } finally {
+    if (pendingPush && authed) {
+      pendingPush = false;
+      schedulePush();
+    }
   }
 }
 
@@ -463,4 +495,16 @@ export function initSync(): void {
   useSessionHistoryStore.subscribe(() => schedulePush());
   initSettingsSync(() => schedulePush());
   initLiveSync(() => schedulePush());
+
+  // Another tab wrote persisted state: rehydrate so tabs converge instead of
+  // each keeping (and later overwriting) an independent copy.
+  window.addEventListener("storage", (event) => {
+    if (!event.key) return;
+    if (event.key === "tempo-tasks-v1") void useTaskStore.persist.rehydrate();
+    else if (event.key === "tempo-sessions-v1") {
+      void useSessionHistoryStore.persist.rehydrate();
+    } else if (event.key === "tempo-pomodoro-v1") {
+      void usePomodoroStore.persist.rehydrate();
+    }
+  });
 }

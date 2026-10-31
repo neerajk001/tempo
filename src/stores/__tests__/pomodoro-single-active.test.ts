@@ -109,8 +109,24 @@ describe("single-active pomodoro invariant", () => {
     usePomodoroStore.getState().startForTask("task-a", "Task A");
     expect(usePomodoroStore.getState().quickLabel).toBeNull();
     usePomodoroStore.getState().startQuick("Solo", 20 * 60000);
+    usePomodoroStore.getState().cancel();
     usePomodoroStore.getState().reset();
     expect(usePomodoroStore.getState().quickLabel).toBeNull();
+  });
+
+  it("reset refuses to discard a live session", () => {
+    usePomodoroStore.getState().startQuick("Live run", 20 * 60000);
+    const startedAt = usePomodoroStore.getState().session.startedAt;
+    usePomodoroStore.getState().reset();
+    expect(usePomodoroStore.getState().session.status).toBe("RUNNING");
+    expect(usePomodoroStore.getState().session.startedAt).toBe(startedAt);
+  });
+
+  it("complete reports whether it finalized the run", () => {
+    usePomodoroStore.getState().startQuick("Finalize once", 20 * 60000);
+    expect(usePomodoroStore.getState().complete()).toBe(true);
+    // A second caller (supervisor vs manual button) must not double-log.
+    expect(usePomodoroStore.getState().complete()).toBe(false);
   });
 
   it("startQuick stores a normalized break override", () => {

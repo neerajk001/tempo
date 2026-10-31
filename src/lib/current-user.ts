@@ -25,6 +25,21 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const name = sessionUser?.name ?? undefined;
   const image = (sessionUser as { image?: string | null } | undefined)?.image ?? undefined;
 
+  // Fast path: most authenticated requests only need the id. Avoid turning
+  // every read into a database write; refresh the profile only when it changed.
+  const existing = await db.user.findUnique({
+    where: { email },
+    select: { id: true, email: true, name: true, image: true },
+  });
+  if (existing) {
+    const nameChanged = name !== undefined && name !== existing.name;
+    const imageChanged = image !== undefined && image !== existing.image;
+    if (nameChanged || imageChanged) {
+      await db.user.update({ where: { email }, data: { name, image } });
+    }
+    return { id: existing.id, email: existing.email };
+  }
+
   const user = await db.user.upsert({
     where: { email },
     update: { name, image },

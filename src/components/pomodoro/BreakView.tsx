@@ -8,7 +8,7 @@ import { useTaskStore, selectTaskById } from "@/stores/task-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
-import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
+import { getElapsedFocusMs, getRemainingMs } from "@/lib/pomodoro-machine";
 import { getBreakPhaseAfterFocus } from "@/lib/pomodoro-config";
 import { calculatePomodoroPlan, countPlannedPomodoros, todayKey } from "@/lib/task-planning";
 import { localDateKey } from "@/lib/dashboard-stats";
@@ -40,7 +40,6 @@ export default function BreakView() {
   const startBreak = usePomodoroStore((s) => s.startBreak);
   const resume = usePomodoroStore((s) => s.resume);
   const extend = usePomodoroStore((s) => s.extend);
-  const reset = usePomodoroStore((s) => s.reset);
   const tasks = useTaskStore((s) => s.tasks);
   const autoStartFocus = usePrefsStore((s) => s.autoStartFocus);
   const sessions = useSessionHistoryStore((s) => s.sessions);
@@ -55,12 +54,9 @@ export default function BreakView() {
   const ticking = session.status === "RUNNING" || session.status === "PAUSED";
   const onBreak = session.phase === "SHORT_BREAK" || session.phase === "LONG_BREAK";
   const liveBreak = onBreak && ticking;
-  const now = useNow(ticking);
+  const now = useNow(session.status === "RUNNING");
 
-  useEffect(() => {
-    if (session.status === "RUNNING" && isExpired(session, Date.now())) handleComplete();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, now]);
+  // Expiry is finalized once by the global TimerSupervisor.
 
   useEffect(() => () => {
     if (isAmbientPlaying()) toggleAmbient();
@@ -404,7 +400,7 @@ export default function BreakView() {
               className="flex-1 min-w-[180px] inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-container text-on-primary text-sm font-semibold rounded-xl shadow-sm hover:shadow transition-all duration-150 active:scale-[0.99] group"
             >
               <Icon name="play_arrow" className="text-[16px] text-on-primary/80 group-hover:text-on-primary transition-colors" />
-              <span>{breakState === "done" ? "Start next focus" : "Start Break"}</span>
+              <span>{breakState === "done" ? "Start next focus" : breakState === "paused" ? "Resume Break" : "Start Break"}</span>
               <Kbd dark>Space</Kbd>
             </button>
           )}

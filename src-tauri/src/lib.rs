@@ -33,7 +33,12 @@ fn show_main(app: &tauri::AppHandle) {
 /// Toggle the main window between hidden and shown (tray + hotkey).
 fn toggle_main(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window(MAIN) {
-        if window.is_visible().unwrap_or(false) {
+        let visible = window.is_visible().unwrap_or(false);
+        let minimized = window.is_minimized().unwrap_or(false);
+        let focused = window.is_focused().unwrap_or(false);
+        // Only hide when the window is actually in front. A visible-but-covered
+        // or minimized window should be brought forward instead.
+        if visible && !minimized && focused {
             let _ = window.hide();
         } else {
             show_main(app);
@@ -48,7 +53,13 @@ fn build_mini_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     let mut x = 48.0;
     let mut y = 48.0;
-    if let Ok(Some(monitor)) = app.primary_monitor() {
+    // Place the widget on the monitor that owns the main window, falling back
+    // to the primary monitor when the main window is not available.
+    let monitor = app
+        .get_webview_window(MAIN)
+        .and_then(|w| w.current_monitor().ok().flatten())
+        .or_else(|| app.primary_monitor().ok().flatten());
+    if let Some(monitor) = monitor {
         let scale = monitor.scale_factor();
         let size = monitor.size();
         let logical_w = size.width as f64 / scale;
@@ -198,8 +209,6 @@ fn start_desktop_auth(
         urlencoding::encode(&code_challenge),
     );
 
-    open::that_detached(&url).map_err(|e| format!("Could not open the browser: {e}"))?;
-
     let handle = app.clone();
     let expected_state = state.clone();
     std::thread::spawn(move || {
@@ -233,9 +242,10 @@ fn start_desktop_auth(
                         <body style=\"margin:0;height:100vh;display:grid;place-items:center;\
                         background:#12110f;color:#f2ede3;font-family:system-ui,sans-serif\">\
                         <div style=\"text-align:center\"><h1 style=\"font-size:20px;margin:0 0 8px\">Tempo</h1>\
-                        <p style=\"color:#a8a29a;margin:0\">You can close this tab and return to the app.</p></div></body>";
+                        <p style=\"color:#a8a29a;margin:0\">You can close this tab and return to the app.</p></div>\
+                        <script>history.replaceState({}, \"\", \"/callback\");</script></body>";
                     let response = format!(
-                        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nPragma: no-cache\r\nReferrer-Policy: no-referrer\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                         page.len(),
                         page
                     );
@@ -283,6 +293,10 @@ fn start_desktop_auth(
         }
     });
 
+    // Open the browser only after the listener thread is accepting, so a fast
+    // redirect cannot arrive before we are ready to handle it.
+    open::that_detached(&url).map_err(|e| format!("Could not open the browser: {e}"))?;
+
     Ok(serde_json::json!({ "port": port, "url": url }))
 }
 
@@ -319,25 +333,52 @@ fn start_idle_monitor(app: tauri::AppHandle) {
 /// Earlier builds registered a service worker on `tauri.localhost`, which
 /// serves cached pre-upgrade assets and can prevent a new bundle from running.
 /// The app itself cannot repair that (its code is the stale one), so drop the
-/// registration from the shell and reload once. No-op for clean installs.
+/// registration from the shell and reload once. A version marker makes this a
+/// once-per-upgrade repair instead of running on every launch.
 fn drop_stale_service_worker(app: &tauri::AppHandle) {
+    let version = app.package_info().version.to_string();
+    let marker = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| dir.join("sw-repair-version"));
+    if let Some(path) = &marker {
+        if let Ok(previous) = std::fs::read_to_string(path) {
+            if previous.trim() == version {
+                return;
+            }
+        }
+    }
+
     let handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_secs(2));
         if let Some(window) = handle.get_webview_window(MAIN) {
-            let _ = window.eval(
+            let eval = window.eval(
                 r#"(async () => {
   if (!('serviceWorker' in navigator)) return;
+  if (sessionStorage.getItem('tempo-sw-repaired') === '1') return;
   const regs = await navigator.serviceWorker.getRegistrations();
-  if (regs.length === 0) return;
+  let dirty = regs.length > 0;
   await Promise.all(regs.map((r) => r.unregister()));
   if (window.caches) {
     const keys = await caches.keys();
+    dirty = dirty || keys.length > 0;
     await Promise.all(keys.map((k) => caches.delete(k)));
   }
+  if (!dirty) return;
+  sessionStorage.setItem('tempo-sw-repaired', '1');
   location.reload();
 })().catch(() => {});"#,
             );
+            if eval.is_ok() {
+                if let Some(path) = &marker {
+                    if let Some(parent) = path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    let _ = std::fs::write(path, version);
+                }
+            }
         }
     });
 }
@@ -392,16 +433,20 @@ pub fn run() {
             blocking::remove_block_helper
         ])
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            // Keep a release warning/error log so failures (e.g. a hotkey
+            // already owned by another app) are diagnosable in production.
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(if cfg!(debug_assertions) {
+                        log::LevelFilter::Info
+                    } else {
+                        log::LevelFilter::Warn
+                    })
+                    .build(),
+            )?;
 
-            build_mini_window(app.handle())?;
-
+            // The mini window is created lazily on first use; a failure there
+            // must never prevent the main app from starting.
             // One-time upgrade repair for profiles left with a cached worker.
             drop_stale_service_worker(app.handle());
 
@@ -456,6 +501,14 @@ pub fn run() {
                     "quit" => app.exit(0),
                     "show" => show_main(app),
                     "mini" => {
+                        // Create on first use. A failure is logged and ignored so
+                        // the rest of the app keeps working.
+                        if app.get_webview_window(MINI).is_none() {
+                            if let Err(e) = build_mini_window(app) {
+                                log::error!("Could not create mini window: {e}");
+                                return;
+                            }
+                        }
                         if let Some(window) = app.get_webview_window(MINI) {
                             let visible = window.is_visible().unwrap_or(false);
                             if visible {

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   settingsFingerprint,
   shouldApplySettings,
+  toRemoteSettings,
   type SettingsBlob,
 } from "@/lib/settings-sync";
 
@@ -70,5 +71,14 @@ describe("shouldApplySettings (last-write-wins)", () => {
 
   it("keeps local when local is newer", () => {
     expect(shouldApplySettings(blob({ updatedAt: 3 }), blob({ updatedAt: 2 }))).toBe(false);
+  });
+});
+
+describe("toRemoteSettings (wire contract)", () => {
+  it("maps the local updatedAt to the server's clientUpdatedAt field", () => {
+    const remote = toRemoteSettings(blob({ updatedAt: 1234 }));
+    expect(remote.clientUpdatedAt).toBe(1234);
+    expect(remote).not.toHaveProperty("updatedAt");
+    expect(remote.pomodoro.focusMs).toBe(50 * 60 * 1000);
   });
 });

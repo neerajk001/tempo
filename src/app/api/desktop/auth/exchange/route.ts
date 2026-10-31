@@ -42,14 +42,16 @@ export async function POST(req: Request) {
     );
   }
 
-  if (claims.challenge) {
-    if (!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)) {
-      return NextResponse.json({ error: "Invalid verifier." }, { status: 401, headers: cors });
-    }
-    const expected = await sha256Base64Url(verifier);
-    if (expected !== claims.challenge) {
-      return NextResponse.json({ error: "Invalid verifier." }, { status: 401, headers: cors });
-    }
+  if (!claims.challenge) {
+    // Legacy/challenge-less login tokens are not acceptable.
+    return NextResponse.json({ error: "Sign-in expired. Try again." }, { status: 401, headers: cors });
+  }
+  if (!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)) {
+    return NextResponse.json({ error: "Invalid verifier." }, { status: 401, headers: cors });
+  }
+  const expected = await sha256Base64Url(verifier);
+  if (expected !== claims.challenge) {
+    return NextResponse.json({ error: "Invalid verifier." }, { status: 401, headers: cors });
   }
 
   const user = await db.user.findUnique({

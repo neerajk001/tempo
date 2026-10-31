@@ -100,6 +100,13 @@ export const useSessionHistoryStore = create<HistoryStore>()(
       clearHistory: () => {
         addSessionTombstones(get().sessions.map((x) => x.id));
         set({ sessions: [] });
+        // Ask the next sync to clear the server copy too; tombstones alone
+        // cannot reach sessions beyond the locally loaded page.
+        try {
+          window.localStorage.setItem("tempo-history-clear-request", "1");
+        } catch {
+          // Storage unavailable — local clear still applies.
+        }
       },
     }),
     {

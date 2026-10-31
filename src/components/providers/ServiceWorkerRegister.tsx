@@ -11,14 +11,26 @@ export default function ServiceWorkerRegister() {
     // worker on this origin, which would keep serving pre-upgrade assets, so
     // drop any registration and its caches instead of adding a new one.
     if (isTauri()) {
-      if ("serviceWorker" in navigator) {
-        void navigator.serviceWorker.getRegistrations().then((regs) => {
-          for (const reg of regs) void reg.unregister();
-        });
-      }
-      if ("caches" in window) {
-        void caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))));
-      }
+      // Once per session: unregister (or clear caches from) any stale worker,
+      // then reload even if the Rust sweep already removed the registration.
+      if (sessionStorage.getItem("tempo-sw-repaired") === "1") return;
+      void (async () => {
+        let dirty = false;
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          dirty = regs.length > 0;
+          await Promise.all(regs.map((reg) => reg.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          dirty = dirty || keys.length > 0;
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+        if (dirty) {
+          sessionStorage.setItem("tempo-sw-repaired", "1");
+          location.reload();
+        }
+      })().catch(() => {});
       return;
     }
     if (!("serviceWorker" in navigator)) return;

@@ -25,7 +25,7 @@ export default function DashboardHeader({ flowActive }: { flowActive: boolean })
   const dateLine = now
     .toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
     .toUpperCase();
-  const name = session?.user?.name?.split(" ")[0] ?? "Neeraj";
+  const name = session?.user?.name?.split(" ")[0] ?? "Guest";
 
   return (
     <div className="flex flex-col gap-4 mb-6">

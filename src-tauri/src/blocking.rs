@@ -145,13 +145,23 @@ ipconfig /flushdns | Out-Null
 
     /// Run a PowerShell body elevated (one UAC prompt).
     fn run_elevated(body: &str) -> Result<(), String> {
-        let script_path = std::env::temp_dir().join("tempo-helper.ps1");
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let script_path = std::env::temp_dir().join(format!(
+            "tempo-helper-{}-{nanos}.ps1",
+            std::process::id()
+        ));
         std::fs::write(&script_path, body).map_err(|e| format!("Could not write helper: {e}"))?;
 
+        // Quote the path so profiles containing spaces work, and escape any
+        // apostrophe for the surrounding single-quoted PowerShell string.
+        let escaped = script_path.display().to_string().replace('\'', "''");
         let inner = format!(
             "$ErrorActionPreference='Stop'; Start-Process -FilePath powershell.exe -Verb RunAs -Wait \
-             -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{}'",
-            script_path.display()
+             -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','\"{}\"'",
+            escaped
         );
 
         let status = Command::new("powershell.exe")
@@ -159,6 +169,8 @@ ipconfig /flushdns | Out-Null
             .creation_flags(CREATE_NO_WINDOW)
             .status()
             .map_err(|e| format!("Could not start helper: {e}"))?;
+
+        let _ = std::fs::remove_file(&script_path);
 
         if status.success() {
             Ok(())
@@ -234,7 +246,24 @@ Register-ScheduledTask -TaskName 'TempoBlock' -Action $action -Principal $princi
     }
 
     pub fn remove_helper() -> Result<(), String> {
+        // Clear the hosts block before deleting the only worker that can do it.
+        if hosts_has_block() {
+            let _ = write_block_file(&[]);
+            if helper_installed() {
+                let _ = run_task();
+                let _ = verify(false);
+            }
+        }
         let script = r#"$ErrorActionPreference = 'SilentlyContinue'
+$hosts = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
+$begin = '# TEMPO-BLOCK BEGIN'
+$end = '# TEMPO-BLOCK END'
+$content = Get-Content -Raw -LiteralPath $hosts
+if ($null -eq $content) { $content = '' }
+$pattern = [regex]::Escape($begin) + '(?s).*?' + [regex]::Escape($end)
+$content = [regex]::Replace($content, $pattern, '').TrimEnd()
+Set-Content -LiteralPath $hosts -Value $content -Encoding ASCII
+ipconfig /flushdns | Out-Null
 Unregister-ScheduledTask -TaskName 'TempoBlock' -Confirm:$false
 Remove-Item -Recurse -Force (Join-Path $env:ProgramData 'Tempo')
 "#;

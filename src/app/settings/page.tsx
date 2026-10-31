@@ -463,10 +463,10 @@ export default function SettingsPage() {
                   <div className="h-2 w-1/2 bg-surface-variant rounded" />
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-headline-md text-on-surface font-semibold">Light Mode</span>
+                  <span className="text-headline-md text-on-surface font-semibold">Dark Mode</span>
                   <Icon name="check_circle" className="text-[18px] text-primary" />
                 </div>
-                <span className="text-body-sm text-on-surface-variant">Precision high contrast</span>
+                <span className="text-body-sm text-on-surface-variant">Tempo focus theme</span>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-surface-container-low/50 gap-3">
@@ -606,7 +606,7 @@ export default function SettingsPage() {
                 <h2 className="text-headline-lg text-on-surface tracking-tight">System Hotkeys & Keyboard Command</h2>
                 <p className="text-body-sm text-on-surface-variant">Operate Tempo without lifting your hands from the keyboard row.</p>
               </div>
-              <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-semibold hidden sm:inline">5 Global Hotkeys</span>
+                <span className="text-label-xs text-on-surface-variant uppercase tracking-wider font-semibold hidden sm:inline">Keyboard Shortcuts</span>
             </div>
             <div className="flex flex-col divide-y divide-surface-container">
               {(

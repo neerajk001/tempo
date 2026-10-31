@@ -6,7 +6,9 @@ import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { usePrefsStore } from "@/stores/prefs-store";
 import {
   cancelSession,
+  clampCompletionEnd,
   completeSession,
+  getCreditedFocusMs,
   getElapsedFocusMs,
   getPausedMs,
 } from "@/lib/pomodoro-machine";
@@ -20,7 +22,6 @@ import { useAmbientStore } from "@/stores/ambient-store";
  * optional completion notifications.
  */
 export function useFinishSession() {
-  const session = usePomodoroStore((s) => s.session);
   const activeTaskId = usePomodoroStore((s) => s.activeTaskId);
   const activeTaskTitle = usePomodoroStore((s) => s.activeTaskTitle);
   const focusMode = usePomodoroStore((s) => s.focusMode);
@@ -38,15 +39,25 @@ export function useFinishSession() {
     const at = Date.now();
     let snapshot;
     try {
-      snapshot = completeSession(session, at);
+      // Read the live store, not a render-time closure: another caller (the
+      // global supervisor or a manual button) may have already finalized it.
+      snapshot = clampCompletionEnd(
+        completeSession(usePomodoroStore.getState().session, at)
+      );
     } catch {
       return;
     }
-    // Pauses are manual — no automatic break accrues, so break time is 0.
-    const breakMs = 0;
-    const focusedMs = getElapsedFocusMs(snapshot, at);
+    const isFocus = snapshot.phase === "FOCUS";
+    // Allocated focus is capped at its plan so a sleep/offline gap can never
+    // inflate task totals or History. Breaks are rest time, never focus.
+    const focusedMs = isFocus ? getCreditedFocusMs(snapshot, at) : 0;
+    const breakMs = isFocus
+      ? 0
+      : Math.min(getElapsedFocusMs(snapshot, at), snapshot.plannedMs);
     const taskTitle = activeTask?.title ?? activeTaskTitle;
-    complete();
+    // Only the caller that actually finalizes the run may log/credit it.
+    // This closes the supervisor-vs-manual-button double-finish race.
+    if (!complete()) return;
     // Natural or manual completion only (never pause/cancel): stop ambient
     // music first so the completion chime is clearly audible.
     try {
@@ -54,7 +65,7 @@ export function useFinishSession() {
     } catch {
       // Ambient store optional — never block completion.
     }
-    if (snapshot.phase === "FOCUS" && activeTaskId) {
+    if (isFocus && activeTaskId) {
       if (isInfinite) {
         // Infinite: open-ended — save the final focused/break duration
         // precisely (no minute rounding loss) and preserve cycle state.
@@ -77,6 +88,13 @@ export function useFinishSession() {
           lastPhase: snapshot.phase,
         });
       }
+    } else if (!isFocus && activeTaskId) {
+      // Break completed — accrue rest time on the linked task, never focus.
+      useTaskStore.getState().accumulateProgress(activeTaskId, {
+        breakMs: Math.max(0, Math.round(breakMs)),
+        completedFocusCount: snapshot.completedFocusCount,
+        lastPhase: snapshot.phase,
+      });
     }
     if (snapshot.startedAt !== null && snapshot.endedAt !== null) {
       logSession({
@@ -100,7 +118,7 @@ export function useFinishSession() {
     // always plays. The notify toggles only gate the desktop banner.
     const prefs = usePrefsStore.getState();
     playChime(prefs.chimeTheme);
-    const wantsBanner = snapshot.phase === "FOCUS" ? prefs.notifyFocus : prefs.notifyBreak;
+    const wantsBanner = isFocus ? prefs.notifyFocus : prefs.notifyBreak;
     if (wantsBanner) {
       sendCompletionNotification(snapshot.phase, taskTitle);
     }
@@ -108,9 +126,9 @@ export function useFinishSession() {
     // Infinite sessions never auto-advance into phase breaks (pause-breaks
     // are handled inline via the pause countdown instead).
     try {
-      if (snapshot.phase === "FOCUS" && prefs.autoStartBreaks && !isInfinite) {
+      if (isFocus && prefs.autoStartBreaks && !isInfinite) {
         usePomodoroStore.getState().startBreak();
-      } else if (snapshot.phase !== "FOCUS" && prefs.autoStartFocus) {
+      } else if (!isFocus && prefs.autoStartFocus) {
         usePomodoroStore.getState().start("FOCUS");
       }
     } catch {
@@ -122,20 +140,31 @@ export function useFinishSession() {
     const at = Date.now();
     let snapshot;
     try {
-      snapshot = cancelSession(session, at);
+      snapshot = clampCompletionEnd(
+        cancelSession(usePomodoroStore.getState().session, at)
+      );
     } catch {
       return;
     }
-    const breakMs = 0;
-    const focusedMs = getElapsedFocusMs(snapshot, at);
-    cancel();
+    const isFocus = snapshot.phase === "FOCUS";
+    const focusedMs = isFocus ? getCreditedFocusMs(snapshot, at) : 0;
+    const breakMs = isFocus
+      ? 0
+      : Math.min(getElapsedFocusMs(snapshot, at), snapshot.plannedMs);
+    if (!cancel()) return;
     // Stopping preserves state: fold partial work into the task so returning
     // resumes from the exact previous totals (never resets to zero).
-    if (snapshot.phase === "FOCUS" && activeTaskId) {
+    if (isFocus && activeTaskId) {
       useTaskStore.getState().accumulateProgress(activeTaskId, {
         focusedMs: Math.max(0, Math.round(focusedMs)),
         breakMs,
         interruptions: snapshot.pauseCount,
+        completedFocusCount: snapshot.completedFocusCount,
+        lastPhase: snapshot.phase,
+      });
+    } else if (!isFocus && activeTaskId) {
+      useTaskStore.getState().accumulateProgress(activeTaskId, {
+        breakMs: Math.max(0, Math.round(breakMs)),
         completedFocusCount: snapshot.completedFocusCount,
         lastPhase: snapshot.phase,
       });

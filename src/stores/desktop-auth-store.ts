@@ -45,8 +45,20 @@ async function sha256Base64Url(input: string): Promise<string> {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function waitForRedirect(state: string): Promise<{ token?: string; error?: string }> {
-  return new Promise((resolve) => {
+interface RedirectWaiter {
+  promise: Promise<{ token?: string; error?: string }>;
+  /** Resolves once the Tauri event listener is actually registered. */
+  ready: Promise<void>;
+  cancel: () => void;
+}
+
+function waitForRedirect(state: string): RedirectWaiter {
+  let cancel = () => {};
+  let markReady = () => {};
+  const ready = new Promise<void>((resolve) => {
+    markReady = resolve;
+  });
+  const promise = new Promise<{ token?: string; error?: string }>((resolve) => {
     let unlisten: (() => void) | undefined;
     let settled = false;
     const finish = (result: { token?: string; error?: string }) => {
@@ -56,18 +68,26 @@ function waitForRedirect(state: string): Promise<{ token?: string; error?: strin
       unlisten?.();
       resolve(result);
     };
+    cancel = () => finish({ error: "Sign-in was cancelled." });
     const timer = setTimeout(
       () => finish({ error: "Sign-in timed out. Try again." }),
       5 * 60 * 1000
     );
     void listenEvent<{ state?: string; token?: string; error?: string }>(EVT_AUTH, (payload) => {
-      if (payload.state && payload.state !== state) return;
+      // A real state mismatch carries an error; surface it instead of waiting
+      // the full timeout. Unrelated events (different, errorless) are ignored.
+      if (payload.state && payload.state !== state) {
+        if (payload.error) finish({ error: payload.error });
+        return;
+      }
       finish({ token: payload.token, error: payload.error });
     }).then((off) => {
       unlisten = off;
+      markReady();
       if (settled) off();
     });
   });
+  return { promise, ready, cancel };
 }
 
 /**
@@ -107,14 +127,29 @@ export const useDesktopAuthStore = create<DesktopAuthState>()((set, get) => ({
       const challenge = await sha256Base64Url(verifier);
       const state = randomBase64Url(24);
 
-      const started = await invokeCommand<{ port: number; url: string }>("start_desktop_auth", {
-        state,
-        apiBase: API_BASE,
-        codeChallenge: challenge,
-      });
-      if (!started) throw new Error("Could not open the sign-in window.");
+      // Register the result listener before opening the browser. Tauri events
+      // are not retained, so an already-signed-in browser could otherwise win
+      // the race and leave the app waiting until the timeout.
+      const waiter = waitForRedirect(state);
+      await waiter.ready;
 
-      const redirect = await waitForRedirect(state);
+      let started: { port: number; url: string } | null;
+      try {
+        started = await invokeCommand<{ port: number; url: string }>("start_desktop_auth", {
+          state,
+          apiBase: API_BASE,
+          codeChallenge: challenge,
+        });
+      } catch (e) {
+        waiter.cancel();
+        throw e;
+      }
+      if (!started) {
+        waiter.cancel();
+        throw new Error("Could not open the sign-in window.");
+      }
+
+      const redirect = await waiter.promise;
       if (!redirect.token) throw new Error(redirect.error || "Sign-in was cancelled.");
 
       const res = await fetch(apiUrl("/api/desktop/auth/exchange"), {

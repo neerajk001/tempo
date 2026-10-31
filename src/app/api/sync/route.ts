@@ -85,8 +85,20 @@ const num = (v: unknown, fallback = 0): number =>
 const str = (v: unknown): string | null =>
   typeof v === "string" ? v : null;
 
+const validId = (v: unknown): v is string =>
+  typeof v === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(v);
+
 const msToInt = (v: unknown, fallback = 0): number =>
   Math.max(0, Math.round(num(v, fallback)));
+
+/**
+ * Keep the first N-1 events plus the terminal event. A raw prefix slice would
+ * drop COMPLETE/CANCEL on sessions with many pause/resume pairs.
+ */
+function capEvents<T>(events: T[], max = 100): T[] {
+  if (events.length <= max) return events;
+  return [...events.slice(0, max - 1), events[events.length - 1]];
+}
 
 function taskData(t: TaskPayload, userId: string) {
   const focusMode = t.focusMode === "infinite" ? "infinite" : "allocated";
@@ -95,7 +107,7 @@ function taskData(t: TaskPayload, userId: string) {
     id: String(t.id),
     userId,
     title: String(t.title ?? "").slice(0, 200) || "Untitled",
-    description: str(t.description),
+    description: str(t.description)?.slice(0, 2000) ?? null,
     date: /^\d{4}-\d{2}-\d{2}$/.test(t.date ?? "") ? new Date(`${t.date}T00:00:00Z`) : new Date(),
     allocatedMinutes: focusMode === "infinite"
       ? Math.max(0, Math.round(num(t.allocatedMinutes, 0)))
@@ -112,7 +124,7 @@ function taskData(t: TaskPayload, userId: string) {
     focusedMinutes,
     completedPomodoros: Math.max(0, Math.round(num(t.completedPomodoros))),
     subtasks: Array.isArray(t.subtasks) ? t.subtasks.slice(0, 200) : [],
-    calendarEventId: str(t.calendarEventId),
+    calendarEventId: str(t.calendarEventId)?.slice(0, 512) ?? null,
     startMs: t.startMs === undefined || t.startMs === null ? null : BigInt(Math.round(num(t.startMs))),
     endMs: t.endMs === undefined || t.endMs === null ? null : BigInt(Math.round(num(t.endMs))),
     focusMode,
@@ -131,7 +143,7 @@ function sessionData(s: SessionPayload, userId: string) {
     id: String(s.id),
     userId,
     taskId: str(s.taskId),
-    taskTitle: str(s.taskTitle),
+    taskTitle: str(s.taskTitle)?.slice(0, 200) ?? null,
     type: ["FOCUS", "SHORT_BREAK", "LONG_BREAK"].includes(s.phase ?? "")
       ? (s.phase as "FOCUS" | "SHORT_BREAK" | "LONG_BREAK")
       : ("FOCUS" as const),
@@ -145,15 +157,16 @@ function sessionData(s: SessionPayload, userId: string) {
     sessionMode,
     sessionName: str(s.sessionName)?.slice(0, 200) ?? null,
     breakMs: msToInt(s.breakMs),
-    events: Array.isArray(s.events)
-      ? s.events
-          .filter((e) => ["START", "PAUSE", "RESUME", "COMPLETE", "CANCEL"].includes(e?.type))
-          .slice(0, 100)
-          .map((e) => ({
-            type: e.type as "START" | "PAUSE" | "RESUME" | "COMPLETE" | "CANCEL",
-            timestamp: new Date(msToInt(e.at, Date.now())),
-          }))
-      : [],
+    events: capEvents(
+      Array.isArray(s.events)
+        ? s.events
+            .filter((e) => ["START", "PAUSE", "RESUME", "COMPLETE", "CANCEL"].includes(e?.type))
+            .map((e) => ({
+              type: e.type as "START" | "PAUSE" | "RESUME" | "COMPLETE" | "CANCEL",
+              timestamp: new Date(msToInt(e.at, Date.now())),
+            }))
+        : []
+    ),
   };
 }
 
@@ -271,6 +284,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const user = await getCurrentUserFromRequest(req);
   if (!user) return respond(req, { error: "Sign in to access your data.", needsAuth: true }, 401);
+  // Bound the request before buffering/parsing huge JSON blobs.
+  const declaredLength = Number(req.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 2_000_000) {
+    return respond(req, { error: "Sync payload is too large." }, 413);
+  }
   let body: {
     tasks?: TaskPayload[];
     sessions?: SessionPayload[];
@@ -278,6 +296,7 @@ export async function POST(req: Request) {
     live?: LivePayload;
     deletedTaskIds?: string[];
     deletedSessionIds?: string[];
+    clearHistory?: boolean;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -287,10 +306,10 @@ export async function POST(req: Request) {
   const tasks = Array.isArray(body.tasks) ? body.tasks.slice(0, 2000) : [];
   const sessions = Array.isArray(body.sessions) ? body.sessions.slice(0, 1000) : [];
   const deletedTaskIds = Array.isArray(body.deletedTaskIds)
-    ? body.deletedTaskIds.filter((x) => typeof x === "string").slice(0, 2000)
+    ? body.deletedTaskIds.filter(validId).slice(0, 2000)
     : [];
   const deletedSessionIds = Array.isArray(body.deletedSessionIds)
-    ? body.deletedSessionIds.filter((x) => typeof x === "string").slice(0, 2000)
+    ? body.deletedSessionIds.filter(validId).slice(0, 2000)
     : [];
 
   try {
@@ -301,10 +320,15 @@ export async function POST(req: Request) {
     if (deletedSessionIds.length > 0) {
       await db.pomodoroSession.deleteMany({ where: { userId: user.id, id: { in: deletedSessionIds } } });
     }
+    // "Clear history" must be durable on the server; tombstoning only the
+    // locally loaded page of records lets older ones reappear on the next pull.
+    if (body.clearHistory === true) {
+      await db.pomodoroSession.deleteMany({ where: { userId: user.id } });
+    }
 
     // Batched upsert (avoids N+1): one read, then batched writes.
     const incomingTaskIds = tasks
-      .filter((t) => t && typeof t.id === "string" && t.id)
+      .filter((t) => t && validId(t.id))
       .map((t) => String((t as TaskPayload).id));
     const existingTasks =
       incomingTaskIds.length > 0
@@ -316,7 +340,7 @@ export async function POST(req: Request) {
     const existingTaskMap = new Map(existingTasks.map((t) => [t.id, t.updatedAt.getTime()]));
     const taskWrites: any[] = [];
     for (const raw of tasks) {
-      if (!raw || typeof raw.id !== "string" || !raw.id) continue;
+      if (!raw || !validId(raw.id)) continue;
       const data = taskData(raw, user.id);
       const incomingUpdatedAt = num(raw.updatedAt, 0);
       const existingTime = existingTaskMap.get(data.id);
@@ -373,32 +397,43 @@ export async function POST(req: Request) {
     ]);
 
     const incomingSessionIds = sessions
-      .filter((s) => s && typeof s.id === "string" && s.id)
+      .filter((s) => s && validId(s.id))
       .map((s) => String((s as SessionPayload).id));
     const existingSessions =
       incomingSessionIds.length > 0
         ? await db.pomodoroSession.findMany({
             where: { id: { in: incomingSessionIds }, userId: user.id },
-            select: { id: true, endedAt: true },
+            select: { id: true, endedAt: true, focusedMs: true, interruptions: true },
           })
         : [];
-    const existingSessionMap = new Map(
-      existingSessions.map((s) => [s.id, s.endedAt?.getTime() ?? 0])
-    );
-    // Sequential writes for sessions (events need delete-then-create).
+    const existingSessionMap = new Map(existingSessions.map((s) => [s.id, s]));
+    // Sequential writes for sessions (events are replaced atomically).
     // Still avoids N+1 reads by pre-fetching above.
     for (const raw of sessions) {
-      if (!raw || typeof raw.id !== "string" || !raw.id) continue;
+      if (!raw || !validId(raw.id)) continue;
       const data = sessionData(raw, user.id);
       if (data.taskId && !ownedTaskIds.has(data.taskId)) {
         data.taskId = null;
       }
-      const existingTime = existingSessionMap.get(data.id);
-      if (existingTime !== undefined && existingTime > data.endedAt.getTime()) continue;
-      if (existingTime !== undefined) {
-        await db.sessionEvent.deleteMany({ where: { sessionId: data.id } });
-        await db.pomodoroSession.updateMany({
-          where: { id: data.id, userId: user.id },
+      const existing = existingSessionMap.get(data.id);
+      if (existing) {
+        const existingTime = existing.endedAt?.getTime() ?? 0;
+        const incomingTime = data.endedAt.getTime();
+        if (existingTime > incomingTime) continue;
+        // Mirrors the client tie-break: on an equal end time, never let a
+        // stale device downgrade a richer record.
+        if (existingTime === incomingTime && existing.focusedMs > data.focusedMs) continue;
+        if (
+          existingTime === incomingTime &&
+          existing.focusedMs === data.focusedMs &&
+          existing.interruptions > data.interruptions
+        ) {
+          continue;
+        }
+        // Nested delete+create is atomic; a failure cannot leave the audit
+        // timeline half-erased.
+        await db.pomodoroSession.update({
+          where: { id: data.id },
           data: {
             taskId: data.taskId,
             taskTitle: data.taskTitle,
@@ -413,7 +448,7 @@ export async function POST(req: Request) {
             sessionMode: data.sessionMode,
             sessionName: data.sessionName,
             breakMs: data.breakMs,
-            events: { create: data.events },
+            events: { deleteMany: {}, create: data.events },
           } as never,
         });
       } else {

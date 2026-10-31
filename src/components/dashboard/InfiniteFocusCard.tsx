@@ -59,7 +59,7 @@ export default function InfiniteFocusCard() {
   const liveOnSelected = !!selected && selected.id === activeTaskId && ticking;
   const liveInfinite =
     ticking && (session.isInfinite === true || focusMode === "infinite");
-  const now = useNow(liveOnSelected);
+  const now = useNow(liveOnSelected && session.status === "RUNNING");
   const liveElapsedMs = liveOnSelected ? getElapsedFocusMs(session, now) : 0;
   const totalElapsedMs = selected
     ? getTaskFocusedMs(selected) + liveElapsedMs

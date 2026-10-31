@@ -7,7 +7,7 @@ import { usePomodoroStore, resolveBreaks } from "@/stores/pomodoro-store";
 import { useTaskStore, selectTaskById, getFocusMode, getSessionLabel, getTaskFocusedMs } from "@/stores/task-store";
 import { useNow } from "@/hooks/useNow";
 import { useFinishSession } from "@/hooks/useFinishSession";
-import { getElapsedFocusMs, getRemainingMs, isExpired } from "@/lib/pomodoro-machine";
+import { getElapsedFocusMs, getRemainingMs } from "@/lib/pomodoro-machine";
 import { calculatePomodoroPlan, todayKey } from "@/lib/task-planning";
 import { formatClock } from "@/lib/utils";
 import { formatElapsedHMS } from "@/components/pomodoro/FocusTimer";
@@ -66,12 +66,10 @@ export default function FocusSessionCard() {
   useEffect(() => setMounted(true), []);
 
   const ticking = session.status === "RUNNING" || session.status === "PAUSED";
-  const now = useNow(ticking);
+  const now = useNow(session.status === "RUNNING");
 
-  useEffect(() => {
-    if (session.status === "RUNNING" && isExpired(session, Date.now())) handleComplete();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, now]);
+  // Expiry is finalized once by the global TimerSupervisor so it also works on
+  // routes without a timer card.
 
   // A finished focus block lands on the break screen (Infinite has no break).
   useEffect(() => {

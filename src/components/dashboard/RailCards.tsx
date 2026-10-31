@@ -17,7 +17,7 @@ function fmtTime(ms: number): string {
 
 export function UpNextCard({ tasks }: { tasks: Task[] }) {
   const session = usePomodoroStore((s) => s.session);
-  const now = useNow(session.status === "RUNNING" || session.status === "PAUSED");
+  const now = useNow(session.status === "RUNNING");
   const next = tasks.filter((t) => t.status === "TODO").sort((a, b) => (a.startMs ?? Infinity) - (b.startMs ?? Infinity))[0] ?? null;
   const nextInfinite = next ? getFocusMode(next) === "infinite" : false;
   // Infinite sessions have no countdown — remaining time is unbounded.
@@ -249,7 +249,6 @@ export function InterruptionLogCard({
 
 export function StandbyCard() {
   const router = useRouter();
-  const reset = usePomodoroStore((s) => s.reset);
   const start = usePomodoroStore((s) => s.start);
 
   return (
@@ -271,7 +270,8 @@ export function StandbyCard() {
         <button
           type="button"
           onClick={() => {
-            reset();
+            // start() preempts and logs any live run; never reset() first or
+            // the elapsed work disappears without History/task credit.
             start();
             router.push("/focus");
           }}

@@ -82,7 +82,11 @@ export default function DesktopBridge() {
         if (store.session.status === "RUNNING") store.pause();
         else if (store.session.status === "PAUSED") store.resume();
       } else if (action === "skip") {
-        store.startBreak();
+        // Never cancel a live focus from the tray: that would log it as
+        // CANCELLED and drop task credit. Only start a break from idle/terminal.
+        if (store.session.status === "IDLE" || store.session.status === "COMPLETED") {
+          store.startBreak();
+        }
       }
     }).then((u) => {
       unlistenCommand = u;
@@ -106,57 +110,73 @@ export default function DesktopBridge() {
     });
 
     // Website blocking: applied for a running FOCUS block, cleared otherwise.
-    let blockApplied = false;
+    // Operations are serialized and re-evaluated after each await so a pause
+    // during a UAC prompt still clears the block, and domain edits re-apply.
     let blockBusy = false;
-    const syncBlock = () => {
+    let blockApplied = false;
+    let appliedKey = "";
+    const wantBlock = () => {
       const prefs = usePrefsStore.getState();
       const store = usePomodoroStore.getState();
-      const want =
-        prefs.blockEnabled &&
-        prefs.blockDomains.length > 0 &&
-        store.session.status === "RUNNING" &&
-        store.session.phase === "FOCUS";
+      return {
+        want:
+          prefs.blockEnabled &&
+          prefs.blockDomains.length > 0 &&
+          store.session.status === "RUNNING" &&
+          store.session.phase === "FOCUS",
+        domains: prefs.blockDomains,
+        key: prefs.blockDomains.slice().sort().join("|"),
+      };
+    };
+    const reconcileBlock = async () => {
       if (blockBusy) return;
-      if (want && !blockApplied) {
-        blockBusy = true;
-        blockApplied = true;
-        void invokeCommand("apply_block", { domains: prefs.blockDomains })
-          .catch(() => {
-            blockApplied = false;
-          })
-          .finally(() => {
-            blockBusy = false;
-          });
-      } else if (!want && blockApplied) {
-        blockBusy = true;
-        blockApplied = false;
-        void invokeCommand("clear_block")
-          .catch(() => {
+      blockBusy = true;
+      try {
+        for (let i = 0; i < 4; i++) {
+          const { want, domains, key } = wantBlock();
+          if (want && !blockApplied) {
+            await invokeCommand("apply_block", { domains });
             blockApplied = true;
-          })
-          .finally(() => {
-            blockBusy = false;
-          });
+            appliedKey = key;
+          } else if (want && appliedKey !== key) {
+            await invokeCommand("apply_block", { domains });
+            appliedKey = key;
+          } else if (!want && blockApplied) {
+            await invokeCommand("clear_block");
+            blockApplied = false;
+            appliedKey = "";
+          } else {
+            break;
+          }
+        }
+      } catch {
+        // Leave the state for the next session/prefs change to retry.
+      } finally {
+        blockBusy = false;
       }
     };
+    const syncBlock = () => void reconcileBlock();
     const unsubscribeBlock = usePomodoroStore.subscribe(syncBlock);
     const unsubscribePrefs = usePrefsStore.subscribe(syncBlock);
     syncBlock();
 
+    // Only do periodic IPC while a session is live. Store subscriptions handle
+    // one-off changes, so idle periods cost nothing.
+    let lastActive = false;
     const ticker = setInterval(() => {
+      const s = usePomodoroStore.getState();
+      const status = s.session.status;
+      const active = status === "RUNNING" || status === "PAUSED";
+      if (!active && !lastActive) return;
+      lastActive = active;
+
       // Re-broadcast each second so the mini widget recovers instantly from a
       // missed event (e.g. while it was hidden) instead of showing stale state.
       broadcast();
       void invokeCommand("set_tray_tooltip", { text: tooltipText() });
 
       // Windows taskbar progress for the live block.
-      const s = usePomodoroStore.getState();
-      const status = s.session.status;
-      if (
-        (status === "RUNNING" || status === "PAUSED") &&
-        !s.session.isInfinite &&
-        s.session.plannedMs > 0
-      ) {
+      if (active && !s.session.isInfinite && s.session.plannedMs > 0) {
         const elapsed = getElapsedFocusMs(s.session, Date.now());
         const progress = Math.min(1, Math.max(0, elapsed / s.session.plannedMs));
         void invokeCommand("set_taskbar_progress", { progress, paused: status === "PAUSED" });

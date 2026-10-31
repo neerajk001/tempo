@@ -58,6 +58,20 @@ export interface SettingsBlob {
   updatedAt: number;
 }
 
+/**
+ * Wire shape for POST /api/sync. The local blob calls its LWW stamp
+ * `updatedAt`; the server column/field is `clientUpdatedAt`. Keeping this
+ * mapping in one place prevents the two names from drifting apart again.
+ */
+export type RemoteSettingsPayload = Omit<SettingsBlob, "updatedAt"> & {
+  clientUpdatedAt: number;
+};
+
+export function toRemoteSettings(blob: SettingsBlob): RemoteSettingsPayload {
+  const { updatedAt, ...rest } = blob;
+  return { ...rest, clientUpdatedAt: updatedAt };
+}
+
 // ---------------------------------------------------------------------------
 // Local meta (last-write-wins timestamp)
 // ---------------------------------------------------------------------------

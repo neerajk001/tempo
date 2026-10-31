@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useTaskStore } from "@/stores/task-store";
+import { _resetPreserveGuardForTests } from "@/stores/task-store";
 import { usePomodoroStore, taskBreaks, resolveBreaks } from "@/stores/pomodoro-store";
 import { useSessionHistoryStore } from "@/stores/session-history-store";
 import { usePrefsStore } from "@/stores/prefs-store";
-import { createIdleState } from "@/lib/pomodoro-machine";
+import { createIdleState, startSession } from "@/lib/pomodoro-machine";
 import { DEFAULT_POMODORO_CONFIG } from "@/lib/pomodoro-config";
 
 const MIN = 60_000;
 
 beforeEach(() => {
+  _resetPreserveGuardForTests();
   useTaskStore.setState({ tasks: [], activeTaskId: null });
   usePomodoroStore.setState({
     session: createIdleState("FOCUS", DEFAULT_POMODORO_CONFIG),
@@ -79,5 +81,29 @@ describe("break cadence follows the task", () => {
 describe("manual break start", () => {
   it("does not auto-start breaks by default", () => {
     expect(usePrefsStore.getState().autoStartBreaks).toBe(false);
+  });
+
+  it("does not credit break time as task focus", () => {
+    const task = useTaskStore.getState().createTask({
+      title: "Break guard",
+      allocatedMinutes: 60,
+      focusMinutes: 25,
+    });
+    useTaskStore.getState().switchToTask(task.id);
+    const before = useTaskStore.getState().tasks.find((t) => t.id === task.id)!;
+
+    const at = Date.now();
+    const breakSession = startSession(
+      createIdleState("SHORT_BREAK", DEFAULT_POMODORO_CONFIG),
+      at - 5 * MIN,
+      { phase: "SHORT_BREAK", plannedMs: 10 * MIN }
+    );
+    usePomodoroStore.setState({ session: breakSession, activeTaskId: task.id });
+
+    useTaskStore.getState().preserveActiveProgress(at);
+    const after = useTaskStore.getState().tasks.find((t) => t.id === task.id)!;
+
+    expect(after.focusedMs).toBe(before.focusedMs);
+    expect(after.breakMs).toBe(5 * MIN);
   });
 });

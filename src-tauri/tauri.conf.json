@@ -22,12 +22,11 @@
         "fullscreen": false,
         "center": true,
         "theme": "Dark",
-        "backgroundColor": "#12110f",
-        "backgroundThrottling": "disabled"
+        "backgroundColor": "#12110f"
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' customprotocol: https: ws: wss: http://localhost:3000; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' customprotocol: blob: https:; style-src 'self' customprotocol: 'unsafe-inline'; script-src 'self' customprotocol: 'unsafe-inline'; font-src 'self' customprotocol: data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     }
   },
   "bundle": {

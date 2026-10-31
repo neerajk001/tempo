@@ -129,7 +129,7 @@ export default function MiniTimer() {
   const breakReady = !infinite && session.status === "COMPLETED" && session.phase === "FOCUS";
   const accent = isBreak || breakReady ? "#e09145" : "#7fb069";
 
-  const now = useNow(active);
+  const now = useNow(session.status === "RUNNING");
   const elapsed = getElapsedFocusMs(session, now);
   const remaining = getRemainingMs(session, now);
 

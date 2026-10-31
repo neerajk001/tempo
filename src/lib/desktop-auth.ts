@@ -28,7 +28,7 @@ const ISSUER = "tempo-desktop";
 const AUDIENCE = "tempo-desktop";
 
 function secretKey(): Uint8Array {
-  const secret = process.env.DESKTOP_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  const secret = process.env.DESKTOP_AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) throw new Error("Missing DESKTOP_AUTH_SECRET / NEXTAUTH_SECRET");
   return new TextEncoder().encode(secret);
 }

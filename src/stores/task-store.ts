@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { FocusMode, PomodoroPhase, TaskPriority, TaskStatus } from "@/types";
 import { nextSliceMinutes, todayKey, completedBlocksFromFocused } from "@/lib/task-planning";
-import { getElapsedFocusMs } from "@/lib/pomodoro-machine";
+import { getCreditedFocusMs, getElapsedFocusMs } from "@/lib/pomodoro-machine";
 import { addTaskTombstone } from "@/lib/tombstones";
 import { usePomodoroStore, taskBreaks } from "@/stores/pomodoro-store";
 
@@ -184,7 +184,12 @@ function uid(): string {
 // Idempotency guard for preserveActiveProgress: remembers how much of the
 // live session was already folded into the task, so calling twice on the
 // same run applies only the delta instead of double-counting.
-let lastPreserved: { key: string; focusedMs: number; interruptions: number } | null = null;
+let lastPreserved: {
+  key: string;
+  focusedMs: number;
+  breakMs: number;
+  interruptions: number;
+} | null = null;
 
 export function _resetPreserveGuardForTests() {
   lastPreserved = null;
@@ -509,22 +514,34 @@ export const useTaskStore = create<TaskStore>()(
         if (!activeTaskId) return null;
         if (session.status !== "RUNNING" && session.status !== "PAUSED") return null;
         if (session.startedAt === null) return null;
-        const totalFocusedMs = Math.max(0, Math.round(getElapsedFocusMs(session, at)));
-        // Pauses are manual — there is no automatic break countdown, so no
-        // break time accrues here (paused time is tracked on the session).
-        const breakMs = 0;
+        const isFocus = session.phase === "FOCUS";
+        // Only a FOCUS phase accrues focused time. During a break the elapsed
+        // time is rest time and must never inflate the task's focus totals.
+        const totalFocusedMs = isFocus
+          ? Math.max(0, Math.round(getCreditedFocusMs(session, at)))
+          : 0;
+        const totalBreakMs = isFocus
+          ? 0
+          : Math.max(0, Math.round(Math.min(getElapsedFocusMs(session, at), session.plannedMs)));
         const totalInterruptions = Math.max(0, Math.round(session.pauseCount ?? 0));
         const completedFocusCount = Math.max(0, Math.round(session.completedFocusCount ?? 0));
         const lastPhase = session.phase;
         const key = `${activeTaskId}:${session.startedAt}`;
         // Delta vs last preserve on the same live run (idempotent).
         let focusedMs = totalFocusedMs;
+        let breakMs = totalBreakMs;
         let interruptions = totalInterruptions;
         if (lastPreserved && lastPreserved.key === key) {
           focusedMs = Math.max(0, totalFocusedMs - lastPreserved.focusedMs);
+          breakMs = Math.max(0, totalBreakMs - lastPreserved.breakMs);
           interruptions = Math.max(0, totalInterruptions - lastPreserved.interruptions);
         }
-        lastPreserved = { key, focusedMs: totalFocusedMs, interruptions: totalInterruptions };
+        lastPreserved = {
+          key,
+          focusedMs: totalFocusedMs,
+          breakMs: totalBreakMs,
+          interruptions: totalInterruptions,
+        };
         // Nothing meaningful to save (fresh start, no time yet) — still
         // remember cycle/phase so resume stays exact.
         if (focusedMs === 0 && breakMs === 0 && interruptions === 0) {

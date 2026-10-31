@@ -41,11 +41,15 @@ export async function GET(req: Request) {
       { status: 400, headers: NO_STORE }
     );
   }
-  if (challenge && !/^[A-Za-z0-9_-]{43,128}$/.test(challenge)) {
+  // PKCE is mandatory: a login token without a challenge is a bearer token.
+  if (!challenge || !/^[A-Za-z0-9_-]{43,128}$/.test(challenge)) {
     return NextResponse.json(
       { error: "Invalid code_challenge." },
       { status: 400, headers: NO_STORE }
     );
+  }
+  if (!/^[A-Za-z0-9_-]{16,128}$/.test(state)) {
+    return NextResponse.json({ error: "Invalid state." }, { status: 400, headers: NO_STORE });
   }
 
   const user = await getCurrentUser();
@@ -63,7 +67,7 @@ export async function GET(req: Request) {
       sub: user.id,
       kind: "login",
       email: user.email,
-      challenge: challenge || undefined,
+      challenge,
     },
     LOGIN_TOKEN_TTL_SECONDS
   );

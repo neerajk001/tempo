@@ -33,11 +33,40 @@ function relocate(fromRel, toRel) {
   renameSync(from, to);
 }
 
+/**
+ * Move any staged sources back. Returns false when a target already exists
+ * (never delete the only copy). This runs in `finally` and before a new build.
+ */
+function restoreStaged() {
+  let clean = true;
+  for (const [fromRel, toRel] of MOVES) {
+    const staged = join(staging, toRel);
+    const target = join(root, fromRel);
+    if (!existsSync(staged)) continue;
+    if (existsSync(target)) {
+      clean = false;
+      continue;
+    }
+    mkdirSync(dirname(target), { recursive: true });
+    renameSync(staged, target);
+  }
+  return clean;
+}
+
 console.log("[desktop] syncing focus library");
 execSync("node scripts/sync-focus-library.mjs", { stdio: "inherit", cwd: root });
 
-try {
+if (existsSync(staging)) {
+  console.warn("[desktop] leftover .desktop-exclude found; restoring before build");
+  if (!restoreStaged()) {
+    throw new Error(
+      "Cannot safely rebuild: .desktop-exclude contains sources while the target already exists. Restore it manually."
+    );
+  }
   rmSync(staging, { recursive: true, force: true });
+}
+
+try {
   for (const [fromRel, toRel] of MOVES) relocate(fromRel, toRel);
 
   console.log("[desktop] building static export -> out/");
@@ -54,13 +83,10 @@ try {
     },
   });
 } finally {
-  for (const [fromRel, toRel] of MOVES) {
-    const staged = join(staging, toRel);
-    const target = join(root, fromRel);
-    if (existsSync(staged)) {
-      mkdirSync(dirname(target), { recursive: true });
-      renameSync(staged, target);
-    }
+  restoreStaged();
+  // Only remove staging when every source was restored; otherwise keep the
+  // backup so an interrupted build can be recovered manually.
+  if (restoreStaged()) {
+    rmSync(staging, { recursive: true, force: true });
   }
-  rmSync(staging, { recursive: true, force: true });
 }

@@ -9,9 +9,11 @@ import {
 } from "@/lib/pomodoro-config";
 import {
   cancelSession,
+  clampCompletionEnd,
   completeSession,
   createIdleState,
   extendSession,
+  getCreditedFocusMs,
   getElapsedFocusMs,
   getPausedMs,
   pauseSession,
@@ -52,8 +54,8 @@ interface PomodoroActions {
   setActiveTask: (taskId: string | null, taskTitle?: string | null) => void;
   pause: () => void;
   resume: () => void;
-  complete: () => void;
-  cancel: () => void;
+  complete: () => boolean;
+  cancel: () => boolean;
   reset: () => void;
   extend: (minutes: number) => void;
   /** Rename the active Infinite session (also reflected in History/Dashboard). */
@@ -188,8 +190,9 @@ export const usePomodoroStore = create<PomodoroStore>()(
         if (session.status !== "RUNNING" && session.status !== "PAUSED") return;
         const at = Date.now();
         try {
-          const snap = cancelSession(session, at);
+          const snap = clampCompletionEnd(cancelSession(session, at));
           if (snap.startedAt !== null && snap.endedAt !== null) {
+            const isFocus = snap.phase === "FOCUS";
             useSessionHistoryStore.getState().logSession({
               taskId: activeTaskId,
               taskTitle: activeTaskTitle,
@@ -198,13 +201,15 @@ export const usePomodoroStore = create<PomodoroStore>()(
               plannedMs: snap.plannedMs,
               startedAt: snap.startedAt,
               endedAt: snap.endedAt,
-              focusedMs: getElapsedFocusMs(snap, at),
+              focusedMs: isFocus ? getCreditedFocusMs(snap, at) : 0,
               pausedMs: getPausedMs(snap, at),
               interruptions: snap.pauseCount,
               events: snap.events,
               sessionMode: focusMode,
               sessionName,
-              breakMs: 0,
+              breakMs: isFocus
+                ? 0
+                : Math.min(getElapsedFocusMs(snap, at), snap.plannedMs),
             });
           }
           set({ session: snap });
@@ -336,16 +341,35 @@ export const usePomodoroStore = create<PomodoroStore>()(
 
       complete: () => {
         const { session } = get();
-        set({ session: completeSession(session, Date.now()) });
+        // Effects/clicks can race a session that already moved on. Ignore
+        // invalid transitions instead of throwing from an uncaught handler.
+        if (session.status !== "RUNNING" && session.status !== "PAUSED") return false;
+        try {
+          set({ session: clampCompletionEnd(completeSession(session, Date.now())) });
+          return true;
+        } catch {
+          // Already terminal — nothing to complete.
+          return false;
+        }
       },
 
       cancel: () => {
         const { session } = get();
-        set({ session: cancelSession(session, Date.now()) });
+        if (session.status !== "RUNNING" && session.status !== "PAUSED") return false;
+        try {
+          set({ session: clampCompletionEnd(cancelSession(session, Date.now())) });
+          return true;
+        } catch {
+          // Already terminal — nothing to cancel.
+          return false;
+        }
       },
 
       reset: () => {
         const { config, session } = get();
+        // A live run must be finalized (complete/cancel) before resetting.
+        // Refusing here prevents a stray reset from silently discarding work.
+        if (session.status === "RUNNING" || session.status === "PAUSED") return;
         set({
           // Back to standby: no live quick session anymore.
           quickLabel: null,
@@ -380,8 +404,9 @@ export const usePomodoroStore = create<PomodoroStore>()(
         ) {
           const at = Date.now();
           try {
-            const snap = cancelSession(session, at);
+            const snap = clampCompletionEnd(cancelSession(session, at));
             if (snap.startedAt !== null && snap.endedAt !== null) {
+              const isFocus = snap.phase === "FOCUS";
               useSessionHistoryStore.getState().logSession({
                 taskId,
                 taskTitle: activeTaskTitle,
@@ -390,13 +415,15 @@ export const usePomodoroStore = create<PomodoroStore>()(
                 plannedMs: snap.plannedMs,
                 startedAt: snap.startedAt,
                 endedAt: snap.endedAt,
-                focusedMs: getElapsedFocusMs(snap, at),
+                focusedMs: isFocus ? getCreditedFocusMs(snap, at) : 0,
                 pausedMs: getPausedMs(snap, at),
                 interruptions: snap.pauseCount,
                 events: snap.events,
                 sessionMode: focusMode,
                 sessionName,
-                breakMs: 0,
+                breakMs: isFocus
+                  ? 0
+                  : Math.min(getElapsedFocusMs(snap, at), snap.plannedMs),
               });
             }
             set({ session: snap, activeTaskId: null, activeTaskTitle: null, focusMode: "allocated", sessionName: null });

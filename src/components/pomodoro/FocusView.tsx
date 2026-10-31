@@ -10,7 +10,6 @@ import {
   getElapsedFocusMs,
   getPausedMs,
   getRemainingMs,
-  isExpired,
 } from "@/lib/pomodoro-machine";
 import { calculatePomodoroPlan, nextSliceMinutes, todayKey } from "@/lib/task-planning";
 import { isAmbientPlaying, toggleAmbient } from "@/lib/ambient";
@@ -115,7 +114,7 @@ export default function FocusView() {
 
   const ticking = session.status === "RUNNING" || session.status === "PAUSED";
   const paused = session.status === "PAUSED";
-  const now = useNow(ticking);
+  const now = useNow(session.status === "RUNNING");
 
   // Immersive calm state: video fills the screen and only the timer stays.
   // Engages while a session ticks — never on standby, so Start is reachable.
@@ -147,10 +146,8 @@ export default function FocusView() {
     };
   }, [immersive]);
 
-  useEffect(() => {
-    if (session.status === "RUNNING" && isExpired(session, Date.now())) handleComplete();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, now]);
+  // Expiry is finalized once by the global TimerSupervisor so it also works on
+  // routes without a timer view.
 
   // A finished focus block lands on the break screen (Infinite has no break).
   useEffect(() => {
@@ -282,6 +279,12 @@ export default function FocusView() {
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName;
       const inField = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable;
+      // Cmd/Ctrl+E ends the current block, matching the control's label.
+      if ((e.ctrlKey || e.metaKey) && !inField && (e.code === "KeyE" || e.key.toLowerCase() === "e")) {
+        e.preventDefault();
+        if (ticking) handleComplete();
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) return; // never steal browser/system shortcuts
       if (tag === "BUTTON" && e.code === "Space") return; // let focused buttons activate normally
       if (e.code === "Space" && !inField) {

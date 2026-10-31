@@ -47,7 +47,9 @@ function mondayOf(d: Date): Date {
 function dayHeading(key: string): string {
   const d = new Date(`${key}T00:00:00`);
   const todayK = keyOf(new Date());
-  const yK = keyOf(new Date(Date.now() - 86400000));
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  const yK = keyOf(y);
   const prefix = key === todayK ? "Today" : key === yK ? "Yesterday" : d.toLocaleDateString("en-US", { weekday: "long" });
   return `${prefix} · ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 }
@@ -154,6 +156,9 @@ export default function HistoryClient() {
         let totalMs = 0;
         const focusedByTask = new Map<string, number>();
         for (const s of daySessions) {
+          // Breaks are rest, not focus. Counting them here made History
+          // disagree with the Dashboard and inflated task rows.
+          if (s.phase !== "FOCUS") continue;
           const f = Math.max(0, s.focusedMs);
           totalMs += f;
           // Only real focus time puts a task on that day — a break linked to a
@@ -192,9 +197,9 @@ export default function HistoryClient() {
           seen.add(t.id);
         }
 
-        // Quick sessions not tied to a task.
+        // Quick focus sessions not tied to a task (breaks are not focus).
         for (const s of daySessions) {
-          if (s.taskId) continue;
+          if (s.taskId || s.phase !== "FOCUS") continue;
           const title = s.sessionName?.trim() || s.taskTitle || "Focus session";
           const existing = rows.find((r) => r.title === title && r.href === null);
           if (existing) {

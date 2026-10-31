@@ -131,4 +131,17 @@ describe("sync normalization", () => {
       phase: "FOCUS",
     });
   });
+
+  it("retains START and the terminal event when capping a long timeline", () => {
+    const events = [
+      { type: "START", at: 0 },
+      ...Array.from({ length: 110 }, (_, i) => ({ type: "PAUSE", at: i + 1 })),
+      { type: "COMPLETE", at: 999 },
+    ];
+    const s = normalizeRemoteSession({ id: "long", events });
+    expect(s).not.toBeNull();
+    expect(s!.events).toHaveLength(100);
+    expect(s!.events[0].type).toBe("START");
+    expect(s!.events[s!.events.length - 1].type).toBe("COMPLETE");
+  });
 });
